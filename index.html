@@ -113,6 +113,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <button class="btn" id="bakBtn" type="button">Sauvegardes</button>
     <button class="btn danger" id="clrBtn" type="button">Tout effacer</button>
   </section>
+  <p class="hint" id="ver" style="text-align:center"></p>
 </main>
 
 <dialog id="dlg">
@@ -138,6 +139,22 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <label>Code d'inventaire<input id="sr" autocomplete="off"></label>
   <div class="row"><button class="btn" id="sg" type="button">Générer un code</button><button class="btn pri" id="ss" type="button">Connecter</button></div>
   <div class="row"><button class="btn danger" id="sd" type="button">Déconnecter</button><button class="btn" id="sx" type="button">Fermer</button></div>
+  <p class="hint" id="who" style="margin-top:12px"></p>
+  <div class="row"><button class="btn" id="lo" type="button">Compte</button></div>
+</dialog>
+
+<dialog id="ldlg">
+  <form id="lf">
+    <h2>Connexion</h2>
+    <p class="hint">Compte fourni par l'administrateur.</p>
+    <label>E-mail<input id="le" type="email" autocomplete="username" required></label>
+    <label>Mot de passe<input id="lp" type="password" autocomplete="current-password" required></label>
+    <div class="row">
+      <button type="button" class="btn" id="lr">Mot de passe oublié</button>
+      <button type="button" class="btn" id="lx">Fermer</button>
+      <button type="submit" class="btn pri">Se connecter</button>
+    </div>
+  </form>
 </dialog>
 
 <dialog id="bdlg">
@@ -152,11 +169,14 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.2';
+  var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
   function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){toast('Stockage local plein ou indisponible')}}
-  var items=ld(KEY,[]),snaps=ld(KS,[]),cfg=ld(KC,null),dirty=ld(KD,[]);
+  var items=ld(KEY,[]),snaps=ld(KS,[]),cfg=ld(KC,null),dirty=ld(KD,[]),auth=ld(KA,null);
+  if(!auth||!auth.refresh||!auth.email)auth=null;
+  var op=auth?auth.email:'';
   var editing=null,scanner=null,lastCode='',lastTime=0,tt,st,syncing=false,lastOk=0,failed=false;
   if(!Array.isArray(items))items=[];if(!Array.isArray(snaps))snaps=[];if(!Array.isArray(dirty))dirty=[];
   items.forEach(function(i){if(!i.t)i.t=Date.now()});
@@ -173,7 +193,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function live(){return items.filter(function(i){return !i.del})}
   function idx(c){for(var i=0;i<items.length;i++)if(items[i].code===c)return i;return -1}
   function find(c){var k=idx(c);return k>-1&&!items[k].del?items[k]:null}
-  function put(it){it.t=Date.now();var k=idx(it.code);if(k>-1)items[k]=it;else items.push(it);if(dirty.indexOf(it.code)<0)dirty.push(it.code)}
+  function put(it){it.t=Date.now();it.by=op;var k=idx(it.code);if(k>-1)items[k]=it;else items.push(it);if(dirty.indexOf(it.code)<0)dirty.push(it.code)}
   function tomb(c){put({code:c,del:true})}
   function commit(){sv(KEY,items);sv(KD,dirty);render();status();later()}
 
@@ -202,17 +222,45 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   }
 
   /* Synchronisation (Firebase Realtime Database, API REST, la modification la plus récente gagne par pièce) */
-  function base(q){return cfg.url.replace(/\/+$/,'')+'/inventaires/'+encodeURIComponent(cfg.room)+'/items.json'+(q||'')}
+  function base(q,tok){var u=cfg.url.replace(/\/+$/,'')+'/inventaires/'+encodeURIComponent(cfg.room)+'/items.json'+(q||'');return u+(q?'&':'?')+'auth='+encodeURIComponent(tok)}
   function key(c){return encodeURIComponent(c).replace(/\./g,'%2E')}
+
+  /* Connexion e-mail + mot de passe (API REST Firebase Authentication, sans SDK) */
+  function idt(path,body){
+    return fetch('https://identitytoolkit.googleapis.com/v1/'+path+'?key='+API_KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j.error&&j.error.message)||r.status);return j})});
+  }
+  function saveAuth(j){
+    var email=j.email||(auth&&auth.email);
+    auth={email:email,refresh:j.refreshToken||j.refresh_token,token:j.idToken||j.id_token,exp:Date.now()+(parseInt(j.expiresIn||j.expires_in,10)||3600)*1000};
+    sv(KA,auth);op=email;
+  }
+  function logout(){auth=null;try{localStorage.removeItem(KA)}catch(e){}op=''}
+  function token(){
+    if(!auth)return Promise.reject(new Error('noauth'));
+    if(auth.exp-Date.now()>60000)return Promise.resolve(auth.token);
+    return fetch('https://securetoken.googleapis.com/v1/token?key='+API_KEY,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(auth.refresh)})
+      .then(function(r){return r.json().then(function(j){
+        if(!r.ok){
+          var m=(j.error&&j.error.message)||'';
+          if(/TOKEN_EXPIRED|USER_DISABLED|USER_NOT_FOUND|INVALID_REFRESH_TOKEN|CREDENTIAL_TOO_OLD/.test(m)){logout();toast('Session expirée : reconnecte-toi')}
+          throw new Error(auth?m||r.status:'noauth');
+        }
+        saveAuth(j);return auth.token;
+      })});
+  }
   function req(m,b,q){
-    var ac=new AbortController(),to=setTimeout(function(){ac.abort()},15000);
-    return fetch(base(q),{method:m,body:b?JSON.stringify(b):undefined,signal:ac.signal}).then(function(r){
-      clearTimeout(to);if(!r.ok)throw new Error(r.status);return r.json();
+    return token().then(function(tok){
+      var ac=new AbortController(),to=setTimeout(function(){ac.abort()},15000);
+      return fetch(base(q,tok),{method:m,body:b?JSON.stringify(b):undefined,signal:ac.signal}).then(function(r){
+        clearTimeout(to);if(!r.ok)throw new Error(r.status);return r.json();
+      });
     });
   }
   /* Téléchargement complet à la connexion puis une fois par jour ; sinon seulement les changements récents (champ s = heure d'envoi) */
   function sync(){
     if(!cfg||syncing||!navigator.onLine)return;
+    if(!auth){status();return}
     syncing=true;status();var t0=Date.now();
     var full=!cfg.full||t0-cfg.full>864e5;
     var q=full?'':'?orderBy=%22s%22&startAt='+Math.max(0,(cfg.since||0)-3e5);
@@ -233,14 +281,19 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         cfg.since=t0;if(full)cfg.full=t0;sv(KC,cfg);
         lastOk=Date.now();failed=false;sv(KEY,items);sv(KD,dirty);if(changed)render();
       });
-    }).catch(function(e){failed=true;if(e&&e.message==='400')toast('Règles Firebase à mettre à jour (index sur s)')})
-      .then(function(){syncing=false;status()});
+    }).catch(function(e){
+      var m=e&&e.message;failed=true;
+      if(m==='400')toast('Règles Firebase à mettre à jour (index sur s)');
+      else if(m==='401'||m==='403')toast('Accès refusé : compte non autorisé');
+      else if(m==='noauth')failed=false;
+    }).then(function(){syncing=false;status()});
   }
   function later(){clearTimeout(st);st=setTimeout(sync,1200)}
   function status(){
     var b=$('sync'),n=dirty.length,off=!navigator.onLine;
     b.className=(off||failed)?'off':'';
     if(!cfg)b.textContent=off?'Hors ligne':'Synchro : non';
+    else if(!auth){b.className='off';b.textContent='Connexion requise'}
     else if(off||failed)b.textContent='Hors ligne'+(n?', '+n+' en attente':'');
     else if(syncing)b.textContent='Synchronisation…';
     else if(!lastOk)b.textContent='En attente de synchro';
@@ -255,6 +308,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('list').innerHTML=list.length?list.slice(0,200).map(function(i){
       return '<li data-c="'+esc(i.code)+'"><div class="info"><b>'+esc(i.name)+'</b><small>'+esc(i.code)+'</small>'+
         (i.loc?'<small>Emplacement : '+esc(i.loc)+'</small>':'')+
+        (i.by?'<small>Modifié par '+esc(String(i.by).split('@')[0])+', '+new Date(i.t).toLocaleString('fr-BE',{dateStyle:'short',timeStyle:'short'})+'</small>':'')+
         '</div><div class="qty"><button type="button" data-d="-1" aria-label="Retirer">−</button><span>'+fmt(i.qty)+
         '</span><button type="button" data-d="1" aria-label="Ajouter">+</button></div></li>';
     }).join('')+(list.length>200?'<li class="empty">'+(list.length-200)+' autres pièces : affine la recherche.</li>':''):'<li class="empty">'+(all.length?'Aucune pièce ne correspond.':'Aucune pièce. Appuie sur Scanner pour commencer.')+'</li>';
@@ -377,7 +431,31 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     commit();$('dlg').close();toast('Enregistré');
   };
 
-  $('sync').onclick=function(){$('su').value=cfg?cfg.url:'';$('sr').value=cfg?cfg.room:'';$('sdlg').showModal()};
+  function openLogin(){$('le').value=auth?auth.email:($('le').value||'');$('lp').value='';if(!$('ldlg').open)$('ldlg').showModal()}
+  function who(){$('who').textContent=auth?'Connecté : '+auth.email:'Non connecté';$('lo').textContent=auth?'Se déconnecter du compte':'Se connecter'}
+  $('sync').onclick=function(){
+    if(cfg&&!auth){openLogin();return}
+    $('su').value=cfg?cfg.url:'';$('sr').value=cfg?cfg.room:'';who();$('sdlg').showModal();
+  };
+  $('lo').onclick=function(){
+    if(auth){logout();$('sdlg').close();status();toast('Déconnecté du compte')}
+    else{$('sdlg').close();openLogin()}
+  };
+  $('lx').onclick=function(){$('ldlg').close()};
+  $('lf').onsubmit=function(e){
+    e.preventDefault();
+    var em=$('le').value.trim(),pw=$('lp').value;if(!em||!pw)return;
+    idt('accounts:signInWithPassword',{email:em,password:pw,returnSecureToken:true}).then(function(j){
+      saveAuth(j);$('lp').value='';$('ldlg').close();failed=false;lastOk=0;status();sync();toast('Connecté : '+auth.email);
+    }).catch(function(err){
+      var m=(err&&err.message)||'';
+      toast(/INVALID|EMAIL_NOT_FOUND|PASSWORD/.test(m)?'E-mail ou mot de passe incorrect':/TOO_MANY/.test(m)?'Trop d\'essais, réessaie plus tard':'Connexion impossible (réseau ?)');
+    });
+  };
+  $('lr').onclick=function(){
+    var em=$('le').value.trim();if(!em){toast("Saisis d'abord ton e-mail");return}
+    idt('accounts:sendOobCode',{requestType:'PASSWORD_RESET',email:em}).then(function(){toast('E-mail de réinitialisation envoyé')}).catch(function(){toast('Envoi impossible')});
+  };
   $('sg').onclick=function(){
     var a=new Uint8Array(9);crypto.getRandomValues(a);
     $('sr').value=Array.prototype.map.call(a,function(x){return x.toString(36).padStart(2,'0')}).join('').slice(0,14);
@@ -386,7 +464,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var u=$('su').value.trim(),r=$('sr').value.trim();
     if(!/^https:\/\/.+/.test(u)||r.length<6){toast('Adresse en https et code de 6 caractères minimum');return}
     snap('avant synchro');cfg={url:u,room:r};sv(KC,cfg);dirty=items.map(function(i){return i.code});sv(KD,dirty);failed=false;lastOk=0;
-    $('sdlg').close();status();sync();
+    $('sdlg').close();status();
+    if(auth)sync();else openLogin();
   };
   $('sd').onclick=function(){cfg=null;try{localStorage.removeItem(KC)}catch(e){}$('sdlg').close();status();toast('Synchronisation désactivée')};
   $('sx').onclick=function(){$('sdlg').close()};
@@ -419,6 +498,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   setInterval(function(){if(!document.hidden)sync()},15000);
 
   if(!snaps.length||Date.now()-snaps[0].t>864e5)snap('auto');
+  $('ver').textContent='Version '+VERSION;
   sv(KEY,items);render();status();sync();
   if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
 })();

@@ -75,7 +75,8 @@ dialog::backdrop{background:rgba(10,16,34,.6)}
 dialog h2{margin:0 0 12px;font:700 24px "Barlow Condensed",Barlow,system-ui,sans-serif}
 #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
   background:var(--head);color:var(--headtxt);padding:10px 16px;border-radius:999px;font-weight:600;
-  max-width:90vw;opacity:0;pointer-events:none;transition:opacity .2s;z-index:10}
+  max-width:90vw;opacity:0;pointer-events:none;transition:opacity .2s;z-index:10;
+  top:auto;right:auto;margin:0;border:0;overflow:visible;width:max-content;height:auto}
 #toast.on{opacity:1}
 @media (prefers-reduced-motion:reduce){#toast{transition:none}}
 header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
@@ -206,6 +207,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <dialog id="udlg">
   <h2>Utilisateurs et rôles</h2>
   <p class="hint">Les rôles se cumulent. Admin peut tout faire. Un compte créé mais non listé n'accède à rien.</p>
+  <p class="hint" id="ustat" style="margin:0 0 8px;font-weight:600"></p>
   <div id="ulist"></div>
   <h2 style="margin-top:16px;font-size:20px">Ajouter une personne</h2>
   <label>E-mail<input id="ue" type="email" autocomplete="off"></label>
@@ -227,12 +229,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <div class="row"><label class="btn" style="margin:0">Restaurer un JSON<input id="bi" type="file" accept=".json,application/json" style="display:none"></label><button class="btn" id="bx" type="button">Fermer</button></div>
 </dialog>
 
-<div id="toast" role="status" aria-live="polite"></div>
+<div id="toast" popover="manual" role="status" aria-live="polite"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.14.0';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.14.1';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -252,7 +254,14 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     dirty=items.map(function(i){return i.code});sv(KD,dirty);
   }
 
-  function toast(m){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2200)}
+  /* Le message est un "popover" : il passe au-dessus des fenêtres modales (sinon il restait caché derrière) */
+  var tt2;
+  function toast(m){
+    var t=$('toast');t.textContent=m;
+    try{if(!t.matches(':popover-open'))t.showPopover()}catch(e){}
+    t.classList.add('on');clearTimeout(tt);clearTimeout(tt2);
+    tt=setTimeout(function(){t.classList.remove('on');tt2=setTimeout(function(){try{t.hidePopover()}catch(e){}},250)},2400);
+  }
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   function num(v){var n=parseFloat(String(v).replace(',','.'));return isNaN(n)?0:Math.round(n*1000)/1000}
   function fmt(n){return n.toLocaleString('fr-BE',{maximumFractionDigits:3})}
@@ -775,6 +784,10 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       return '<label style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 6px 0;font-weight:400"><input type="checkbox" value="'+r+'"'+(sel.indexOf(r)>-1?' checked':'')+(dis?' disabled':'')+' style="width:auto;min-height:0;margin:0"> '+(RLAB[r]||r)+'</label>';
     }).join('');
   }
+  function ustat(msg,k,bad){
+    $('ustat').textContent=(bad?'✗ ':'✓ ')+msg+(k?' — '+k.replace(/,/g,'.'):'')+' ('+new Date().toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+')';
+    toast(msg);
+  }
   function checkedRoles(box){var o=[];box.querySelectorAll('input:checked').forEach(function(i){o.push(i.value)});return o}
   function usersList(){
     if(!dbUrl())return;
@@ -808,11 +821,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       fb('GET','/allowed/'+encodeURIComponent(k)).then(function(v){
         var name=(v&&typeof v==='object')?(v.name||''):String(v||'');
         return fb('PUT','/allowed/'+encodeURIComponent(k),{name:name,roles:checkedRoles(row).join(',')});
-      }).then(function(){toast('Rôles enregistrés')}).catch(function(){toast('Enregistrement impossible')});
+      }).then(function(){ustat('Rôles enregistrés',k)}).catch(function(){ustat('Enregistrement impossible (droits ?)',k,true)});
     }else if(r){
       var kk=r.getAttribute('data-rm');
       ask('Retirer '+kk.replace(/,/g,'.')+" ? Cette personne n'aura plus accès à l'inventaire.",'Retirer',function(){
-        fb('DELETE','/allowed/'+encodeURIComponent(kk)).then(function(){toast('Personne retirée');usersList()}).catch(function(){toast('Suppression impossible')});
+        fb('DELETE','/allowed/'+encodeURIComponent(kk)).then(function(){ustat('Personne retirée',kk);usersList()}).catch(function(){ustat('Suppression impossible (droits ?)',kk,true)});
       });
     }
   };
@@ -820,8 +833,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var em=$('ue').value.trim(),pn=$('un').value.trim();
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail invalide');return}
     fb('PUT','/allowed/'+encodeURIComponent(ukey(em)),{name:pn||em.split('@')[0],roles:checkedRoles($('ur')).join(',')}).then(function(){
-      toast('Personne ajoutée');$('ue').value='';$('un').value='';usersList();
-    }).catch(function(){toast('Ajout impossible')});
+      ustat('Personne ajoutée',ukey(em));$('ue').value='';$('un').value='';usersList();
+    }).catch(function(){ustat('Ajout impossible (droits ?)',ukey(em),true)});
   };
 
   window.addEventListener('online',function(){status();sync()});

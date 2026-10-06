@@ -200,7 +200,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.9.2';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.9.3';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -399,12 +399,13 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     return (10-sum%10)%10===Number(s[n-1]);
   }
   var precis=ld('inventaire_precis_v1',false)===true;
-  var paused=false,keep=false;
+  var paused=false,keep=false,lastSeen=0;
   function pauseScan(){try{if(scanner&&!paused){scanner.pause(true);paused=true}}catch(e){}}
-  function resumeScan(){try{if(scanner&&paused){scanner.resume();paused=false}}catch(e){paused=false}}
+  function resumeScan(){lastSeen=Date.now();try{if(scanner&&paused){scanner.resume();paused=false}}catch(e){paused=false}}
   function onScan(text,res){
     var now=Date.now();
-    if(text===lastCode&&now-lastTime<2000)return;
+    if(document.querySelector('dialog[open]'))return;
+    if(text===lastCode){var cont=now-lastSeen<1500;lastSeen=now;if(cont||now-lastTime<2000)return}
     var fmt=res&&res.result&&res.result.format&&res.result.format.formatName;
     var ean=(fmt==='EAN_13'||fmt==='EAN_8'||fmt==='UPC_A');
     if(ean&&(!/^\d+$/.test(text)||!eanOk(text))){$('rd').textContent='Rejeté (clé invalide) : '+text;return}

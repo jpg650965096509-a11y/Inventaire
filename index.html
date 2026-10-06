@@ -115,7 +115,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <label class="btn" id="impL" style="margin:0">Import CSV<input id="imp" type="file" accept=".csv,text/csv,text/plain"></label>
     <button class="btn" id="bakBtn" type="button">Sauvegardes</button>
     <button class="btn" id="trBtn" type="button">Corbeille</button>
-    <button class="btn" id="usBtn" type="button">Utilisateurs</button>
+    <button class="btn" id="admBtn" type="button">Administration</button>
     <button class="btn danger" id="clrBtn" type="button">Tout effacer</button>
   </section>
   <p class="hint" id="ver" style="text-align:center"></p>
@@ -194,8 +194,17 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <div class="row"><button type="button" class="btn" id="cfn">Annuler</button><button type="button" class="btn danger" id="cfo">Confirmer</button></div>
 </dialog>
 
+<dialog id="admdlg">
+  <h2>Centre d'administration</h2>
+  <p class="hint">Réservé aux administrateurs et aux responsables de la sécurité.</p>
+  <button type="button" class="btn big" id="admUsers">Utilisateurs et rôles</button>
+  <h2 style="margin-top:18px;font-size:20px">État du système</h2>
+  <div id="sysinfo" class="hint" style="white-space:pre-line;margin-bottom:10px"></div>
+  <div class="row"><button type="button" class="btn" id="admx">Fermer</button></div>
+</dialog>
+
 <dialog id="udlg">
-  <h2>Utilisateurs</h2>
+  <h2>Utilisateurs et rôles</h2>
   <p class="hint">Les rôles se cumulent. Admin peut tout faire. Un compte créé mais non listé n'accède à rien.</p>
   <div id="ulist"></div>
   <h2 style="margin-top:16px;font-size:20px">Ajouter une personne</h2>
@@ -223,7 +232,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.13.0';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.14.0';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -441,7 +450,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   }
   /* Rôles (cumulables) lus dans /allowed/<email> ; admin peut tout. stock = ajuster, fiche = créer/modifier/supprimer, danger = vider/restaurer */
   var KR='inventaire_roles_v1',roleT=0,myRoles=null;
-  var PERMS={stock:['admin','gestionnaire','operateur'],fiche:['admin','gestionnaire'],danger:['admin'],users:['admin']};
+  var PERMS={stock:['admin','gestionnaire','operateur'],fiche:['admin','gestionnaire'],danger:['admin'],users:['admin','securityofficer'],admin:['admin','securityofficer']};
   (function(){var r=ld(KR,null);if(auth&&r&&r.email===auth.email&&Array.isArray(r.roles))myRoles=r.roles})();
   function can(p){
     if(!auth)return true;
@@ -460,7 +469,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('impL').style.display=f?'':'none';
     $('trBtn').style.display=f?'':'none';
     $('clrBtn').style.display=can('danger')?'':'none';
-    $('usBtn').style.display=(auth&&can('users'))?'':'none';
+    $('admBtn').style.display=(auth&&can('admin'))?'':'none';
     $('hv').textContent='v'+VERSION+(auth&&myRoles&&myRoles.length?' · '+myRoles.join('+'):'');
     render();
   }
@@ -747,7 +756,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('cfo').onclick=function(){var f=cfCb;cfCb=null;$('cfdlg').close();if(f)f()};
 
   /* Écran Utilisateurs (admin) : gestion de /allowed (nom + rôles) */
-  var ROLES=['admin','gestionnaire','operateur','lecteur'];
+  var ROLES=['admin','securityofficer','gestionnaire','operateur','lecteur'];
+  var RLAB={securityofficer:'SecurityOfficer'};
+  function iAmAdmin(){return !!(myRoles&&myRoles.indexOf('admin')>-1)}
   function dbUrl(){return ((HARD?CONFIG.url:(cfg&&cfg.url))||'').replace(/\/+$/,'')}
   function fb(m,path,b){
     return token().then(function(tok){
@@ -757,9 +768,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     });
   }
   function ukey(e){return e.trim().toLowerCase().replace(/\./g,',')}
-  function roleBoxes(sel,lock){
+  /* lock = on ne peut pas se retirer admin ; all = ligne entière verrouillée ; seul un admin peut accorder ou retirer admin */
+  function roleBoxes(sel,lock,all){
     return ROLES.map(function(r){
-      return '<label style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 6px 0;font-weight:400"><input type="checkbox" value="'+r+'"'+(sel.indexOf(r)>-1?' checked':'')+(lock&&r==='admin'?' disabled':'')+' style="width:auto;min-height:0;margin:0"> '+r+'</label>';
+      var dis=all||(lock&&r==='admin')||(r==='admin'&&!iAmAdmin());
+      return '<label style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 6px 0;font-weight:400"><input type="checkbox" value="'+r+'"'+(sel.indexOf(r)>-1?' checked':'')+(dis?' disabled':'')+' style="width:auto;min-height:0;margin:0"> '+(RLAB[r]||r)+'</label>';
     }).join('');
   }
   function checkedRoles(box){var o=[];box.querySelectorAll('input:checked').forEach(function(i){o.push(i.value)});return o}
@@ -771,14 +784,22 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       $('ulist').innerHTML=keys.length?keys.map(function(k){
         var v=a[k],name=(v&&typeof v==='object')?(v.name||''):String(v||''),
             roles=(v&&typeof v==='object'&&v.roles)?String(v.roles).split(',').map(function(s){return s.trim().toLowerCase()}):[];
-        var self=(k===me);
-        return '<div class="snap" data-k="'+esc(k)+'" style="flex-wrap:wrap"><div style="flex:1 1 100%"><b>'+esc(name||k.replace(/,/g,'.'))+'</b><small>'+esc(k.replace(/,/g,'.'))+(self?' (toi)':'')+'</small></div>'+
-          '<div style="flex:1 1 100%">'+roleBoxes(roles,self)+'</div>'+
-          '<div class="row" style="flex:1 1 100%"><button class="btn" data-sv="'+esc(k)+'" type="button">Enregistrer</button>'+(self?'':'<button class="btn danger" data-rm="'+esc(k)+'" type="button">Retirer</button>')+'</div></div>';
+        var self=(k===me),locked=(!iAmAdmin()&&roles.indexOf('admin')>-1);
+        return '<div class="snap" data-k="'+esc(k)+'" style="flex-wrap:wrap"><div style="flex:1 1 100%"><b>'+esc(name||k.replace(/,/g,'.'))+'</b><small>'+esc(k.replace(/,/g,'.'))+(self?' (toi)':'')+(locked?' · réservé aux admins':'')+'</small></div>'+
+          '<div style="flex:1 1 100%">'+roleBoxes(roles,self,locked)+'</div>'+
+          (locked?'':'<div class="row" style="flex:1 1 100%"><button class="btn" data-sv="'+esc(k)+'" type="button">Enregistrer</button>'+(self?'':'<button class="btn danger" data-rm="'+esc(k)+'" type="button">Retirer</button>')+'</div>')+'</div>';
       }).join(''):'<p class="hint">Aucune personne.</p>';
     }).catch(function(){$('ulist').innerHTML='<p class="hint">Chargement impossible (droits admin requis).</p>'});
   }
-  $('usBtn').onclick=function(){$('ur').innerHTML=roleBoxes(['lecteur'],false);usersList();$('udlg').showModal()};
+  $('admBtn').onclick=function(){
+    var l=live(),b=dbUrl().replace('https://','').split('.')[0];
+    $('sysinfo').textContent='Version : '+VERSION+'\nBase : '+(b||'—')+'\nInventaire : '+((HARD?CONFIG.room:(cfg&&cfg.room))||'—')+
+      '\nCompte : '+(auth?auth.email:'—')+'\nRôles : '+((myRoles&&myRoles.length)?myRoles.map(function(r){return RLAB[r]||r}).join(', '):'—')+
+      '\nPièces : '+l.length+'\nDernière synchro : '+(lastOk?dstr(lastOk):'—');
+    $('admdlg').showModal();
+  };
+  $('admx').onclick=function(){$('admdlg').close()};
+  $('admUsers').onclick=function(){$('ur').innerHTML=roleBoxes(['lecteur'],false);usersList();$('udlg').showModal()};
   $('ux').onclick=function(){$('udlg').close()};
   $('ulist').onclick=function(e){
     var s=e.target.closest('button[data-sv]'),r=e.target.closest('button[data-rm]');

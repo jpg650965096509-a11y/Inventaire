@@ -203,7 +203,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.9.8';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.9.9';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -216,9 +216,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   items.forEach(function(i){if(!i.t)i.t=Date.now()});
 
   /* Connexion fixe : renseigner room (code d'inventaire) APRES publication des règles Firebase. Vide = saisie manuelle. */
-  var CONFIG={url:'https://inventaire-pieces-c5bf0-default-rtdb.europe-west1.firebasedatabase.app',room:''};
+  var CONFIG={url:'https://inventaire-pieces-c5bf0-default-rtdb.europe-west1.firebasedatabase.app',room:'6a5t0t363s5v3x'};
   var HARD=!!(CONFIG.url&&CONFIG.room);
-  if(HARD&&(!cfg||cfg.url!==CONFIG.url||cfg.room!==CONFIG.room)){
+  if(HARD&&(!cfg||String(cfg.url).replace(/\/+$/,'')!==CONFIG.url||cfg.room!==CONFIG.room)){
     cfg={url:CONFIG.url,room:CONFIG.room};sv(KC,cfg);
     dirty=items.map(function(i){return i.code});sv(KD,dirty);
   }
@@ -655,6 +655,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!snaps.length||Date.now()-snaps[0].t>864e5)snap('auto');
   $('ver').textContent='Version '+VERSION;$('hv').textContent='v'+VERSION;
   sv(KEY,items);render();status();sync();
+  if(HARD&&!auth)setTimeout(openLogin,400);
   if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
 })();
 </script>

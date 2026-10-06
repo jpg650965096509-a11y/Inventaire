@@ -159,10 +159,13 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
 <dialog id="sdlg">
   <h2>Synchronisation</h2>
+  <p class="hint" id="sinfo" style="display:none"></p>
+  <div id="sfields">
   <p class="hint">Utilise la même adresse et le même code sur chaque téléphone.</p>
   <label>Adresse Firebase<input id="su" placeholder="https://xxx-default-rtdb.europe-west1.firebasedatabase.app" autocomplete="off"></label>
   <label>Code d'inventaire<input id="sr" autocomplete="off"></label>
   <div class="row"><button class="btn" id="sg" type="button">Générer un code</button><button class="btn pri" id="ss" type="button">Connecter</button></div>
+  </div>
   <div class="row"><button class="btn danger" id="sd" type="button">Déconnecter</button><button class="btn" id="sx" type="button">Fermer</button></div>
   <p class="hint" id="who" style="margin-top:12px"></p>
   <div class="row"><button class="btn" id="lo" type="button">Compte</button></div>
@@ -200,7 +203,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.9.3';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.9.8';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -211,6 +214,14 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   var editing=null,scanner=null,lastCode='',lastTime=0,tt,st,syncing=false,lastOk=0,failed=false;
   if(!Array.isArray(items))items=[];if(!Array.isArray(snaps))snaps=[];if(!Array.isArray(dirty))dirty=[];
   items.forEach(function(i){if(!i.t)i.t=Date.now()});
+
+  /* Connexion fixe : renseigner room (code d'inventaire) APRES publication des règles Firebase. Vide = saisie manuelle. */
+  var CONFIG={url:'https://inventaire-pieces-c5bf0-default-rtdb.europe-west1.firebasedatabase.app',room:''};
+  var HARD=!!(CONFIG.url&&CONFIG.room);
+  if(HARD&&(!cfg||cfg.url!==CONFIG.url||cfg.room!==CONFIG.room)){
+    cfg={url:CONFIG.url,room:CONFIG.room};sv(KC,cfg);
+    dirty=items.map(function(i){return i.code});sv(KD,dirty);
+  }
 
   function toast(m){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2200)}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -239,7 +250,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function tomb(c){
     var k=idx(c);if(k<0||items[k].del)return;
     var o={};for(var f in items[k])o[f]=items[k][f];
-    o.del=true;o.t=Date.now();o.by=op;items[k]=o;
+    o.del=true;o.t=Date.now();o.by=op;o.d=o.t;o.db=op;items[k]=o;
     if(dirty.indexOf(c)<0)dirty.push(c);
   }
   function commit(){sv(KEY,items);sv(KD,dirty);render();status();later()}
@@ -355,7 +366,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('list').innerHTML=list.length?list.slice(0,200).map(function(i){
       return '<li data-c="'+esc(i.code)+'"><div class="info"><b>'+esc(i.name)+'</b><small>'+esc(i.code)+'</small>'+
         (i.loc?'<small>Emplacement : '+esc(i.loc)+'</small>':'')+
-        '<small>Modifié '+(i.by?'par '+esc(nm(i.by))+', ':'le ')+dstr(i.t)+'</small>'+
+        '<small>Modifié le '+dstr(i.t)+'</small>'+
         '</div><div class="qty"><button type="button" data-d="-1" aria-label="Retirer">−</button><span>'+fmt(i.qty)+
         '</span><button type="button" data-d="1" aria-label="Ajouter">+</button></div></li>';
     }).join('')+(list.length>200?'<li class="empty">'+(list.length-200)+' autres pièces : affine la recherche.</li>':''):'<li class="empty">'+(all.length?'Aucune pièce ne correspond.':'Aucune pièce. Appuie sur Scanner pour commencer.')+'</li>';
@@ -384,8 +395,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('kn').textContent=it.name;$('kc').textContent=it.code;$('kq').textContent=fmt(it.qty);
     $('kl').textContent=it.loc?'Emplacement : '+it.loc:'';
     $('ko').textContent=it.note?'Note : '+it.note:'';
-    $('km').textContent=(it.c?'Créée le '+dstr(it.c):'Créée : date non enregistrée')+'\n'+
-      'Dernière modification : '+(it.by?nm(it.by)+', ':'')+dstr(it.t);
+    $('km').textContent='Modifié le '+dstr(it.t);
     $('ke').dataset.c=it.code;
     pauseScan();
     if(!$('kdlg').open)$('kdlg').showModal();
@@ -400,6 +410,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   }
   var precis=ld('inventaire_precis_v1',false)===true;
   var paused=false,keep=false,lastSeen=0;
+  function needAuth(){if(auth)return false;toast('Connecte-toi pour modifier');openLogin();return true}
   function pauseScan(){try{if(scanner&&!paused){scanner.pause(true);paused=true}}catch(e){}}
   function resumeScan(){lastSeen=Date.now();try{if(scanner&&paused){scanner.resume();paused=false}}catch(e){paused=false}}
   function onScan(text,res){
@@ -499,9 +510,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('search').oninput=render;
   $('addBtn').onclick=function(){openForm(null)};
   $('expBtn').onclick=exportCSV;
-  $('imp').onchange=function(e){if(e.target.files[0])importCSV(e.target.files[0]);e.target.value=''};
+  $('imp').onchange=function(e){if(e.target.files[0]&&!needAuth())importCSV(e.target.files[0]);e.target.value=''};
   $('clrBtn').onclick=function(){
-    if(live().length&&confirm('Effacer toutes les pièces (sur tous les téléphones synchronisés) ? Une sauvegarde est créée avant.')){
+    if(live().length&&!needAuth()&&confirm('Effacer toutes les pièces (sur tous les téléphones synchronisés) ? Une sauvegarde est créée avant.')){
       snap('avant effacement');live().forEach(function(i){tomb(i.code)});commit();toast('Inventaire vidé');
     }
   };
@@ -509,12 +520,13 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var li=e.target.closest('li[data-c]');if(!li)return;
     var it=find(li.getAttribute('data-c'));if(!it)return;
     var b=e.target.closest('button[data-d]');
-    if(b){it.qty=Math.max(0,num(it.qty+Number(b.getAttribute('data-d'))*num($('step').value||1)));put(it);commit()}
+    if(b){if(needAuth())return;it.qty=Math.max(0,num(it.qty+Number(b.getAttribute('data-d'))*num($('step').value||1)));put(it);commit()}
     else openForm(it);
   };
   $('kx').onclick=function(){$('kdlg').close()};
   function bump(d){
     var it=find($('ke').dataset.c);if(!it)return;
+    if(needAuth())return;
     it.qty=Math.max(0,num(it.qty+d*num($('step').value||1)));put(it);commit();showStock(it);
   }
   function fbump(d){
@@ -535,12 +547,13 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   };
   $('fx').onclick=function(){$('dlg').close()};
   $('fd').onclick=function(){
-    if(editing&&confirm('Supprimer cette pièce ?')){tomb(editing);commit();$('dlg').close();toast('Pièce supprimée')}
+    if(editing&&!needAuth()&&confirm('Supprimer cette pièce ?')){tomb(editing);commit();$('dlg').close();toast('Pièce supprimée')}
   };
   $('f').onsubmit=function(e){
     e.preventDefault();
     var code=$('fc').value.trim(),name=$('fn').value.trim();
     if(!code||!name)return;
+    if(needAuth())return;
     if(find(code)&&code!==editing){toast('Ce code existe déjà');return}
     var prev=editing?find(editing):null;
     if(editing&&code!==editing)tomb(editing);
@@ -552,7 +565,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function who(){$('who').textContent=auth?'Connecté : '+auth.email:'Non connecté';$('lo').textContent=auth?'Se déconnecter du compte':'Se connecter'}
   $('sync').onclick=function(){
     if(cfg&&!auth){openLogin();return}
-    $('su').value=cfg?cfg.url:'';$('sr').value=cfg?cfg.room:'';who();$('sdlg').showModal();
+    $('su').value=cfg?cfg.url:'';$('sr').value=cfg?cfg.room:'';who();
+    $('sfields').style.display=HARD?'none':'';$('sd').style.display=HARD?'none':'';
+    $('sinfo').style.display=HARD?'':'none';
+    $('sinfo').textContent=HARD?'Base : '+CONFIG.url.replace('https://','').split('.')[0]+' · Inventaire : '+CONFIG.room:'';
+    $('sdlg').showModal();
   };
   $('lo').onclick=function(){
     if(auth){logout();$('sdlg').close();status();toast('Déconnecté du compte')}
@@ -591,7 +608,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var d=items.filter(function(i){return i.del}).sort(function(a,b){return b.t-a.t}).slice(0,100);
     $('trash').innerHTML=d.length?d.map(function(i){
       return '<div class="snap"><div><b>'+esc(i.name||i.code)+'</b><small>'+esc(i.code)+(i.qty!==undefined?' · '+fmt(num(i.qty)):'')+'</small>'+
-        '<small>Supprimée '+(i.by?'par '+esc(nm(i.by))+', ':'le ')+dstr(i.t)+'</small></div>'+
+        '<small>Modifié le '+dstr(i.t)+'</small></div>'+
         '<button class="btn" data-u="'+esc(i.code)+'" type="button">Restaurer</button></div>';
     }).join(''):'<p class="hint">La corbeille est vide.</p>';
   }
@@ -600,8 +617,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('trash').onclick=function(e){
     var b=e.target.closest('button[data-u]');if(!b)return;
     var k=idx(b.getAttribute('data-u'));if(k<0||!items[k].del)return;
+    if(needAuth())return;
     var o={};for(var f in items[k])o[f]=items[k][f];
-    delete o.del;o.name=o.name||o.code;o.qty=num(o.qty);o.loc=o.loc||'';o.note=o.note||'';
+    delete o.del;delete o.d;delete o.db;o.name=o.name||o.code;o.qty=num(o.qty);o.loc=o.loc||'';o.note=o.note||'';
     o.t=Date.now();o.by=op;items[k]=o;
     if(dirty.indexOf(o.code)<0)dirty.push(o.code);
     commit();trashList();toast('Pièce restaurée');
@@ -609,7 +627,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('bakBtn').onclick=function(){snapList();$('bdlg').showModal()};
   $('snaps').onclick=function(e){
     var b=e.target.closest('button[data-r]');
-    if(b&&confirm("Remplacer l'inventaire actuel par cette sauvegarde ?")){restore(snaps[+b.getAttribute('data-r')].items.map(function(r){return Array.isArray(r)?{code:r[0],name:r[1],qty:r[2],loc:r[3],note:r[4]}:r}));$('bdlg').close()}
+    if(b&&!needAuth()&&confirm("Remplacer l'inventaire actuel par cette sauvegarde ?")){restore(snaps[+b.getAttribute('data-r')].items.map(function(r){return Array.isArray(r)?{code:r[0],name:r[1],qty:r[2],loc:r[3],note:r[4]}:r}));$('bdlg').close()}
   };
   $('bn').onclick=function(){snap('manuelle');snapList();toast('Sauvegarde créée')};
   $('bj').onclick=function(){
@@ -617,6 +635,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   };
   $('bi').onchange=function(e){
     var f=e.target.files[0];e.target.value='';if(!f)return;
+    if(needAuth())return;
     var rd=new FileReader();
     rd.onload=function(){
       try{

@@ -257,7 +257,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='2.2.0';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='2.2.1';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -969,7 +969,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
   /* Envoi d'e-mail (test) via un service Google Apps Script : le script vérifie le jeton Firebase et le rôle admin */
   var KM='inventaire_mailurl_v1',MAIL_TO='jean-pierre.gagliano@outlook.com';
-  $('mailUrl').value=ld(KM,'');
+  var MAIL_URL='https://script.google.com/macros/s/AKfycbz9WXY1xkHPzxtnbBrAUccvcsCbutPH6PuXLlGMXhUXOxpKMe2IwWzsqP49uC0nNUbZ/exec';
+  $('mailUrl').value=ld(KM,'')||MAIL_URL;
   $('mailUrl').onchange=function(){sv(KM,$('mailUrl').value.trim())};
   $('admMail').onclick=function(){
     var u=($('mailUrl').value||'').trim(),st=$('mailst'),hh=function(){return new Date().toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})};
@@ -980,8 +981,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         idToken:tok,to:MAIL_TO,subject:'Test e-mail - Inventaire pieces',
         body:"Ceci est un e-mail de test envoyé depuis le Centre d'administration de l'application Inventaire (v"+VERSION+') par '+auth.email+' le '+new Date().toLocaleString('fr-BE')+'.'
       })});
-    }).then(function(r){return r.json()}).then(function(j){
-      st.textContent=j&&j.ok?'✓ E-mail envoyé à '+MAIL_TO+' ('+hh()+')':'✗ Refusé : '+((j&&j.error)||'réponse inattendue');
+    }).then(function(r){return r.text().then(function(t){return{s:r.status,t:t}})}).then(function(x){
+      var j=null;try{j=JSON.parse(x.t)}catch(e){}
+      if(j&&j.ok)st.textContent='✓ E-mail envoyé à '+MAIL_TO+' ('+hh()+')';
+      else if(j)st.textContent='✗ Refusé : '+(j.error||'réponse inattendue');
+      else st.textContent='⚠ Réponse illisible du service (HTTP '+x.s+') : « '+x.t.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,160)+' » — vérifie ta boîte mail : la demande est peut-être partie.';
     }).catch(function(e){
       st.textContent='✗ Service non joignable ou refusé par le navigateur ('+((e&&e.message)||e)+')';
     }).then(function(){$('admMail').disabled=false});

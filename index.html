@@ -37,6 +37,7 @@ body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
 header{background:var(--head);color:var(--headtxt);padding:16px}
 header h1{margin:0;font:700 30px/1.1 "Barlow Condensed",Barlow,system-ui,sans-serif;letter-spacing:.2px}
 #count{margin:4px 0 0;color:var(--acc);font-weight:600}
+#hv{font:600 14px Barlow,system-ui,sans-serif;color:var(--acc);margin-left:6px;letter-spacing:0}
 main{max-width:640px;margin:0 auto;padding:12px}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
 .btn{min-height:44px;border:1px solid var(--line);border-radius:10px;padding:10px 14px;
@@ -88,7 +89,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 </head>
 <body>
 <header>
-  <div><h1>Inventaire pièces</h1><p id="count">0 référence</p></div>
+  <div><h1>Inventaire pièces <small id="hv"></small></h1><p id="count">0 référence</p></div>
   <button id="sync" type="button">Synchro : non</button>
 </header>
 
@@ -96,6 +97,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <section class="panel" aria-label="Scanner">
     <button class="btn pri big" id="scanBtn" type="button">Scanner</button>
     <div id="reader"></div>
+    <p class="hint" id="rd" style="margin:6px 0 0"></p>
+    <label style="display:flex;gap:8px;align-items:center;margin:8px 0 0;font-weight:400"><input type="checkbox" id="pm" style="width:auto;min-height:0;margin:0"> Mode précis (plus lent)</label>
     <div class="opts">
       <label class="step">Quantité par scan<input id="step" type="text" inputmode="decimal" value="1"></label>
       <label style="flex:1">Code saisi ou lecteur Bluetooth<input id="manual" type="text" autocomplete="off" enterkeyhint="done"></label>
@@ -169,7 +172,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.3';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.4';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -295,7 +298,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     if(!cfg)b.textContent=off?'Hors ligne':'Synchro : non';
     else if(!auth){b.className='off';b.textContent='Connexion requise'}
     else if(off||failed)b.textContent='Hors ligne'+(n?', '+n+' en attente':'');
-    else if(syncing)b.textContent='Synchronisation…';
+    else if(syncing&&(n||!lastOk))b.textContent='Synchronisation…';
     else if(!lastOk)b.textContent='En attente de synchro';
     else b.textContent='Synchronisé '+new Date(lastOk).toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit'});
   }
@@ -341,17 +344,18 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     for(i=0;i<n-1;i++)sum+=((n-1-i)%2===1)?Number(s[i])*3:Number(s[i]);
     return (10-sum%10)%10===Number(s[n-1]);
   }
+  var precis=ld('inventaire_precis_v1',false)===true;
   function onScan(text,res){
     var now=Date.now();
     if(text===lastCode&&now-lastTime<2000)return;
     var fmt=res&&res.result&&res.result.format&&res.result.format.formatName;
-    if((fmt==='EAN_13'||fmt==='EAN_8'||fmt==='UPC_A')&&(!/^\d+$/.test(text)||!eanOk(text))){
-      if(now-badT>2000){badT=now;toast('Lecture douteuse, recommence')}
-      return;
-    }
-    if(text!==cand||now-candT>1500){cand=text;candN=1;candT=now;return}
+    var ean=(fmt==='EAN_13'||fmt==='EAN_8'||fmt==='UPC_A');
+    if(ean&&(!/^\d+$/.test(text)||!eanOk(text))){$('rd').textContent='Rejeté (clé invalide) : '+text;return}
+    var need=precis?3:(ean?1:2);
+    if(text!==cand||now-candT>1500){cand=text;candN=0}
     candN++;candT=now;
-    if(candN<2)return;
+    $('rd').textContent='Lu : '+text+' ('+(fmt||'?')+')'+(need>1?' '+candN+'/'+need:'');
+    if(candN<need)return;
     cand='';candN=0;
     lastCode=text;lastTime=now;
     if(navigator.vibrate)navigator.vibrate(60);
@@ -362,10 +366,16 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     if(scanner)return;
     var F=window.Html5QrcodeSupportedFormats||{};
     var fmts=['EAN_13','EAN_8','UPC_A','UPC_E','CODE_128','CODE_39','CODE_93','ITF','CODABAR','RSS_14'].map(function(n){return F[n]}).filter(function(v){return v!==undefined});
-    var conf={verbose:false,experimentalFeatures:{useBarCodeDetectorIfSupported:true}};
+    var conf={verbose:false};
+    if(precis)conf.experimentalFeatures={useBarCodeDetectorIfSupported:true};
     if(fmts.length)conf.formatsToSupport=fmts;
     scanner=new Html5Qrcode('reader',conf);
-    scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:150}},onScan,function(){})
+    var sconf=precis?{
+      fps:10,
+      qrbox:function(w,h){return{width:Math.floor(w*0.9),height:Math.floor(Math.min(h*0.5,220))}},
+      videoConstraints:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080},advanced:[{focusMode:'continuous'}]}
+    }:{fps:10,qrbox:{width:260,height:150}};
+    scanner.start({facingMode:'environment'},sconf,onScan,function(){})
       .then(function(){$('scanBtn').textContent='Arrêter le scan'})
       .catch(function(err){toast('Erreur caméra : '+err);scanner=null;$('reader').innerHTML=''});
   }
@@ -419,6 +429,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
   /* Événements */
   $('scanBtn').onclick=function(){scanner?stopScan():startScan()};
+  $('pm').checked=precis;
+  $('pm').onchange=function(){
+    precis=$('pm').checked;sv('inventaire_precis_v1',precis);
+    if(scanner){var s=scanner;scanner=null;s.stop().then(function(){s.clear();startScan()}).catch(function(){})}
+    toast(precis?'Mode précis':'Mode rapide');
+  };
   $('manualBtn').onclick=function(){handleCode($('manual').value);$('manual').value='';$('manual').focus()};
   $('manual').onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();$('manualBtn').click()}};
   $('search').oninput=render;
@@ -518,7 +534,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   setInterval(function(){if(!document.hidden)sync()},15000);
 
   if(!snaps.length||Date.now()-snaps[0].t>864e5)snap('auto');
-  $('ver').textContent='Version '+VERSION;
+  $('ver').textContent='Version '+VERSION;$('hv').textContent='v'+VERSION;
   sv(KEY,items);render();status();sync();
   if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
 })();

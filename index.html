@@ -50,6 +50,8 @@ input{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px
   background:var(--bg);color:var(--ink);font:16px Barlow,system-ui,sans-serif}
 label{display:block;font-weight:600;margin-bottom:10px}
 label input,label select{margin-top:4px;font-weight:400}
+#krs{margin:10px 0 2px;padding:9px 12px;border:1px solid var(--acc);border-left-width:6px;border-radius:10px;background:#FFF3C4;color:#14213D;font-weight:700;text-align:center}
+#krs:empty{display:none}
 select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;
   background:var(--bg);color:var(--ink);font:16px Barlow,system-ui,sans-serif}
 .row{display:flex;gap:8px;align-items:center}
@@ -58,8 +60,10 @@ select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10p
 .opts{display:flex;gap:8px;margin-top:10px;align-items:flex-end}
 .opts .step{flex:0 0 110px}
 .opts label{margin:0}
-#list{list-style:none;margin:0;padding:0}
-#list li{display:flex;gap:10px;align-items:center;justify-content:space-between;
+#list,#rl{list-style:none;margin:0;padding:0}
+.chip{display:inline-block;padding:4px 10px;border-radius:999px;font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap;background:#E7EAF1;color:#14213D}
+.chip.attente{background:#FFE08A}.chip.approuvee,.chip.partielle{background:#CFE3FF}.chip.recue{background:#CDEFD3}.chip.refusee{background:#F8CFCB}.chip.cloturee{background:#E0E0E0}
+#list li,#rl li{display:flex;gap:10px;align-items:center;justify-content:space-between;
   background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
 .info{min-width:0;flex:1}
 .info b{display:block;font-size:17px;overflow-wrap:anywhere}
@@ -137,12 +141,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p id="kl" style="margin:4px 0"></p>
   <p id="ko" style="margin:4px 0"></p>
   <p class="hint" id="km" style="margin:8px 0 0;white-space:pre-line"></p>
+  <p id="krs"></p>
   <div class="row"><button type="button" class="btn" id="kx">Annuler</button><button type="button" class="btn pri" id="kv">Valider</button></div>
   <div class="row"><button type="button" id="ke" style="flex:1;background:none;border:0;color:var(--mute);text-decoration:underline;font:600 15px Barlow,system-ui,sans-serif;min-height:40px;cursor:pointer">Modifier la fiche</button></div>
   <div class="row"><button type="button" id="kh" style="flex:1;background:none;border:0;color:var(--mute);text-decoration:underline;font:600 15px Barlow,system-ui,sans-serif;min-height:40px;cursor:pointer">Historique</button></div>
   <div class="row"><button type="button" id="ki" style="flex:1;background:none;border:0;color:var(--mute);text-decoration:underline;font:600 15px Barlow,system-ui,sans-serif;min-height:40px;cursor:pointer">Faire un inventaire</button></div>
   <div class="row"><button type="button" id="kr" style="flex:1;background:none;border:0;color:var(--mute);text-decoration:underline;font:600 15px Barlow,system-ui,sans-serif;min-height:40px;cursor:pointer">Demander des pièces</button></div>
-  <p class="hint" id="krs" style="margin:6px 0 0;text-align:center"></p>
 </dialog>
 
 <dialog id="dlg">
@@ -239,8 +243,16 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
 <dialog id="rdlg">
   <h2>Demandes de pièces</h2>
-  <div id="rl" style="max-height:60vh;overflow:auto"></div>
+  <input id="rs" type="search" placeholder="Rechercher une pièce, une personne, un statut" aria-label="Rechercher une demande" style="margin-bottom:8px">
+  <p class="hint" id="rc" style="margin:0 0 6px"></p>
+  <ul id="rl" style="max-height:52vh;overflow:auto"></ul>
   <div class="row"><button type="button" class="btn" id="rx">Fermer</button></div>
+</dialog>
+
+<dialog id="rddlg">
+  <h2>Demande</h2>
+  <div id="rdb"></div>
+  <div class="row"><button type="button" class="btn" id="rdx">Fermer</button></div>
 </dialog>
 
 <dialog id="hdlg">
@@ -283,7 +295,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='2.4.0';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='2.5.0';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -1188,7 +1200,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     loadRq().then(function(L){
       var n=(auth&&can('decide'))?L.filter(function(x){return x.st==='attente'||x.st==='approuvee'||x.st==='partielle'}).length:0;
       $('rqBtn').textContent='Demandes'+(n?' ('+n+')':'');
+      rqL=L;
       if($('rdlg').hasAttribute('open'))rqRender(L);
+      if($('rddlg').hasAttribute('open'))rqDetail();
       var code=$('ke').dataset.c;if(code&&$('kdlg').hasAttribute('open'))kreq(L,code);
       var open={};
       L.forEach(function(x){if((x.st==='attente'||x.st==='approuvee'||x.st==='partielle')&&!open[x.r.code])open[x.r.code]=x});
@@ -1201,10 +1215,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('krs').textContent=x?'Demande de '+fmt(x.r.qty)+' pièce(s) : '+RQL[x.st]+((x.st==='partielle'||x.st==='recue')?' ('+fmt(x.got)+' reçues)':'')+((x.st==='refusee'&&x.dec&&x.dec.motif)?' — '+x.dec.motif:''):'';
   }
   function rqCard(x,mode){
-    var it=items[idx(x.r.code)],own=String(x.r.by).toLowerCase()===me(),act='';
+    var it=items[idx(x.r.code)],act='';
     if(mode==='decide'){
-      act=own?'<p class="hint" style="flex:1 1 100%;margin:4px 0 0">Ta demande : un autre Admin ou SuperUser doit décider.</p>'
-        :'<input class="rmot" placeholder="Motif (facultatif)" autocomplete="off" style="flex:1 1 100%;margin-top:6px"><div class="row" style="flex:1 1 100%"><button class="btn pri" data-ap="'+esc(x.r.id)+'" type="button">Approuver</button><button class="btn danger" data-rf="'+esc(x.r.id)+'" type="button">Refuser</button></div>';
+      act='<input class="rmot" placeholder="Motif (facultatif)" autocomplete="off" style="flex:1 1 100%;margin-top:6px"><div class="row" style="flex:1 1 100%"><button class="btn pri" data-ap="'+esc(x.r.id)+'" type="button">Approuver</button><button class="btn danger" data-rf="'+esc(x.r.id)+'" type="button">Refuser</button></div>';
     }else if(mode==='receive'){
       var rest=r3(x.r.qty-x.got);if(rest<0)rest=0;
       act='<input class="rrec" inputmode="decimal" value="'+esc(String(rest).replace('.',','))+'" aria-label="Quantité reçue" style="flex:1 1 100%;margin-top:6px"><div class="row" style="flex:1 1 100%"><button class="btn pri" data-rc="'+esc(x.r.id)+'" type="button">Réceptionner</button><button class="btn" data-cl="'+esc(x.r.id)+'" type="button">Clôturer</button></div>';
@@ -1213,22 +1226,48 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       '<small>Demande de '+fmt(x.r.qty)+' pièce(s) · '+esc(nm(x.r.by))+' · '+dstr(x.r.t)+'</small>'+(x.r.note?'<small>'+esc(x.r.note)+'</small>':'')+
       '<small style="font-weight:600">'+RQL[x.st]+((x.st==='partielle'||x.st==='recue'||x.st==='cloturee')?' · '+fmt(x.got)+' reçues':'')+(x.dec?' · par '+esc(nm(x.dec.by)):'')+(x.dec&&x.dec.motif?' · « '+esc(x.dec.motif)+' »':'')+'</small></div>'+act+'</div>';
   }
-  function rqRender(L){
-    var appr=can('decide'),mine=appr?L:L.filter(function(x){return String(x.r.by).toLowerCase()===me()});
-    function sec(title,arr,mode){return arr.length?'<h2 style="font-size:18px;margin:12px 0 6px">'+title+' ('+arr.length+')</h2>'+arr.map(function(x){return rqCard(x,mode)}).join(''):''}
-    var todo=mine.filter(function(x){return x.st==='attente'}),
-        recv=mine.filter(function(x){return x.st==='approuvee'||x.st==='partielle'}),
-        done=mine.filter(function(x){return x.st==='recue'||x.st==='refusee'||x.st==='cloturee'}).slice(0,20);
-    $('rl').innerHTML=(sec(appr?'À traiter':'En attente',todo,appr?'decide':'')+sec(appr?'À réceptionner':'Approuvées',recv,can('receive')?'receive':'')+sec('Terminées',done,''))||'<p class="hint">Aucune demande.</p>';
+  /* Liste des demandes comme la liste des pièces : une ligne par demande, recherche, clic = écran de gestion */
+  var rqL=[],rqOpen=null,RQ_LIMIT=20;
+  function rqMode(x){
+    if(x.st==='attente'&&can('decide'))return 'decide';
+    if((x.st==='approuvee'||x.st==='partielle')&&can('receive'))return 'receive';
+    return '';
   }
-  $('rqBtn').onclick=function(){$('rl').innerHTML='<p class="hint">Chargement…</p>';$('rdlg').showModal();sync();loadRq().then(rqRender)};
+  function rqRender(L){
+    rqL=L;
+    var appr=can('decide'),mine=appr?L:L.filter(function(x){return String(x.r.by).toLowerCase()===me()}),
+        q=$('rs').value.trim().toLowerCase(),order={attente:0,approuvee:1,partielle:1,recue:2,refusee:2,cloturee:2};
+    var list=mine.filter(function(x){
+      if(!q)return true;
+      var it=items[idx(x.r.code)];
+      return [it?it.name:'',x.r.code,nm(x.r.by),x.r.note||'',RQL[x.st],(x.dec&&x.dec.motif)||''].join(' ').toLowerCase().indexOf(q)>-1;
+    }).sort(function(a,b){return (order[a.st]-order[b.st])||(b.r.t-a.r.t)});
+    $('rc').textContent=list.length+' demande'+(list.length>1?'s':'')+(q?' trouvée'+(list.length>1?'s':''):'');
+    $('rl').innerHTML=list.length?list.slice(0,RQ_LIMIT).map(function(x){
+      var it=items[idx(x.r.code)];
+      return '<li data-r="'+esc(x.r.id)+'"><div class="info"><b>'+esc(it?it.name:x.r.code)+'</b><small>'+esc(x.r.code)+'</small>'+
+        '<small>'+fmt(x.r.qty)+' pièce(s) demandée(s) · '+esc(nm(x.r.by))+' · '+dstr(x.r.t)+'</small></div>'+
+        '<div><span class="chip '+x.st+'">'+RQL[x.st]+'</span></div></li>';
+    }).join('')+(list.length>RQ_LIMIT?'<li class="empty">'+(list.length-RQ_LIMIT)+' autres demandes : affine la recherche.</li>':''):'<li class="empty">'+(q?'Aucune demande ne correspond.':'Aucune demande.')+'</li>';
+  }
+  function rqDetail(){
+    var x=rqL.filter(function(y){return y.r.id===rqOpen})[0];
+    $('rdb').innerHTML=x?rqCard(x,rqMode(x)):'<p class="hint">Demande introuvable.</p>';
+  }
+  $('rqBtn').onclick=function(){$('rs').value='';$('rl').innerHTML='<li class="empty">Chargement…</li>';$('rdlg').showModal();sync();loadRq().then(rqRender)};
+  $('rs').oninput=function(){rqRender(rqL)};
   $('rx').onclick=function(){$('rdlg').close()};
+  $('rdx').onclick=function(){$('rddlg').close()};
+  $('rl').onclick=function(e){
+    var li=e.target.closest('li[data-r]');if(!li)return;
+    rqOpen=li.getAttribute('data-r');rqDetail();if(!$('rddlg').open)$('rddlg').showModal();
+  };
   function decide(id,statut,motif){
     var rec={id:id,statut:statut,by:me(),t:Date.now(),d:1};if(motif)rec.motif=motif;
     mpend++;
     return dput(rec).then(function(){status();later();rqRefresh()}).catch(function(){mpend--;toast("Décision non enregistrée sur cet appareil")});
   }
-  $('rl').onclick=function(e){
+  $('rdb').onclick=function(e){
     var ap=e.target.closest('button[data-ap]'),rf=e.target.closest('button[data-rf]'),rc=e.target.closest('button[data-rc]'),cl=e.target.closest('button[data-cl]');
     var card=e.target.closest('[data-id]');if(!card)return;
     if(ap||rf){

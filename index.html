@@ -114,6 +114,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <button class="btn" id="expBtn" type="button">Export CSV</button>
     <label class="btn" style="margin:0">Import CSV<input id="imp" type="file" accept=".csv,text/csv,text/plain"></label>
     <button class="btn" id="bakBtn" type="button">Sauvegardes</button>
+    <button class="btn" id="trBtn" type="button">Corbeille</button>
     <button class="btn danger" id="clrBtn" type="button">Tout effacer</button>
   </section>
   <p class="hint" id="ver" style="text-align:center"></p>
@@ -130,7 +131,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p class="hint" style="text-align:center;margin:0 0 10px">en stock</p>
   <p id="kl" style="margin:4px 0"></p>
   <p id="ko" style="margin:4px 0"></p>
-  <p class="hint" id="km" style="margin:8px 0 0"></p>
+  <p class="hint" id="km" style="margin:8px 0 0;white-space:pre-line"></p>
   <div class="row"><button type="button" class="btn" id="kx">Fermer</button><button type="button" class="btn pri" id="ke">Modifier</button></div>
 </dialog>
 
@@ -181,6 +182,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   </form>
 </dialog>
 
+<dialog id="tdlg">
+  <h2>Corbeille</h2>
+  <div id="trash"></div>
+  <div class="row"><button class="btn" id="tx" type="button">Fermer</button></div>
+</dialog>
+
 <dialog id="bdlg">
   <h2>Sauvegardes</h2>
   <div id="snaps"></div>
@@ -193,7 +200,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.8';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.9';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -217,8 +224,24 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function live(){return items.filter(function(i){return !i.del})}
   function idx(c){for(var i=0;i<items.length;i++)if(items[i].code===c)return i;return -1}
   function find(c){var k=idx(c);return k>-1&&!items[k].del?items[k]:null}
-  function put(it){it.t=Date.now();it.by=op;var k=idx(it.code);if(k>-1)items[k]=it;else items.push(it);if(dirty.indexOf(it.code)<0)dirty.push(it.code)}
-  function tomb(c){put({code:c,del:true})}
+  function dstr(t){return new Date(t).toLocaleString('fr-BE',{dateStyle:'short',timeStyle:'short'})}
+  function nm(b){return String(b).split('@')[0]}
+  /* c/cb = création (date, utilisateur), t/by = dernière modification. À la création t=c. */
+  function put(it){
+    var k=idx(it.code),old=k>-1?items[k]:null;
+    it.t=Date.now();it.by=op;
+    if(old&&!old.del){if(old.c){it.c=old.c;it.cb=old.cb||''}}
+    else if(it.c===undefined){it.c=it.t;it.cb=op}
+    if(k>-1)items[k]=it;else items.push(it);
+    if(dirty.indexOf(it.code)<0)dirty.push(it.code);
+  }
+  /* Une suppression garde les données de la pièce (corbeille) ; t/by = date et auteur de la suppression */
+  function tomb(c){
+    var k=idx(c);if(k<0||items[k].del)return;
+    var o={};for(var f in items[k])o[f]=items[k][f];
+    o.del=true;o.t=Date.now();o.by=op;items[k]=o;
+    if(dirty.indexOf(c)<0)dirty.push(c);
+  }
   function commit(){sv(KEY,items);sv(KD,dirty);render();status();later()}
 
   /* Sauvegardes locales */
@@ -332,7 +355,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('list').innerHTML=list.length?list.slice(0,200).map(function(i){
       return '<li data-c="'+esc(i.code)+'"><div class="info"><b>'+esc(i.name)+'</b><small>'+esc(i.code)+'</small>'+
         (i.loc?'<small>Emplacement : '+esc(i.loc)+'</small>':'')+
-        '<small>Modifié '+(i.by?'par '+esc(String(i.by).split('@')[0])+', ':'le ')+new Date(i.t).toLocaleString('fr-BE',{dateStyle:'short',timeStyle:'short'})+'</small>'+
+        '<small>Modifié '+(i.by?'par '+esc(nm(i.by))+', ':'le ')+dstr(i.t)+'</small>'+
         '</div><div class="qty"><button type="button" data-d="-1" aria-label="Retirer">−</button><span>'+fmt(i.qty)+
         '</span><button type="button" data-d="1" aria-label="Ajouter">+</button></div></li>';
     }).join('')+(list.length>200?'<li class="empty">'+(list.length-200)+' autres pièces : affine la recherche.</li>':''):'<li class="empty">'+(all.length?'Aucune pièce ne correspond.':'Aucune pièce. Appuie sur Scanner pour commencer.')+'</li>';
@@ -361,7 +384,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('kn').textContent=it.name;$('kc').textContent=it.code;$('kq').textContent=fmt(it.qty);
     $('kl').textContent=it.loc?'Emplacement : '+it.loc:'';
     $('ko').textContent=it.note?'Note : '+it.note:'';
-    $('km').textContent='Dernière modification : '+(it.by?String(it.by).split('@')[0]+', ':'')+new Date(it.t).toLocaleString('fr-BE',{dateStyle:'short',timeStyle:'short'});
+    $('km').textContent=(it.c?'Créée '+(it.cb?'par '+nm(it.cb)+', ':'le ')+dstr(it.c):'Créée : non enregistrée')+'\n'+
+      'Dernière modification : '+(it.by?nm(it.by)+', ':'')+dstr(it.t);
     $('ke').dataset.c=it.code;
     try{if(scanner)scanner.pause(true)}catch(e){}
     if(!$('kdlg').open)$('kdlg').showModal();
@@ -510,8 +534,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var code=$('fc').value.trim(),name=$('fn').value.trim();
     if(!code||!name)return;
     if(find(code)&&code!==editing){toast('Ce code existe déjà');return}
+    var prev=editing?find(editing):null;
     if(editing&&code!==editing)tomb(editing);
-    put({code:code,name:name,qty:num($('fq').value),loc:$('fl').value.trim(),note:$('fo').value.trim()});
+    put({code:code,name:name,qty:num($('fq').value),loc:$('fl').value.trim(),note:$('fo').value.trim(),c:prev&&code!==editing?prev.c:undefined,cb:prev&&code!==editing?prev.cb:undefined});
     commit();$('dlg').close();toast('Enregistré');
   };
 
@@ -554,6 +579,25 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('sd').onclick=function(){cfg=null;try{localStorage.removeItem(KC)}catch(e){}$('sdlg').close();status();toast('Synchronisation désactivée')};
   $('sx').onclick=function(){$('sdlg').close()};
 
+  function trashList(){
+    var d=items.filter(function(i){return i.del}).sort(function(a,b){return b.t-a.t}).slice(0,100);
+    $('trash').innerHTML=d.length?d.map(function(i){
+      return '<div class="snap"><div><b>'+esc(i.name||i.code)+'</b><small>'+esc(i.code)+(i.qty!==undefined?' · '+fmt(num(i.qty)):'')+'</small>'+
+        '<small>Supprimée '+(i.by?'par '+esc(nm(i.by))+', ':'le ')+dstr(i.t)+'</small></div>'+
+        '<button class="btn" data-u="'+esc(i.code)+'" type="button">Restaurer</button></div>';
+    }).join(''):'<p class="hint">La corbeille est vide.</p>';
+  }
+  $('trBtn').onclick=function(){trashList();$('tdlg').showModal()};
+  $('tx').onclick=function(){$('tdlg').close()};
+  $('trash').onclick=function(e){
+    var b=e.target.closest('button[data-u]');if(!b)return;
+    var k=idx(b.getAttribute('data-u'));if(k<0||!items[k].del)return;
+    var o={};for(var f in items[k])o[f]=items[k][f];
+    delete o.del;o.name=o.name||o.code;o.qty=num(o.qty);o.loc=o.loc||'';o.note=o.note||'';
+    o.t=Date.now();o.by=op;items[k]=o;
+    if(dirty.indexOf(o.code)<0)dirty.push(o.code);
+    commit();trashList();toast('Pièce restaurée');
+  };
   $('bakBtn').onclick=function(){snapList();$('bdlg').showModal()};
   $('snaps').onclick=function(e){
     var b=e.target.closest('button[data-r]');

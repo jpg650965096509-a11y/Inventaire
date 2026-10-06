@@ -200,7 +200,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.9';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.9.2';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -378,16 +378,16 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     code=String(code).trim();if(!code)return;
     var it=find(code);
     if(it)showStock(it);
-    else{stopScan();openForm({code:code,qty:num($('step').value||1)})}
+    else{pauseScan();openForm({code:code,qty:num($('step').value||1)})}
   }
   function showStock(it){
     $('kn').textContent=it.name;$('kc').textContent=it.code;$('kq').textContent=fmt(it.qty);
     $('kl').textContent=it.loc?'Emplacement : '+it.loc:'';
     $('ko').textContent=it.note?'Note : '+it.note:'';
-    $('km').textContent=(it.c?'Créée '+(it.cb?'par '+nm(it.cb)+', ':'le ')+dstr(it.c):'Créée : non enregistrée')+'\n'+
+    $('km').textContent=(it.c?'Créée le '+dstr(it.c):'Créée : date non enregistrée')+'\n'+
       'Dernière modification : '+(it.by?nm(it.by)+', ':'')+dstr(it.t);
     $('ke').dataset.c=it.code;
-    try{if(scanner)scanner.pause(true)}catch(e){}
+    pauseScan();
     if(!$('kdlg').open)$('kdlg').showModal();
   }
 
@@ -399,6 +399,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     return (10-sum%10)%10===Number(s[n-1]);
   }
   var precis=ld('inventaire_precis_v1',false)===true;
+  var paused=false,keep=false;
+  function pauseScan(){try{if(scanner&&!paused){scanner.pause(true);paused=true}}catch(e){}}
+  function resumeScan(){try{if(scanner&&paused){scanner.resume();paused=false}}catch(e){paused=false}}
   function onScan(text,res){
     var now=Date.now();
     if(text===lastCode&&now-lastTime<2000)return;
@@ -418,6 +421,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function startScan(){
     if(!window.Html5Qrcode){toast('Scanner indisponible : bibliothèque non chargée');return}
     if(scanner)return;
+    paused=false;
     var F=window.Html5QrcodeSupportedFormats||{};
     var fmts=['EAN_13','EAN_8','UPC_A','UPC_E','CODE_128','CODE_39','CODE_93','ITF','CODABAR','RSS_14'].map(function(n){return F[n]}).filter(function(v){return v!==undefined});
     var conf={verbose:false};
@@ -434,7 +438,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       .catch(function(err){toast('Erreur caméra : '+err);scanner=null;$('reader').innerHTML=''});
   }
   function stopScan(){
-    var s=scanner;scanner=null;$('scanBtn').textContent='Scanner';
+    var s=scanner;scanner=null;paused=false;$('scanBtn').textContent='Scanner';
     if(!s)return;
     s.stop().then(function(){s.clear()}).catch(function(){try{s.clear()}catch(e){}});
   }
@@ -520,9 +524,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('fqp').onclick=function(){fbump(1)};
   $('kminus').onclick=function(){bump(-1)};
   $('kplus').onclick=function(){bump(1)};
-  $('kdlg').addEventListener('close',function(){try{if(scanner)scanner.resume()}catch(e){}});
+  $('kdlg').addEventListener('close',function(){if(keep){keep=false;return}resumeScan()});
+  $('dlg').addEventListener('close',resumeScan);
   $('ke').onclick=function(){
-    var it=find($('ke').dataset.c);stopScan();$('kdlg').close();
+    var it=find($('ke').dataset.c);
+    if(it)keep=true;
+    $('kdlg').close();
     if(it)openForm(it);
   };
   $('fx').onclick=function(){$('dlg').close()};

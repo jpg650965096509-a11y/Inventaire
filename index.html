@@ -161,17 +161,10 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 </dialog>
 
 <dialog id="sdlg">
-  <h2>Synchronisation</h2>
-  <p class="hint" id="sinfo" style="display:none"></p>
-  <div id="sfields">
-  <p class="hint">Utilise la même adresse et le même code sur chaque téléphone.</p>
-  <label>Adresse Firebase<input id="su" placeholder="https://xxx-default-rtdb.europe-west1.firebasedatabase.app" autocomplete="off"></label>
-  <label>Code d'inventaire<input id="sr" autocomplete="off"></label>
-  <div class="row"><button class="btn" id="sg" type="button">Générer un code</button><button class="btn pri" id="ss" type="button">Connecter</button></div>
-  </div>
-  <div class="row"><button class="btn danger" id="sd" type="button">Déconnecter</button><button class="btn" id="sx" type="button">Fermer</button></div>
-  <p class="hint" id="who" style="margin-top:12px"></p>
-  <div class="row"><button class="btn" id="lo" type="button">Compte</button></div>
+  <h2>Mon compte</h2>
+  <div id="acc" style="white-space:pre-line;margin:0 0 12px;line-height:1.6"></div>
+  <div class="row"><button class="btn pri" id="snow" type="button">Synchroniser maintenant</button></div>
+  <div class="row"><button class="btn danger" id="lo" type="button">Se déconnecter</button><button class="btn" id="sx" type="button">Fermer</button></div>
 </dialog>
 
 <dialog id="ldlg">
@@ -234,7 +227,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.14.1';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.15.0';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -652,18 +645,27 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   };
 
   function openLogin(){$('le').value=auth?auth.email:($('le').value||'');$('lp').value='';if(!$('ldlg').open)$('ldlg').showModal()}
-  function who(){$('who').textContent=auth?'Connecté : '+auth.email+(myRoles&&myRoles.length?' · rôle : '+myRoles.join(', '):''):'Non connecté';$('lo').textContent=auth?'Se déconnecter du compte':'Se connecter'}
+  /* Mon compte : compte, rôles, version, état de la synchro */
+  function accInfo(){
+    if(!auth)return;
+    var hh=function(t){return new Date(t).toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit'})};
+    $('acc').textContent='Compte : '+auth.email+
+      '\nRôles : '+((myRoles&&myRoles.length)?myRoles.map(function(r){return RLAB[r]||r}).join(', '):'aucun')+
+      '\nVersion : '+VERSION+
+      '\nSynchro : '+(!navigator.onLine?'hors ligne':(failed?'en échec':(lastOk?'dernière réussie à '+hh(lastOk):'en attente')))+
+      '\nModifications en attente : '+dirty.length;
+  }
   $('sync').onclick=function(){
-    if(cfg&&!auth){openLogin();return}
-    $('su').value=cfg?cfg.url:'';$('sr').value=cfg?cfg.room:'';who();
-    $('sfields').style.display=HARD?'none':'';$('sd').style.display=HARD?'none':'';
-    $('sinfo').style.display=HARD?'':'none';
-    $('sinfo').textContent=HARD?'Base : '+CONFIG.url.replace('https://','').split('.')[0]+' · Inventaire : '+CONFIG.room:'';
-    $('sdlg').showModal();
+    if(!auth){openLogin();return}
+    accInfo();$('sdlg').showModal();
+  };
+  $('snow').onclick=function(){
+    if(!navigator.onLine){toast('Hors ligne : synchro impossible');return}
+    failed=false;sync();toast('Synchronisation lancée');
+    setTimeout(accInfo,1500);setTimeout(accInfo,4000);
   };
   $('lo').onclick=function(){
-    if(auth){logout();myRoles=null;$('sdlg').close();status();applyPerms();toast('Déconnecté du compte')}
-    else{$('sdlg').close();openLogin()}
+    logout();myRoles=null;$('sdlg').close();status();applyPerms();openLogin();
   };
   $('lx').onclick=function(){$('ldlg').close()};
   $('lf').onsubmit=function(e){
@@ -696,18 +698,6 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var em=$('le').value.trim();if(!em){toast("Saisis d'abord ton e-mail");return}
     idt('accounts:sendOobCode',{requestType:'PASSWORD_RESET',email:em}).then(function(){toast('E-mail de réinitialisation envoyé')}).catch(function(){toast('Envoi impossible')});
   };
-  $('sg').onclick=function(){
-    var a=new Uint8Array(9);crypto.getRandomValues(a);
-    $('sr').value=Array.prototype.map.call(a,function(x){return x.toString(36).padStart(2,'0')}).join('').slice(0,14);
-  };
-  $('ss').onclick=function(){
-    var u=$('su').value.trim(),r=$('sr').value.trim();
-    if(!/^https:\/\/.+/.test(u)||r.length<6){toast('Adresse en https et code de 6 caractères minimum');return}
-    snap('avant synchro');cfg={url:u,room:r};sv(KC,cfg);dirty=items.map(function(i){return i.code});sv(KD,dirty);failed=false;lastOk=0;
-    $('sdlg').close();status();
-    if(auth)sync();else openLogin();
-  };
-  $('sd').onclick=function(){cfg=null;try{localStorage.removeItem(KC)}catch(e){}$('sdlg').close();status();toast('Synchronisation désactivée')};
   $('sx').onclick=function(){$('sdlg').close()};
 
   function trashList(){

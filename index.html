@@ -128,11 +128,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <div id="kq" style="font:700 64px/1 'Barlow Condensed',Barlow,system-ui,sans-serif;text-align:center;min-width:90px"></div>
     <button type="button" id="kplus" aria-label="Ajouter" style="width:56px;height:56px">+</button>
   </div>
-  <p class="hint" style="text-align:center;margin:0 0 10px">en stock</p>
+  <p class="hint" id="kst" style="text-align:center;margin:0 0 10px">en stock</p>
   <p id="kl" style="margin:4px 0"></p>
   <p id="ko" style="margin:4px 0"></p>
   <p class="hint" id="km" style="margin:8px 0 0;white-space:pre-line"></p>
-  <div class="row"><button type="button" class="btn" id="kx">Fermer</button><button type="button" class="btn pri" id="ke">Modifier</button></div>
+  <div class="row"><button type="button" class="btn" id="kx">Annuler</button><button type="button" class="btn pri" id="kv">Valider</button></div>
+  <div class="row"><button type="button" id="ke" style="flex:1;background:none;border:0;color:var(--mute);text-decoration:underline;font:600 15px Barlow,system-ui,sans-serif;min-height:40px;cursor:pointer">Modifier la fiche</button></div>
 </dialog>
 
 <dialog id="dlg">
@@ -203,7 +204,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.9.9';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.10.0';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -392,7 +393,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     else{pauseScan();openForm({code:code,qty:num($('step').value||1)})}
   }
   function showStock(it){
-    $('kn').textContent=it.name;$('kc').textContent=it.code;$('kq').textContent=fmt(it.qty);
+    kqty=it.qty;
+    $('kn').textContent=it.name;$('kc').textContent=it.code;kdraw(it);
     $('kl').textContent=it.loc?'Emplacement : '+it.loc:'';
     $('ko').textContent=it.note?'Note : '+it.note:'';
     $('km').textContent='Modifié le '+dstr(it.t);
@@ -409,7 +411,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     return (10-sum%10)%10===Number(s[n-1]);
   }
   var precis=ld('inventaire_precis_v1',false)===true;
-  var paused=false,keep=false,lastSeen=0;
+  var paused=false,keep=false,lastSeen=0,kqty=0;
+  function kdraw(it){
+    $('kq').textContent=fmt(kqty);
+    $('kst').textContent=kqty!==it.qty?'à valider (enregistré : '+fmt(it.qty)+')':'en stock';
+  }
   function needAuth(){if(auth)return false;toast('Connecte-toi pour modifier');openLogin();return true}
   function pauseScan(){try{if(scanner&&!paused){scanner.pause(true);paused=true}}catch(e){}}
   function resumeScan(){lastSeen=Date.now();try{if(scanner&&paused){scanner.resume();paused=false}}catch(e){paused=false}}
@@ -526,9 +532,17 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('kx').onclick=function(){$('kdlg').close()};
   function bump(d){
     var it=find($('ke').dataset.c);if(!it)return;
-    if(needAuth())return;
-    it.qty=Math.max(0,num(it.qty+d*num($('step').value||1)));put(it);commit();showStock(it);
+    kqty=Math.max(0,num(kqty+d*num($('step').value||1)));
+    kdraw(it);
   }
+  $('kv').onclick=function(){
+    var it=find($('ke').dataset.c);
+    if(it&&kqty!==it.qty){
+      if(needAuth())return;
+      it.qty=kqty;put(it);commit();toast('Stock enregistré : '+fmt(kqty));
+    }
+    $('kdlg').close();
+  };
   function fbump(d){
     var v=Math.max(0,num(num($('fq').value)+d*num($('step').value||1)));
     $('fq').value=String(v).replace('.',',');
@@ -543,7 +557,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var it=find($('ke').dataset.c);
     if(it)keep=true;
     $('kdlg').close();
-    if(it)openForm(it);
+    if(it){var c={};for(var f in it)c[f]=it[f];c.qty=kqty;openForm(c)}
   };
   $('fx').onclick=function(){$('dlg').close()};
   $('fd').onclick=function(){

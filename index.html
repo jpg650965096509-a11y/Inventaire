@@ -204,6 +204,15 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   </form>
 </dialog>
 
+<dialog id="pvdlg">
+  <h2>Import CSV</h2>
+  <p class="hint" id="pvf" style="margin:0 0 8px"></p>
+  <p id="pvm" style="margin:0 0 8px;font-weight:600"></p>
+  <label style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="pvq" style="width:auto;min-height:0;margin:0"> Ne pas modifier le stock des pièces déjà présentes</label>
+  <p class="hint" id="pvs" style="margin:8px 0 12px"></p>
+  <div class="row"><button type="button" class="btn" id="pvn">Annuler</button><button type="button" class="btn pri" id="pvo">Importer</button></div>
+</dialog>
+
 <dialog id="cfdlg">
   <h2 id="cft">Confirmer</h2>
   <p id="cfm" style="margin:0 0 12px"></p>
@@ -289,7 +298,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   </div>
   <label>Pièce (code ou nom)<input id="jp" autocomplete="off"></label>
   <label>Personne<input id="ju" autocomplete="off"></label>
-  <label>Type<select id="jt"><option value="">Tous</option><option value="entree">Entrées</option><option value="sortie">Sorties</option><option value="inventaire">Inventaires</option><option value="demande">Demandes</option><option value="modification">Modifications</option><option value="approbation">Approbations</option><option value="refus">Refus</option><option value="reception">Réceptions</option><option value="cloture">Clôtures</option></select></label>
+  <label>Type<select id="jt"><option value="">Tous</option><option value="entree">Entrées</option><option value="sortie">Sorties</option><option value="inventaire">Inventaires</option><option value="import">Imports</option><option value="demande">Demandes</option><option value="modification">Modifications</option><option value="approbation">Approbations</option><option value="refus">Refus</option><option value="reception">Réceptions</option><option value="cloture">Clôtures</option></select></label>
   <p class="hint" id="jc" style="margin:0 0 6px"></p>
   <div id="jl" style="max-height:40vh;overflow:auto"></div>
   <div class="row"><button type="button" class="btn" id="jmore">Afficher plus</button><button type="button" class="btn" id="jcsv">Export CSV</button></div>
@@ -314,7 +323,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='2.7.0';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='2.8.0';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -443,7 +452,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function addMv(code,delta,extra){
     extra=extra||{};delta=r3(delta);
     var type=extra.type||(delta>0?'entree':'sortie');
-    if(!delta&&!NOSTK[type])return Promise.resolve();
+    if(!delta&&!NOSTK[type]&&type!=='import')return Promise.resolve();
     var t=Date.now(),rec={id:extra.id||newId(),code:code,delta:NOSTK[type]&&type!=='inventaire'?0:delta,type:type,by:String(op||'').toLowerCase(),t:t,dateAction_t:dtxt(t),d:1};
     if(extra.saisie!==undefined)rec.saisie=extra.saisie;
     if(extra.note)rec.note=extra.note;
@@ -523,7 +532,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         });
         live().forEach(function(i){if(!keep[i.code])tomb(i.code)});
         commit();
-        return Promise.all(mvs.map(function(a){return addMv(a[0],a[1],{saisie:a[2]})})).then(function(){fillStocks();toast('Données restaurées')});
+        return Promise.all(mvs.map(function(a){return addMv(a[0],a[1],{type:'import',saisie:a[2],note:'Restauration'})})).then(function(){fillStocks();toast('Données restaurées')});
       });
     });
   }
@@ -845,30 +854,61 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     if(f!==''||r.length){r.push(f);rows.push(r)}
     return rows.filter(function(x){return x.some(function(v){return v.trim()})});
   }
+  /* les quantités du CSV sont des stocks absolus : traduits en lignes "Import" (valeur saisie = stock du fichier, écart calculé) */
+  var impPlan=null;
+  function impAnalyse(rows,m,keepQty){
+    var last={},pl={rows:[],nNew:0,nUpd:0,nSame:0,nSkip:0,nDup:0,up:0,down:0};
+    rows.forEach(function(r){var c=(r[0]||'').trim();if(c)last[c]=r});
+    rows.forEach(function(r){
+      var code=(r[0]||'').trim();
+      if(!code){pl.nSkip++;return}
+      if(last[code]!==r){pl.nDup++;return} /* même code plusieurs fois : la dernière ligne gagne */
+      var old=find(code),name=(r[1]||'').trim()||code,loc=(r[3]||'').trim(),note=(r[4]||'').trim(),q=num(r[2]||0);
+      var cur=old?stockFrom(m,old):0,d=(old&&keepQty)?0:r3(q-cur);
+      var fiche=!old||old.name!==name||(old.loc||'')!==loc||(old.note||'')!==note;
+      if(!old)pl.nNew++;else if(fiche||d)pl.nUpd++;else pl.nSame++;
+      if(d>0)pl.up++;else if(d<0)pl.down++;
+      pl.rows.push({code:code,name:name,loc:loc,note:note,q:q,d:d,isNew:!old,fiche:fiche,old:old});
+    });
+    return pl;
+  }
+  function impPreview(){
+    stockAll().then(function(m){
+      impPlan.pl=impAnalyse(impPlan.rows,m,$('pvq').checked);
+      var pl=impPlan.pl;
+      $('pvm').textContent=pl.rows.length+' pièce(s) dans le fichier : '+pl.nNew+' nouvelle(s), '+pl.nUpd+' mise(s) à jour, '+pl.nSame+' inchangée(s)'+(pl.nSkip?', '+pl.nSkip+' ignorée(s) (code vide)':'')+(pl.nDup?', '+pl.nDup+' doublon(s) de code (dernière ligne retenue)':'')+'.';
+      $('pvs').textContent=(pl.up||pl.down)?'Stock : '+pl.up+' pièce(s) en hausse, '+pl.down+' en baisse (lignes « Import » dans le journal).':'Aucun changement de stock.';
+      $('pvo').disabled=!pl.rows.length;
+    });
+  }
   function importCSV(file){
     var rd=new FileReader();
     rd.onload=function(){
       var rows=parseCSV(String(rd.result));
       if(rows.length&&/^code/i.test(rows[0][0].trim()))rows.shift();
-      /* les quantités du CSV sont des stocks absolus : traduits en mouvements d'écart (entrée / sortie) */
-      snap('avant import CSV',function(){
-        stockAll().then(function(m){
-          var added=0,updated=0,mvs=[];
-          rows.forEach(function(r){
-            var code=(r[0]||'').trim();if(!code)return;
-            var old=find(code),cur=old?stockFrom(m,old):0,d=num(r[2]||0)-cur;
-            if(old)updated++;else added++;
-            put({code:code,name:(r[1]||'').trim()||code,qty:old?old.qty:0,loc:(r[3]||'').trim(),note:(r[4]||'').trim()});
-            if(d)mvs.push([code,d,num(r[2]||0)]);
-          });
-          commit();
-          return Promise.all(mvs.map(function(a){return addMv(a[0],a[1],{saisie:a[2]})})).then(function(){fillStocks();toast(added+' ajoutée(s), '+updated+' mise(s) à jour')});
-        });
-      });
+      impPlan={rows:rows,pl:null};
+      $('pvf').textContent=(file&&file.name)||'';$('pvq').checked=false;$('pvm').textContent='Analyse…';$('pvs').textContent='';$('pvo').disabled=true;
+      $('pvdlg').showModal();impPreview();
     };
     rd.readAsText(file,'utf-8');
   }
-
+  $('pvq').onchange=impPreview;
+  $('pvn').onclick=function(){impPlan=null;$('pvdlg').close()};
+  $('pvo').onclick=function(){
+    if(!impPlan||!impPlan.pl)return;
+    var pl=impPlan.pl;impPlan=null;$('pvdlg').close();
+    snap('avant import CSV',function(){
+      var mvs=[];
+      pl.rows.forEach(function(x){
+        if(x.fiche||x.isNew)put({code:x.code,name:x.name,qty:x.old?x.old.qty:0,loc:x.loc,note:x.note});
+        if(x.isNew||x.d)mvs.push([x.code,x.d,x.q]);
+      });
+      commit();
+      Promise.all(mvs.map(function(a){return addMv(a[0],a[1],{type:'import',saisie:a[2],note:'Import CSV'})})).then(function(){
+        fillStocks();toast('Import : '+pl.nNew+' ajoutée(s), '+pl.nUpd+' mise(s) à jour, '+pl.nSame+' inchangée(s)');
+      });
+    });
+  };
   /* Événements */
   $('scanBtn').onclick=function(){scanner?stopScan():startScan()};
   $('pm').checked=precis;
@@ -1162,7 +1202,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   };
 
   /* Historique d'une pièce : stock de départ puis chaque ligne du journal ; le stock après chaque mouvement */
-  var TL={entree:'Entrée',sortie:'Sortie',inventaire:'Inventaire',demande:'Demande',modification:'Modification',approbation:'Approbation',refus:'Refus',reception:'Réception',cloture:'Clôture'};
+  var TL={entree:'Entrée',sortie:'Sortie',inventaire:'Inventaire',import:'Import',demande:'Demande',modification:'Modification',approbation:'Approbation',refus:'Refus',reception:'Réception',cloture:'Clôture'};
   function mvLabel(d){return d>0?'Entrée +'+fmt(d):'Sortie −'+fmt(-d)}
   /* libellés calculés à l'affichage : réception « partielle » ou « complète » (cumul reçu / quantité demandée), modification « ancienne → nouvelle » */
   function recvLabels(all){
@@ -1182,6 +1222,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function mvText(r,rl){
     var sg=r.saisie!==undefined?r.saisie:r.compte,ec=(r.delta>0?'+':(r.delta<0?'−':''))+fmt(Math.abs(r.delta));
     if(r.type==='inventaire')return 'Inventaire : compté '+fmt(Number(sg)||0)+' (écart '+ec+')';
+    if(r.type==='import')return 'Import : stock '+fmt(Number(sg)||0)+' (écart '+ec+')'+(r.note?' — '+r.note:'');
     if(r.type==='demande')return 'Demande de '+fmt(Number(r.saisie)||0)+' pièce(s)'+(r.note?' : '+r.note:'');
     if(r.type==='modification')return (rl&&rl[r.id])||('Demande modifiée : '+fmt(Number(r.saisie)||0));
     if(r.type==='approbation')return 'Demande approuvée ('+fmt(Number(r.saisie)||0)+')'+(r.note?' — '+r.note:'');
@@ -1190,7 +1231,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     if(r.type==='reception')return ((rl&&rl[r.id])||('Réception : '+fmt(Number(r.delta)||0)))+(r.note?' — '+r.note:'');
     return mvLabel(r.delta)+(r.demande?' (réception d\'une demande)':'');
   }
-  var STK_T={entree:1,sortie:1,inventaire:1,reception:1};
+  var STK_T={entree:1,sortie:1,inventaire:1,import:1,reception:1};
   var bigNum='font:700 24px/1 "Barlow Condensed",Barlow,system-ui,sans-serif';
   function openHistory(code){
     var it=find(code)||items[idx(code)];if(!it)return;
@@ -1297,7 +1338,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       var dem=[],dm={},cm={},got={},md={},rcs={},lastR={},lastMv={};
       a.forEach(function(m){
         if(m.demande&&(!lastR[m.demande]||m.t>lastR[m.demande]))lastR[m.demande]=m.t;
-        if((m.type==='entree'||m.type==='sortie'||m.type==='inventaire')&&(!lastMv[m.code]||m.t>lastMv[m.code]))lastMv[m.code]=m.t;
+        if((m.type==='entree'||m.type==='sortie'||m.type==='inventaire'||m.type==='import')&&(!lastMv[m.code]||m.t>lastMv[m.code]))lastMv[m.code]=m.t;
         if(m.type==='demande')dem.push(m);
         else if(m.type==='approbation'||m.type==='refus')dm[m.demande]={statut:m.type==='refus'?'refusee':'approuvee',motif:m.note,by:m.by,t:m.t};
         else if(m.type==='cloture')cm[m.demande]={by:m.by,t:m.t};

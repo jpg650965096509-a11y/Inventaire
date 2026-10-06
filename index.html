@@ -63,10 +63,10 @@ select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10p
 .opts{display:flex;gap:8px;margin-top:10px;align-items:flex-end}
 .opts .step{flex:0 0 110px}
 .opts label{margin:0}
-#list,#rl{list-style:none;margin:0;padding:0}
+#list,#rl,#ul{list-style:none;margin:0;padding:0}
 .chip{display:inline-block;padding:4px 10px;border-radius:999px;font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap;background:#E7EAF1;color:#14213D}
 .chip.attente{background:#FFE08A}.chip.approuvee,.chip.partielle{background:#CFE3FF}.chip.recue{background:#CDEFD3}.chip.refusee{background:#F8CFCB}.chip.cloturee{background:#E0E0E0}
-#list li,#rl li{display:flex;gap:10px;align-items:center;justify-content:space-between;
+#list li,#rl li,#ul li{display:flex;gap:10px;align-items:center;justify-content:space-between;
   background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
 .info{min-width:0;flex:1}
 .info b{display:block;font-size:17px;overflow-wrap:anywhere}
@@ -220,14 +220,22 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
 <dialog id="udlg">
   <h2>Utilisateurs et rôles</h2>
-  <p class="hint">Les rôles se cumulent. Admin peut tout faire. Un compte créé mais non listé n'accède à rien.</p>
+  <p class="hint">Un clic sur une personne ouvre sa fiche. Les rôles se cumulent. Admin peut tout faire. Un compte créé mais non listé n'accède à rien.</p>
   <p class="hint" id="ustat" style="margin:0 0 8px;font-weight:600"></p>
-  <div id="ulist"></div>
-  <h2 style="margin-top:16px;font-size:20px">Ajouter une personne</h2>
-  <label>E-mail<input id="ue" type="email" autocomplete="off"></label>
-  <label>Nom<input id="un" autocomplete="off"></label>
-  <div id="ur" style="margin-bottom:10px"></div>
-  <div class="row"><button type="button" class="btn" id="ux">Fermer</button><button type="button" class="btn pri" id="ua">Ajouter</button></div>
+  <input id="us" type="search" placeholder="Rechercher une personne, un e-mail, un rôle" aria-label="Rechercher une personne" style="margin-bottom:8px">
+  <p class="hint" id="uc" style="margin:0 0 6px"></p>
+  <ul id="ul" style="max-height:48vh;overflow:auto"></ul>
+  <div class="row"><button type="button" class="btn" id="ux">Fermer</button><button type="button" class="btn pri" id="uadd">Ajouter une personne</button></div>
+</dialog>
+
+<dialog id="uddlg">
+  <h2 id="udt">Personne</h2>
+  <label>E-mail<input id="ude" type="email" autocomplete="off"></label>
+  <label>Nom<input id="udn" autocomplete="off"></label>
+  <p class="hint" id="udh" style="margin:0 0 6px"></p>
+  <div id="udr" style="margin-bottom:10px"></div>
+  <div class="row"><button type="button" class="btn danger" id="udrm">Retirer</button></div>
+  <div class="row"><button type="button" class="btn" id="udx">Fermer</button><button type="button" class="btn pri" id="udv">Enregistrer</button></div>
 </dialog>
 
 <dialog id="idlg">
@@ -300,7 +308,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='2.6.0';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='2.6.1';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -1039,20 +1047,45 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     toast(msg);
   }
   function checkedRoles(box){var o=[];box.querySelectorAll('input:checked').forEach(function(i){o.push(i.value)});return o}
+  var uData={},uOpen=null;
+  function uInfo(v){
+    return{name:(v&&typeof v==='object')?(v.name||''):String(v||''),
+      roles:(v&&typeof v==='object'&&v.roles)?String(v.roles).split(',').map(function(s){return s.trim().toLowerCase()}).filter(Boolean):[]};
+  }
+  function uRender(){
+    var me=auth?ukey(auth.email):'',q=$('us').value.trim().toLowerCase();
+    var rows=Object.keys(uData).map(function(k){var i=uInfo(uData[k]);return{k:k,name:i.name,roles:i.roles}})
+      .filter(function(x){return !q||[x.name,x.k.replace(/,/g,'.'),x.roles.map(function(r){return RLAB[r]||r}).join(' ')].join(' ').toLowerCase().indexOf(q)>-1})
+      .sort(function(a,b){return String(a.name||a.k).localeCompare(String(b.name||b.k),'fr')});
+    $('uc').textContent=rows.length+' personne'+(rows.length>1?'s':'')+(q?' trouvée'+(rows.length>1?'s':''):'');
+    $('ul').innerHTML=rows.length?rows.map(function(x){
+      return '<li data-u="'+esc(x.k)+'"><div class="info"><b>'+esc(x.name||x.k.replace(/,/g,'.'))+(x.k===me?' (toi)':'')+'</b><small>'+esc(x.k.replace(/,/g,'.'))+'</small></div>'+
+        '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:45%">'+(x.roles.length?x.roles.map(function(r){return '<span class="chip">'+esc(RLAB[r]||r)+'</span>'}).join(''):'<span class="chip">Aucun rôle</span>')+'</div></li>';
+    }).join(''):'<li class="empty">'+(q?'Aucune personne ne correspond.':'Aucune personne.')+'</li>';
+  }
   function usersList(){
     if(!dbUrl())return;
-    fb('GET','/allowed').then(function(a){
-      a=a||{};var me=auth?ukey(auth.email):'';
-      var keys=Object.keys(a).sort();
-      $('ulist').innerHTML=keys.length?keys.map(function(k){
-        var v=a[k],name=(v&&typeof v==='object')?(v.name||''):String(v||''),
-            roles=(v&&typeof v==='object'&&v.roles)?String(v.roles).split(',').map(function(s){return s.trim().toLowerCase()}):[];
-        var self=(k===me),locked=(!iAmAdmin()&&roles.indexOf('admin')>-1);
-        return '<div class="snap" data-k="'+esc(k)+'" style="flex-wrap:wrap"><div style="flex:1 1 100%"><b>'+esc(name||k.replace(/,/g,'.'))+'</b><small>'+esc(k.replace(/,/g,'.'))+(self?' (toi)':'')+(locked?' · réservé aux admins':'')+'</small></div>'+
-          '<div style="flex:1 1 100%">'+roleBoxes(roles,self,locked)+'</div>'+
-          (locked?'':'<div class="row" style="flex:1 1 100%"><button class="btn" data-sv="'+esc(k)+'" type="button">Enregistrer</button>'+(self?'':'<button class="btn danger" data-rm="'+esc(k)+'" type="button">Retirer</button>')+'</div>')+'</div>';
-      }).join(''):'<p class="hint">Aucune personne.</p>';
-    }).catch(function(){$('ulist').innerHTML='<p class="hint">Chargement impossible (droits admin requis).</p>'});
+    return fb('GET','/allowed').then(function(a){uData=a||{};uRender()})
+      .catch(function(){$('ul').innerHTML='<li class="empty">Chargement impossible (droits admin requis).</li>';$('uc').textContent=''});
+  }
+  /* fiche d'une personne (k) ou ajout (k vide) */
+  function uOpenDlg(k){
+    uOpen=k||null;
+    var me=auth?ukey(auth.email):'';
+    if(k){
+      var i=uInfo(uData[k]),self=(k===me),locked=(!iAmAdmin()&&i.roles.indexOf('admin')>-1);
+      $('udt').textContent=i.name||k.replace(/,/g,'.');
+      $('ude').value=k.replace(/,/g,'.');$('ude').readOnly=true;$('udn').value=i.name;$('udn').disabled=true;
+      $('udh').textContent=locked?'Réservé aux admins : tu ne peux pas modifier cette personne.':(self?'C\'est ton compte : tu ne peux pas te retirer ni retirer ton rôle Admin.':'');
+      $('udr').innerHTML=roleBoxes(i.roles,self,locked);
+      $('udv').textContent='Enregistrer';$('udv').style.display=locked?'none':'';$('udrm').style.display=(self||locked)?'none':'';
+    }else{
+      $('udt').textContent='Ajouter une personne';
+      $('ude').value='';$('ude').readOnly=false;$('udn').value='';$('udn').disabled=false;$('udh').textContent='';
+      $('udr').innerHTML=roleBoxes(['lecteur'],false);
+      $('udv').textContent='Ajouter';$('udv').style.display='';$('udrm').style.display='none';
+    }
+    $('uddlg').showModal();
   }
   $('admBtn').onclick=function(){
     var l=live(),b=dbUrl().replace('https://','').split('.')[0];
@@ -1087,10 +1120,10 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     }).then(function(){$('admMail').disabled=false});
   };
 
-  /* Historique d'une pièce : stock de départ puis chaque mouvement avec le stock obtenu après lui */
+  /* Historique d'une pièce : stock de départ puis chaque ligne du journal ; le stock après chaque mouvement */
   var TL={entree:'Entrée',sortie:'Sortie',inventaire:'Inventaire',demande:'Demande',modification:'Modification',approbation:'Approbation',refus:'Refus',reception:'Réception',cloture:'Clôture'};
   function mvLabel(d){return d>0?'Entrée +'+fmt(d):'Sortie −'+fmt(-d)}
-  /* réceptions : « partielle » ou « complète » selon le cumul reçu par rapport à la quantité demandée (calculé à l'affichage) */
+  /* libellés calculés à l'affichage : réception « partielle » ou « complète » (cumul reçu / quantité demandée), modification « ancienne → nouvelle » */
   function recvLabels(all){
     var q={},m={},cum={};
     all.filter(function(r){return r.type==='demande'||r.type==='modification'||r.type==='reception'}).sort(function(a,b){return a.t-b.t}).forEach(function(r){
@@ -1136,7 +1169,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('hx').onclick=function(){$('hdlg').close()};
 
   /* Journal complet (admin / SecurityOfficer) : filtres, pages de 50, export CSV */
-  var jrows=[],jshown=0,JPAGE=50;
+  var jrows=[],jshown=0,JPAGE=50,jrl={};
   function jFilter(all){
     var d1=$('jd1').value?new Date($('jd1').value+'T00:00:00').getTime():0,
         d2=$('jd2').value?new Date($('jd2').value+'T23:59:59').getTime():Infinity,
@@ -1149,7 +1182,6 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       return true;
     }).sort(function(a,b){return b.t-a.t});
   }
-  var jrl={};
   function jRender(){
     $('jc').textContent=jrows.length+' mouvement'+(jrows.length>1?'s':'');
     $('jl').innerHTML=jrows.slice(0,jshown).map(function(r){
@@ -1180,7 +1212,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     toast('Journal exporté');
   };
 
-  /* ===== Inventaire (comptage) : mouvement de type "inventaire" = quantité comptée, attendue et écart ===== */
+  /* ===== Inventaire (comptage) : ligne de type "inventaire" = quantité comptée (valeur saisie) et écart ===== */
   var invCode=null;
   $('ki').onclick=function(){
     var c=$('ke').dataset.c,it=c?find(c):null;if(!it)return;
@@ -1209,6 +1241,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
   /* ===== Demandes de pièces : En attente -> Approuvée / Refusée -> Partiellement reçue -> Reçue (ou Clôturée) ===== */
   var RQL={attente:'En attente',refusee:'Refusée',approuvee:'Approuvée',partielle:'Partiellement reçue',recue:'Reçue',cloturee:'Clôturée'};
+  var OPEN={attente:1,approuvee:1,partielle:1};
   function rqStatus(r,dec,clo,got){
     if(!dec)return 'attente';
     if(dec.statut==='refusee')return 'refusee';
@@ -1217,12 +1250,13 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     if(got>0)return 'partielle';
     return 'approuvee';
   }
-  /* Les demandes sont des lignes du journal : demande (id), approbation|refus (id~d), clôture (id~c), réceptions (champ demande) */
-  var OPEN={attente:1,approuvee:1,partielle:1};
+  /* Les demandes sont des lignes du journal : demande (id), modification, approbation|refus (id~d), clôture (id~c), réceptions (champ demande) */
   function loadRq(){
     return mall().then(function(a){
-      var dem=[],dm={},cm={},got={},md={};
+      var dem=[],dm={},cm={},got={},md={},lastR={},lastMv={};
       a.forEach(function(m){
+        if(m.demande&&(!lastR[m.demande]||m.t>lastR[m.demande]))lastR[m.demande]=m.t;
+        if((m.type==='entree'||m.type==='sortie'||m.type==='inventaire')&&(!lastMv[m.code]||m.t>lastMv[m.code]))lastMv[m.code]=m.t;
         if(m.type==='demande')dem.push(m);
         else if(m.type==='approbation'||m.type==='refus')dm[m.demande]={statut:m.type==='refus'?'refusee':'approuvee',motif:m.note,by:m.by,t:m.t};
         else if(m.type==='cloture')cm[m.demande]={by:m.by,t:m.t};
@@ -1231,10 +1265,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       });
       return dem.map(function(m){
         var r={id:m.id,code:m.code,qty:Number(m.saisie)||0,note:m.note,by:m.by,t:m.t,mods:0},g=got[m.id]||0;
-        /* quantite et commentaire en vigueur = ceux de la modification la plus recente */
-        var ml=(md[m.id]||[]).sort(function(a,b){return a.t-b.t});
+        /* quantité et commentaire en vigueur = ceux de la modification la plus récente */
+        var ml=(md[m.id]||[]).sort(function(x,y){return x.t-y.t});
         if(ml.length){var lm=ml[ml.length-1];r.qty=Number(lm.saisie)||0;r.note=lm.note;r.mods=ml.length}
-        return{r:r,dec:dm[m.id],clo:cm[m.id],got:g,st:rqStatus(r,dm[m.id],cm[m.id],g)};
+        var lt=Math.max(m.t,lastR[m.id]||0);
+        /* over = un mouvement de stock (entrée, sortie, inventaire) a eu lieu sur la pièce après le dernier événement de la demande */
+        return{r:r,dec:dm[m.id],clo:cm[m.id],got:g,st:rqStatus(r,dm[m.id],cm[m.id],g),over:(lastMv[m.code]||0)>lt};
       }).sort(function(x,y){return y.r.t-x.r.t});
     }).catch(function(){return []});
   }
@@ -1258,6 +1294,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function kreq(L,code){
     var x=L.filter(function(y){return y.r.code===code}).sort(function(a,b){return (OPEN[b.st]?1:0)-(OPEN[a.st]?1:0)})[0],o=L.filter(function(y){return y.r.code===code&&OPEN[y.st]})[0];
     var ed=o&&canEditRq(o);$('krt').textContent=o?(ed?'Changer la demande':'Voir la demande'):'Demander';$('kr').dataset.open=o?o.r.id:'';$('kr').dataset.edit=ed?'1':'';
+    if(x&&!OPEN[x.st]&&x.over)x=null; /* demande terminée : le bandeau disparaît au premier mouvement suivant */
     $('krs').textContent=x?'Demande de '+fmt(x.r.qty)+' pièce(s) : '+RQL[x.st]+((x.st==='partielle'||x.st==='recue')?' ('+fmt(x.got)+' reçues)':'')+((x.st==='refusee'&&x.dec&&x.dec.motif)?' — '+x.dec.motif:''):'';
   }
   function rqCard(x,mode){
@@ -1297,9 +1334,15 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         '<div><span class="chip '+x.st+'">'+RQL[x.st]+'</span></div></li>';
     }).join('')+(list.length>RQ_LIMIT?'<li class="empty">'+(list.length-RQ_LIMIT)+' autres demandes : affine la recherche.</li>':''):'<li class="empty">'+(q?'Aucune demande ne correspond.':'Aucune demande.')+'</li>';
   }
+  /* redessiné à chaque synchro : on ne touche à rien si rien n'a changé, sinon on garde ce que la personne est en train de saisir (motif, quantité reçue) */
   function rqDetail(){
-    var x=rqL.filter(function(y){return y.r.id===rqOpen})[0];
-    $('rdb').innerHTML=x?rqCard(x,rqMode(x)):'<p class="hint">Demande introuvable.</p>';
+    var x=rqL.filter(function(y){return y.r.id===rqOpen})[0],box=$('rdb'),html=x?rqCard(x,rqMode(x)):'<p class="hint">Demande introuvable.</p>';
+    if(box.dataset.k===rqOpen+'|'+html)return;
+    var keep={},act=document.activeElement,focus='';
+    ['rmot','rrec'].forEach(function(c){var e=box.querySelector('.'+c);if(e&&e.value!==e.defaultValue)keep[c]=e.value;if(e&&e===act)focus=c});
+    box.innerHTML=html;box.dataset.k=rqOpen+'|'+html;
+    Object.keys(keep).forEach(function(c){var e=box.querySelector('.'+c);if(e)e.value=keep[c]});
+    if(focus){var f=box.querySelector('.'+focus);if(f)f.focus()}
   }
   $('rqBtn').onclick=function(){$('rs').value='';$('rl').innerHTML='<li class="empty">Chargement…</li>';$('rdlg').showModal();sync();loadRq().then(rqRender)};
   $('rs').oninput=function(){rqRender(rqL)};
@@ -1307,7 +1350,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('rdx').onclick=function(){$('rddlg').close()};
   $('rl').onclick=function(e){
     var li=e.target.closest('li[data-r]');if(!li)return;
-    rqOpen=li.getAttribute('data-r');rqDetail();if(!$('rddlg').open)$('rddlg').showModal();
+    rqOpen=li.getAttribute('data-r');$('rdb').dataset.k='';rqDetail();if(!$('rddlg').open)$('rddlg').showModal();
   };
   /* approbation / refus / clôture : une ligne du journal à identifiant fixe (id~d, id~c) = une seule décision possible */
   function decide(x,type,motif){
@@ -1334,9 +1377,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       ask('Clôturer cette demande ? Le reste éventuel ne sera plus attendu.','Clôturer',function(){decide(x,'cloture','').then(function(){toast('Demande clôturée')})});
     }
   };
-  var rqCode=null;
-  var qEdit=null;
-  /* formulaire de demande : creation, ou modification de la quantite d'une demande En attente */
+  var rqCode=null,qEdit=null;
+  /* formulaire de demande : création, ou modification de la quantité d'une demande En attente */
   function openEdit(x){
     if(needAuth('stock'))return;
     qEdit=x;rqCode=x.r.code;var it=find(x.r.code);
@@ -1352,7 +1394,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       loadRq().then(function(L){
         rqL=L;var x=L.filter(function(y){return y.r.id===opn})[0];if(!x)return;
         if($('kr').dataset.edit&&canEditRq(x)){openEdit(x);return}
-        rqOpen=opn;$('kdlg').close();rqDetail();$('rddlg').showModal();
+        rqOpen=opn;$('rdb').dataset.k='';$('kdlg').close();rqDetail();$('rddlg').showModal();
       });
       return;
     }
@@ -1378,29 +1420,35 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       return addMv(code,0,{type:'demande',saisie:q,note:note}).then(function(ok){if(ok){rqRefresh();toast('Demande envoyée')}});
     });
   };
-  $('admUsers').onclick=function(){$('ur').innerHTML=roleBoxes(['lecteur'],false);usersList();$('udlg').showModal()};
+  $('admUsers').onclick=function(){$('us').value='';$('ul').innerHTML='<li class="empty">Chargement…</li>';usersList();$('udlg').showModal()};
   $('ux').onclick=function(){$('udlg').close()};
-  $('ulist').onclick=function(e){
-    var s=e.target.closest('button[data-sv]'),r=e.target.closest('button[data-rm]');
-    if(s){
-      var k=s.getAttribute('data-sv'),row=s.closest('[data-k]');
-      fb('GET','/allowed/'+encodeURIComponent(k)).then(function(v){
-        var name=(v&&typeof v==='object')?(v.name||''):String(v||'');
-        return fb('PUT','/allowed/'+encodeURIComponent(k),{name:name,roles:checkedRoles(row).join(',')});
-      }).then(function(){ustat('Rôles enregistrés',k)}).catch(function(){ustat('Enregistrement impossible (droits ?)',k,true)});
-    }else if(r){
-      var kk=r.getAttribute('data-rm');
-      ask('Retirer '+kk.replace(/,/g,'.')+" ? Cette personne n'aura plus accès à l'inventaire.",'Retirer',function(){
-        fb('DELETE','/allowed/'+encodeURIComponent(kk)).then(function(){ustat('Personne retirée',kk);usersList()}).catch(function(){ustat('Suppression impossible (droits ?)',kk,true)});
-      });
+  $('udx').onclick=function(){$('uddlg').close()};
+  $('us').oninput=uRender;
+  $('uadd').onclick=function(){uOpenDlg(null)};
+  $('ul').onclick=function(e){
+    var li=e.target.closest('li[data-u]');if(!li)return;
+    uOpenDlg(li.getAttribute('data-u'));
+  };
+  $('udv').onclick=function(){
+    var roles=checkedRoles($('udr')).join(','),name=$('udn').value.trim();
+    if(uOpen){
+      var k=uOpen;
+      fb('PUT','/allowed/'+encodeURIComponent(k),{name:uInfo(uData[k]).name,roles:roles}).then(function(){
+        ustat('Enregistré',k);$('uddlg').close();usersList();
+      }).catch(function(){ustat('Enregistrement impossible (droits ?)',k,true)});
+    }else{
+      var em=$('ude').value.trim();
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail invalide');return}
+      fb('PUT','/allowed/'+encodeURIComponent(ukey(em)),{name:name||em.split('@')[0],roles:roles}).then(function(){
+        ustat('Personne ajoutée',ukey(em));$('uddlg').close();usersList();
+      }).catch(function(){ustat('Ajout impossible (droits ?)',ukey(em),true)});
     }
   };
-  $('ua').onclick=function(){
-    var em=$('ue').value.trim(),pn=$('un').value.trim();
-    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail invalide');return}
-    fb('PUT','/allowed/'+encodeURIComponent(ukey(em)),{name:pn||em.split('@')[0],roles:checkedRoles($('ur')).join(',')}).then(function(){
-      ustat('Personne ajoutée',ukey(em));$('ue').value='';$('un').value='';usersList();
-    }).catch(function(){ustat('Ajout impossible (droits ?)',ukey(em),true)});
+  $('udrm').onclick=function(){
+    var kk=uOpen;if(!kk)return;
+    ask('Retirer '+kk.replace(/,/g,'.')+" ? Cette personne n'aura plus accès à l'inventaire.",'Retirer',function(){
+      fb('DELETE','/allowed/'+encodeURIComponent(kk)).then(function(){ustat('Personne retirée',kk);$('uddlg').close();usersList()}).catch(function(){ustat('Suppression impossible (droits ?)',kk,true)});
+    });
   };
 
   window.addEventListener('online',function(){status();sync()});

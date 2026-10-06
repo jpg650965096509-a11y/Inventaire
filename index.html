@@ -122,7 +122,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <dialog id="kdlg">
   <h2 id="kn"></h2>
   <p class="hint" id="kc" style="margin:0"></p>
-  <div id="kq" style="font:700 64px/1 'Barlow Condensed',Barlow,system-ui,sans-serif;text-align:center;margin:12px 0 2px"></div>
+  <div class="qty" style="justify-content:center;gap:18px;margin:12px 0 2px">
+    <button type="button" id="kminus" aria-label="Retirer" style="width:56px;height:56px">−</button>
+    <div id="kq" style="font:700 64px/1 'Barlow Condensed',Barlow,system-ui,sans-serif;text-align:center;min-width:90px"></div>
+    <button type="button" id="kplus" aria-label="Ajouter" style="width:56px;height:56px">+</button>
+  </div>
   <p class="hint" style="text-align:center;margin:0 0 10px">en stock</p>
   <p id="kl" style="margin:4px 0"></p>
   <p id="ko" style="margin:4px 0"></p>
@@ -135,7 +139,13 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <h2 id="dt">Fiche pièce</h2>
     <label>Code-barres<input id="fc" required autocomplete="off"></label>
     <label>Nom<input id="fn" required autocomplete="off"></label>
-    <label>Quantité<input id="fq" inputmode="decimal" value="0"></label>
+    <label>Quantité
+      <div class="row" style="margin-top:4px;flex-wrap:nowrap">
+        <button type="button" class="btn" id="fqm" aria-label="Retirer" style="flex:0 0 56px;font-size:22px">−</button>
+        <input id="fq" inputmode="decimal" value="0" style="margin-top:0;text-align:center;font-weight:600">
+        <button type="button" class="btn" id="fqp" aria-label="Ajouter" style="flex:0 0 56px;font-size:22px">+</button>
+      </div>
+    </label>
     <label>Emplacement<input id="fl" autocomplete="off"></label>
     <label>Note<input id="fo" autocomplete="off"></label>
     <div class="row">
@@ -183,7 +193,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.5';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.7';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -474,6 +484,18 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     else openForm(it);
   };
   $('kx').onclick=function(){$('kdlg').close()};
+  function bump(d){
+    var it=find($('ke').dataset.c);if(!it)return;
+    it.qty=Math.max(0,num(it.qty+d*num($('step').value||1)));put(it);commit();showStock(it);
+  }
+  function fbump(d){
+    var v=Math.max(0,num(num($('fq').value)+d*num($('step').value||1)));
+    $('fq').value=String(v).replace('.',',');
+  }
+  $('fqm').onclick=function(){fbump(-1)};
+  $('fqp').onclick=function(){fbump(1)};
+  $('kminus').onclick=function(){bump(-1)};
+  $('kplus').onclick=function(){bump(1)};
   $('kdlg').addEventListener('close',function(){try{if(scanner)scanner.resume()}catch(e){}});
   $('ke').onclick=function(){
     var it=find($('ke').dataset.c);stopScan();$('kdlg').close();

@@ -19,7 +19,7 @@
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --bg:#0E1426;--card:#18223B;--ink:#EEF1F8;--mute:#9AA6BF;--line:#2B3858;
-    --head:#0A1022;--headtxt:#FFFFFF;--bad:#FF8A80;
+    --head:#0A1022;--headtxt:#FFFFFF;--bad:#FF8A80;
   }
 }
 :root[data-theme="dark"]{
@@ -47,8 +47,7 @@ label{display:block;font-weight:600;margin-bottom:10px}
 label input{margin-top:4px;font-weight:400}
 .row{display:flex;gap:8px;align-items:center}
 .row>*{flex:1}
-#reader{margin-top:10px;border-radius:10px;overflow:hidden}
-#reader:empty{display:none}
+#reader{margin-top:10px;border-radius:10px;overflow:hidden;min-height:1px}
 .opts{display:flex;gap:8px;margin-top:10px;align-items:flex-end}
 .opts .step{flex:0 0 110px}
 .opts label{margin:0}
@@ -287,10 +286,10 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function startScan(){
     if(!window.Html5Qrcode){toast('Scanner indisponible : bibliothèque non chargée');return}
     if(scanner)return;
-    scanner=new Html5Qrcode('reader',{experimentalFeatures:{useBarCodeDetectorIfSupported:true}});
+    scanner=new Html5Qrcode('reader');
     scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:150}},onScan,function(){})
       .then(function(){$('scanBtn').textContent='Arrêter le scan'})
-      .catch(function(){toast('Caméra refusée ou indisponible (HTTPS requis)');scanner=null;$('reader').innerHTML=''});
+      .catch(function(err){toast('Erreur caméra : '+err);scanner=null;$('reader').innerHTML=''});
   }
   function stopScan(){
     var s=scanner;scanner=null;$('scanBtn').textContent='Scanner';
@@ -422,3 +421,4 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 </script>
 </body>
 </html>
+

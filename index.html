@@ -169,7 +169,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.2';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.3';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -334,9 +334,25 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     else{stopScan();openForm({code:code,qty:num($('step').value||1)})}
   }
 
-  function onScan(text){
+  /* Anti fausses lectures : clé de contrôle EAN/UPC + deux lectures identiques de suite */
+  var cand='',candN=0,candT=0,badT=0;
+  function eanOk(s){
+    var n=s.length,sum=0,i;
+    for(i=0;i<n-1;i++)sum+=((n-1-i)%2===1)?Number(s[i])*3:Number(s[i]);
+    return (10-sum%10)%10===Number(s[n-1]);
+  }
+  function onScan(text,res){
     var now=Date.now();
     if(text===lastCode&&now-lastTime<2000)return;
+    var fmt=res&&res.result&&res.result.format&&res.result.format.formatName;
+    if((fmt==='EAN_13'||fmt==='EAN_8'||fmt==='UPC_A')&&(!/^\d+$/.test(text)||!eanOk(text))){
+      if(now-badT>2000){badT=now;toast('Lecture douteuse, recommence')}
+      return;
+    }
+    if(text!==cand||now-candT>1500){cand=text;candN=1;candT=now;return}
+    candN++;candT=now;
+    if(candN<2)return;
+    cand='';candN=0;
     lastCode=text;lastTime=now;
     if(navigator.vibrate)navigator.vibrate(60);
     handleCode(text);
@@ -344,7 +360,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function startScan(){
     if(!window.Html5Qrcode){toast('Scanner indisponible : bibliothèque non chargée');return}
     if(scanner)return;
-    scanner=new Html5Qrcode('reader');
+    var F=window.Html5QrcodeSupportedFormats||{};
+    var fmts=['EAN_13','EAN_8','UPC_A','UPC_E','CODE_128','CODE_39','CODE_93','ITF','CODABAR','RSS_14'].map(function(n){return F[n]}).filter(function(v){return v!==undefined});
+    var conf={verbose:false,experimentalFeatures:{useBarCodeDetectorIfSupported:true}};
+    if(fmts.length)conf.formatsToSupport=fmts;
+    scanner=new Html5Qrcode('reader',conf);
     scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:150}},onScan,function(){})
       .then(function(){$('scanBtn').textContent='Arrêter le scan'})
       .catch(function(err){toast('Erreur caméra : '+err);scanner=null;$('reader').innerHTML=''});

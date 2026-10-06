@@ -45,6 +45,9 @@ main{max-width:640px;margin:0 auto;padding:12px}
 .btn.pri{background:var(--acc);border-color:var(--acc);color:var(--accink)}
 .btn.danger{color:var(--bad)}
 .btn.big{width:100%;font-size:18px;min-height:52px}
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.kb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:64px;padding:8px 6px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:600 14px/1.2 Barlow,system-ui,sans-serif;text-align:center;cursor:pointer}
+.kb svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 button:focus-visible,input:focus-visible,a:focus-visible,label.btn:focus-within{outline:3px solid var(--acc);outline-offset:2px}
 input{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;
   background:var(--bg);color:var(--ink);font:16px Barlow,system-ui,sans-serif}
@@ -143,10 +146,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p class="hint" id="km" style="margin:8px 0 0;white-space:pre-line"></p>
   <p id="krs"></p>
   <div class="row"><button type="button" class="btn" id="kx">Annuler</button><button type="button" class="btn pri" id="kv">Valider</button></div>
-  <div class="row"><button type="button" id="ke" style="flex:1;background:none;border:0;color:var(--mute);text-decoration:underline;font:600 15px Barlow,system-ui,sans-serif;min-height:40px;cursor:pointer">Modifier la fiche</button></div>
-  <div class="row"><button type="button" id="kh" style="flex:1;background:none;border:0;color:var(--mute);text-decoration:underline;font:600 15px Barlow,system-ui,sans-serif;min-height:40px;cursor:pointer">Historique</button></div>
-  <div class="row"><button type="button" id="ki" style="flex:1;background:none;border:0;color:var(--mute);text-decoration:underline;font:600 15px Barlow,system-ui,sans-serif;min-height:40px;cursor:pointer">Faire un inventaire</button></div>
-  <div class="row"><button type="button" id="kr" style="flex:1;background:none;border:0;color:var(--mute);text-decoration:underline;font:600 15px Barlow,system-ui,sans-serif;min-height:40px;cursor:pointer">Demander des pièces</button></div>
+  <div class="kgrid">
+    <button type="button" class="kb" id="ke" title="Modifier la fiche"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg><span>Modifier</span></button>
+    <button type="button" class="kb" id="kh" title="Historique de la pièce"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg><span>Historique</span></button>
+    <button type="button" class="kb" id="ki" title="Faire un inventaire"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M9 14l2 2 4-4"/></svg><span>Inventaire</span></button>
+    <button type="button" class="kb" id="kr" title="Demander des pièces"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M3 8v8l9 4 9-4V8"/><path d="M12 12v8"/></svg><span id="krt">Demander</span></button>
+  </div>
 </dialog>
 
 <dialog id="dlg">
@@ -234,7 +239,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 </dialog>
 
 <dialog id="qdlg">
-  <h2>Demander des pièces</h2>
+  <h2 id="qt">Demander des pièces</h2>
   <p class="hint" id="qn" style="margin:0 0 8px"></p>
   <label>Quantité demandée<input id="qq" inputmode="decimal" autocomplete="off"></label>
   <label>Commentaire (facultatif)<input id="qc" autocomplete="off"></label>
@@ -270,7 +275,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   </div>
   <label>Pièce (code ou nom)<input id="jp" autocomplete="off"></label>
   <label>Personne<input id="ju" autocomplete="off"></label>
-  <label>Type<select id="jt"><option value="">Tous</option><option value="entree">Entrées</option><option value="sortie">Sorties</option><option value="inventaire">Inventaires</option><option value="demande">Demandes</option><option value="approbation">Approbations</option><option value="refus">Refus</option><option value="reception">Réceptions</option><option value="cloture">Clôtures</option></select></label>
+  <label>Type<select id="jt"><option value="">Tous</option><option value="entree">Entrées</option><option value="sortie">Sorties</option><option value="inventaire">Inventaires</option><option value="demande">Demandes</option><option value="modification">Modifications</option><option value="approbation">Approbations</option><option value="refus">Refus</option><option value="reception">Réceptions</option><option value="cloture">Clôtures</option></select></label>
   <p class="hint" id="jc" style="margin:0 0 6px"></p>
   <div id="jl" style="max-height:40vh;overflow:auto"></div>
   <div class="row"><button type="button" class="btn" id="jmore">Afficher plus</button><button type="button" class="btn" id="jcsv">Export CSV</button></div>
@@ -419,7 +424,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
   }
   /* Types sans effet sur le stock : delta = 0 (la trace est gardée) */
-  var NOSTK={inventaire:1,demande:1,approbation:1,refus:1,cloture:1};
+  var NOSTK={inventaire:1,demande:1,modification:1,approbation:1,refus:1,cloture:1};
   /* Une ligne du journal. extra = {type, saisie (valeur tapée à l'écran), note, demande (id de la demande liée), id (identifiant imposé)} */
   function addMv(code,delta,extra){
     extra=extra||{};delta=r3(delta);
@@ -449,7 +454,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var q=full?'':'?orderBy=%22s%22&startAt='+Math.max(0,(cfg.msince||0)-3e5);
     return mdirty().then(function(dl){
       /* envoi par étapes : les règles serveur lisent l'état déjà enregistré (une décision exige que la demande existe, une réception exige l'approbation) */
-      var ST={approbation:2,refus:2,reception:3,cloture:3},refused=0,pay=function(r){var o={};['code','delta','type','by','t','saisie','note','demande','dateAction_t','compte','attendu'].forEach(function(f){if(r[f]!==undefined)o[f]=r[f]});o.s=t0;o.envoiFirebase_s=dtxt(t0);return o};
+      var ST={modification:2,approbation:2,refus:2,reception:3,cloture:3},refused=0,pay=function(r){var o={};['code','delta','type','by','t','saisie','note','demande','dateAction_t','compte','attendu'].forEach(function(f){if(r[f]!==undefined)o[f]=r[f]});o.s=t0;o.envoiFirebase_s=dtxt(t0);return o};
       var refus=function(e){return /^(400|401|403)$/.test(e&&e.message)};
       var done=function(list){return Promise.all(list.map(function(r){delete r.d;return mput(r)}))};
       var stage=function(n){
@@ -649,7 +654,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('kminus').style.display=s?'':'none';$('kplus').style.display=s?'':'none';$('kv').style.display=s?'':'none';
     $('ke').style.display=can('fiche')?'':'none';$('kx').textContent=s?'Annuler':'Fermer';
     $('kh').style.display=(auth&&can('hist'))?'':'none';
-    $('ki').style.display=s?'':'none';$('kr').style.display=s?'':'none';$('krs').textContent='';$('kr').textContent='Demander des pièces';$('kr').dataset.open='';
+    $('ki').style.display=s?'':'none';$('kr').style.display=s?'':'none';$('krs').textContent='';$('krt').textContent='Demander';$('kr').dataset.open='';$('kr').dataset.edit='';
     $('kn').textContent=it.name;$('kc').textContent=it.code;
     /* stock recalculé à l'affichage du détail : copie locale d'abord, puis après rafraîchissement des mouvements de la pièce */
     kready=false;kbase=0;kqty=0;$('kq').textContent='…';$('kst').textContent='calcul du stock…';
@@ -1083,15 +1088,20 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   };
 
   /* Historique d'une pièce : stock de départ puis chaque mouvement avec le stock obtenu après lui */
-  var TL={entree:'Entrée',sortie:'Sortie',inventaire:'Inventaire',demande:'Demande',approbation:'Approbation',refus:'Refus',reception:'Réception',cloture:'Clôture'};
+  var TL={entree:'Entrée',sortie:'Sortie',inventaire:'Inventaire',demande:'Demande',modification:'Modification',approbation:'Approbation',refus:'Refus',reception:'Réception',cloture:'Clôture'};
   function mvLabel(d){return d>0?'Entrée +'+fmt(d):'Sortie −'+fmt(-d)}
   /* réceptions : « partielle » ou « complète » selon le cumul reçu par rapport à la quantité demandée (calculé à l'affichage) */
   function recvLabels(all){
     var q={},m={},cum={};
-    all.forEach(function(r){if(r.type==='demande')q[r.id]=Number(r.saisie)||0});
-    all.filter(function(r){return r.type==='reception'}).sort(function(a,b){return a.t-b.t}).forEach(function(r){
-      cum[r.demande]=r3((cum[r.demande]||0)+(Number(r.delta)||0));
-      m[r.id]=(q[r.demande]&&cum[r.demande]>=q[r.demande]?'Réception complète : ':'Réception partielle : ')+fmt(Number(r.delta)||0)+(q[r.demande]?' (cumul '+fmt(cum[r.demande])+' sur '+fmt(q[r.demande])+')':'');
+    all.filter(function(r){return r.type==='demande'||r.type==='modification'||r.type==='reception'}).sort(function(a,b){return a.t-b.t}).forEach(function(r){
+      if(r.type==='demande')q[r.id]=Number(r.saisie)||0;
+      else if(r.type==='modification'){
+        var old=q[r.demande];q[r.demande]=Number(r.saisie)||0;
+        m[r.id]='Demande modifiée : '+(old===undefined?'?':fmt(old))+' → '+fmt(q[r.demande])+(r.note?' — '+r.note:'');
+      }else{
+        cum[r.demande]=r3((cum[r.demande]||0)+(Number(r.delta)||0));
+        m[r.id]=(q[r.demande]&&cum[r.demande]>=q[r.demande]?'Réception complète : ':'Réception partielle : ')+fmt(Number(r.delta)||0)+(q[r.demande]?' (cumul '+fmt(cum[r.demande])+' sur '+fmt(q[r.demande])+')':'');
+      }
     });
     return m;
   }
@@ -1099,6 +1109,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var sg=r.saisie!==undefined?r.saisie:r.compte,ec=(r.delta>0?'+':(r.delta<0?'−':''))+fmt(Math.abs(r.delta));
     if(r.type==='inventaire')return 'Inventaire : compté '+fmt(Number(sg)||0)+' (écart '+ec+')';
     if(r.type==='demande')return 'Demande de '+fmt(Number(r.saisie)||0)+' pièce(s)'+(r.note?' : '+r.note:'');
+    if(r.type==='modification')return (rl&&rl[r.id])||('Demande modifiée : '+fmt(Number(r.saisie)||0));
     if(r.type==='approbation')return 'Demande approuvée ('+fmt(Number(r.saisie)||0)+')'+(r.note?' — '+r.note:'');
     if(r.type==='refus')return 'Demande refusée ('+fmt(Number(r.saisie)||0)+')'+(r.note?' — '+r.note:'');
     if(r.type==='cloture')return 'Demande clôturée ('+fmt(Number(r.saisie)||0)+')';
@@ -1210,15 +1221,19 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   var OPEN={attente:1,approuvee:1,partielle:1};
   function loadRq(){
     return mall().then(function(a){
-      var dem=[],dm={},cm={},got={};
+      var dem=[],dm={},cm={},got={},md={};
       a.forEach(function(m){
         if(m.type==='demande')dem.push(m);
         else if(m.type==='approbation'||m.type==='refus')dm[m.demande]={statut:m.type==='refus'?'refusee':'approuvee',motif:m.note,by:m.by,t:m.t};
         else if(m.type==='cloture')cm[m.demande]={by:m.by,t:m.t};
+        else if(m.type==='modification'){(md[m.demande]=md[m.demande]||[]).push(m)}
         else if(m.type==='reception')got[m.demande]=r3((got[m.demande]||0)+(Number(m.delta)||0));
       });
       return dem.map(function(m){
-        var r={id:m.id,code:m.code,qty:Number(m.saisie)||0,note:m.note,by:m.by,t:m.t},g=got[m.id]||0;
+        var r={id:m.id,code:m.code,qty:Number(m.saisie)||0,note:m.note,by:m.by,t:m.t,mods:0},g=got[m.id]||0;
+        /* quantite et commentaire en vigueur = ceux de la modification la plus recente */
+        var ml=(md[m.id]||[]).sort(function(a,b){return a.t-b.t});
+        if(ml.length){var lm=ml[ml.length-1];r.qty=Number(lm.saisie)||0;r.note=lm.note;r.mods=ml.length}
         return{r:r,dec:dm[m.id],clo:cm[m.id],got:g,st:rqStatus(r,dm[m.id],cm[m.id],g)};
       }).sort(function(x,y){return y.r.t-x.r.t});
     }).catch(function(){return []});
@@ -1238,9 +1253,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       for(var i=0;i<bs.length;i++){var o=open[bs[i].getAttribute('data-rb')];bs[i].textContent=o?'Demande '+(o.st==='attente'?'en attente':(o.st==='approuvee'?'approuvée':'partiellement reçue')):''}
     });
   }
+  /* modifiable tant qu'elle est En attente : par le demandeur, ou par Admin / SuperUser */
+  function canEditRq(x){return x.st==='attente'&&can('stock')&&(can('decide')||String(x.r.by).toLowerCase()===me())}
   function kreq(L,code){
     var x=L.filter(function(y){return y.r.code===code}).sort(function(a,b){return (OPEN[b.st]?1:0)-(OPEN[a.st]?1:0)})[0],o=L.filter(function(y){return y.r.code===code&&OPEN[y.st]})[0];
-    $('kr').textContent=o?'Voir la demande en cours':'Demander des pièces';$('kr').dataset.open=o?o.r.id:'';
+    var ed=o&&canEditRq(o);$('krt').textContent=o?(ed?'Changer la demande':'Voir la demande'):'Demander';$('kr').dataset.open=o?o.r.id:'';$('kr').dataset.edit=ed?'1':'';
     $('krs').textContent=x?'Demande de '+fmt(x.r.qty)+' pièce(s) : '+RQL[x.st]+((x.st==='partielle'||x.st==='recue')?' ('+fmt(x.got)+' reçues)':'')+((x.st==='refusee'&&x.dec&&x.dec.motif)?' — '+x.dec.motif:''):'';
   }
   function rqCard(x,mode){
@@ -1251,8 +1268,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       var rest=r3(x.r.qty-x.got);if(rest<0)rest=0;
       act='<input class="rrec" inputmode="decimal" value="'+esc(String(rest).replace('.',','))+'" aria-label="Quantité reçue" style="flex:1 1 100%;margin-top:6px"><div class="row" style="flex:1 1 100%"><button class="btn pri" data-rc="'+esc(x.r.id)+'" type="button">Réceptionner</button><button class="btn" data-cl="'+esc(x.r.id)+'" type="button">Clôturer</button></div>';
     }
+    if(canEditRq(x))act+='<div class="row" style="flex:1 1 100%"><button class="btn" data-ch="'+esc(x.r.id)+'" type="button">Changer la quantité</button></div>';
     return '<div class="snap" data-id="'+esc(x.r.id)+'" style="flex-wrap:wrap"><div style="flex:1 1 100%"><b>'+esc(it?it.name:x.r.code)+'</b><small>'+esc(x.r.code)+'</small>'+
-      '<small>Demande de '+fmt(x.r.qty)+' pièce(s) · '+esc(nm(x.r.by))+' · '+dstr(x.r.t)+'</small>'+(x.r.note?'<small>'+esc(x.r.note)+'</small>':'')+
+      '<small>Demande de '+fmt(x.r.qty)+' pièce(s)'+(x.r.mods?' (modifiée)':'')+' · '+esc(nm(x.r.by))+' · '+dstr(x.r.t)+'</small>'+(x.r.note?'<small>'+esc(x.r.note)+'</small>':'')+
       '<small style="font-weight:600">'+RQL[x.st]+((x.st==='partielle'||x.st==='recue'||x.st==='cloturee')?' · '+fmt(x.got)+' reçues':'')+(x.dec?' · par '+esc(nm(x.dec.by)):'')+(x.dec&&x.dec.motif?' · « '+esc(x.dec.motif)+' »':'')+'</small></div>'+act+'</div>';
   }
   /* Liste des demandes comme la liste des pièces : une ligne par demande, recherche, clic = écran de gestion */
@@ -1297,10 +1315,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     return addMv(x.r.code,0,{type:type,id:x.r.id+sfx,demande:x.r.id,saisie:x.r.qty,note:motif}).then(function(ok){rqRefresh();return ok});
   }
   $('rdb').onclick=function(e){
-    var ap=e.target.closest('button[data-ap]'),rf=e.target.closest('button[data-rf]'),rc=e.target.closest('button[data-rc]'),cl=e.target.closest('button[data-cl]');
+    var ap=e.target.closest('button[data-ap]'),rf=e.target.closest('button[data-rf]'),rc=e.target.closest('button[data-rc]'),cl=e.target.closest('button[data-cl]'),ch=e.target.closest('button[data-ch]');
     var card=e.target.closest('[data-id]');if(!card)return;
-    var bt=ap||rf||rc||cl;if(!bt)return;
+    var bt=ap||rf||rc||cl||ch;if(!bt)return;
     var x=rqL.filter(function(y){return y.r.id===card.getAttribute('data-id')})[0];if(!x)return;
+    if(ch){openEdit(x);return}
     if(ap||rf){
       if(needAuth('decide'))return;
       var mot=((card.querySelector('.rmot')||{}).value||'').trim();
@@ -1316,24 +1335,45 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     }
   };
   var rqCode=null;
+  var qEdit=null;
+  /* formulaire de demande : creation, ou modification de la quantite d'une demande En attente */
+  function openEdit(x){
+    if(needAuth('stock'))return;
+    qEdit=x;rqCode=x.r.code;var it=find(x.r.code);
+    $('rddlg').close();$('kdlg').close();
+    $('qt').textContent='Modifier la demande';$('qv').textContent='Modifier la demande';
+    $('qn').textContent=(it?it.name:x.r.code)+' · '+x.r.code;$('qq').value=String(x.r.qty).replace('.',',');$('qc').value=x.r.note||'';
+    $('qdlg').showModal();
+  }
   $('kr').onclick=function(){
     var c=$('ke').dataset.c,it=c?find(c):null;if(!it)return;
     var opn=$('kr').dataset.open;
     if(opn){
-      /* une seule demande ouverte par pièce : on ouvre celle qui existe */
-      loadRq().then(function(L){rqL=L;rqOpen=opn;$('kdlg').close();rqDetail();$('rddlg').showModal()});
+      loadRq().then(function(L){
+        rqL=L;var x=L.filter(function(y){return y.r.id===opn})[0];if(!x)return;
+        if($('kr').dataset.edit&&canEditRq(x)){openEdit(x);return}
+        rqOpen=opn;$('kdlg').close();rqDetail();$('rddlg').showModal();
+      });
       return;
     }
     if(needAuth('stock'))return;
-    rqCode=c;$('kdlg').close();$('qn').textContent=it.name+' · '+it.code;$('qq').value='';$('qc').value='';$('qdlg').showModal();
+    qEdit=null;rqCode=c;$('kdlg').close();
+    $('qt').textContent='Demander des pièces';$('qv').textContent='Envoyer la demande';
+    $('qn').textContent=it.name+' · '+it.code;$('qq').value='';$('qc').value='';$('qdlg').showModal();
   };
-  $('qx').onclick=function(){$('qdlg').close()};
+  $('qx').onclick=function(){qEdit=null;$('qdlg').close()};
   $('qv').onclick=function(){
-    var q=num($('qq').value),code=rqCode,note=$('qc').value.trim();
+    var q=num($('qq').value),code=rqCode,note=$('qc').value.trim(),ed=qEdit;
     if(!(q>0)){toast('Indique la quantité demandée');return}
     if(needAuth('stock'))return;
-    $('qdlg').close();
+    $('qdlg').close();qEdit=null;
     loadRq().then(function(L){
+      if(ed){
+        var x=L.filter(function(y){return y.r.id===ed.r.id})[0];
+        if(!x||!canEditRq(x)){toast('Demande déjà traitée : modification impossible');rqRefresh();return}
+        if(q===x.r.qty&&note===(x.r.note||'')){toast('Aucun changement');return}
+        return addMv(x.r.code,0,{type:'modification',demande:x.r.id,saisie:q,note:note}).then(function(ok){if(ok){rqRefresh();toast('Demande modifiée : '+fmt(x.r.qty)+' → '+fmt(q))}});
+      }
       if(L.some(function(y){return y.r.code===code&&OPEN[y.st]})){toast('Une demande est déjà en cours pour cette pièce');rqRefresh();return}
       return addMv(code,0,{type:'demande',saisie:q,note:note}).then(function(ok){if(ok){rqRefresh();toast('Demande envoyée')}});
     });

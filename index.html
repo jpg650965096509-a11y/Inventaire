@@ -100,7 +100,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <p class="hint" id="rd" style="margin:6px 0 0"></p>
     <label style="display:flex;gap:8px;align-items:center;margin:8px 0 0;font-weight:400"><input type="checkbox" id="pm" style="width:auto;min-height:0;margin:0"> Mode précis (plus lent)</label>
     <div class="opts">
-      <label class="step">Quantité par scan<input id="step" type="text" inputmode="decimal" value="1"></label>
+      <label class="step">Pas +/−<input id="step" type="text" inputmode="decimal" value="1"></label>
       <label style="flex:1">Code saisi ou lecteur Bluetooth<input id="manual" type="text" autocomplete="off" enterkeyhint="done"></label>
       <button class="btn" id="manualBtn" type="button">OK</button>
     </div>
@@ -118,6 +118,17 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   </section>
   <p class="hint" id="ver" style="text-align:center"></p>
 </main>
+
+<dialog id="kdlg">
+  <h2 id="kn"></h2>
+  <p class="hint" id="kc" style="margin:0"></p>
+  <div id="kq" style="font:700 64px/1 'Barlow Condensed',Barlow,system-ui,sans-serif;text-align:center;margin:12px 0 2px"></div>
+  <p class="hint" style="text-align:center;margin:0 0 10px">en stock</p>
+  <p id="kl" style="margin:4px 0"></p>
+  <p id="ko" style="margin:4px 0"></p>
+  <p class="hint" id="km" style="margin:8px 0 0"></p>
+  <div class="row"><button type="button" class="btn" id="kx">Fermer</button><button type="button" class="btn pri" id="ke">Modifier</button></div>
+</dialog>
 
 <dialog id="dlg">
   <form id="f">
@@ -172,7 +183,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.4';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.5';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -333,8 +344,17 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function handleCode(code){
     code=String(code).trim();if(!code)return;
     var it=find(code);
-    if(it){it.qty=num(it.qty+num($('step').value||1));put(it);commit();toast(it.name+' : '+fmt(it.qty))}
+    if(it)showStock(it);
     else{stopScan();openForm({code:code,qty:num($('step').value||1)})}
+  }
+  function showStock(it){
+    $('kn').textContent=it.name;$('kc').textContent=it.code;$('kq').textContent=fmt(it.qty);
+    $('kl').textContent=it.loc?'Emplacement : '+it.loc:'';
+    $('ko').textContent=it.note?'Note : '+it.note:'';
+    $('km').textContent=it.by?'Dernière modification : '+String(it.by).split('@')[0]+', '+new Date(it.t).toLocaleString('fr-BE',{dateStyle:'short',timeStyle:'short'}):'';
+    $('ke').dataset.c=it.code;
+    try{if(scanner)scanner.pause(true)}catch(e){}
+    if(!$('kdlg').open)$('kdlg').showModal();
   }
 
   /* Anti fausses lectures : clé de contrôle EAN/UPC + deux lectures identiques de suite */
@@ -452,6 +472,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var b=e.target.closest('button[data-d]');
     if(b){it.qty=Math.max(0,num(it.qty+Number(b.getAttribute('data-d'))*num($('step').value||1)));put(it);commit()}
     else openForm(it);
+  };
+  $('kx').onclick=function(){$('kdlg').close()};
+  $('kdlg').addEventListener('close',function(){try{if(scanner)scanner.resume()}catch(e){}});
+  $('ke').onclick=function(){
+    var it=find($('ke').dataset.c);stopScan();$('kdlg').close();
+    if(it)openForm(it);
   };
   $('fx').onclick=function(){$('dlg').close()};
   $('fd').onclick=function(){

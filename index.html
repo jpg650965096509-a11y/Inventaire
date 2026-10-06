@@ -193,7 +193,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.7';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.8';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -332,7 +332,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('list').innerHTML=list.length?list.slice(0,200).map(function(i){
       return '<li data-c="'+esc(i.code)+'"><div class="info"><b>'+esc(i.name)+'</b><small>'+esc(i.code)+'</small>'+
         (i.loc?'<small>Emplacement : '+esc(i.loc)+'</small>':'')+
-        (i.by?'<small>Modifié par '+esc(String(i.by).split('@')[0])+', '+new Date(i.t).toLocaleString('fr-BE',{dateStyle:'short',timeStyle:'short'})+'</small>':'')+
+        '<small>Modifié '+(i.by?'par '+esc(String(i.by).split('@')[0])+', ':'le ')+new Date(i.t).toLocaleString('fr-BE',{dateStyle:'short',timeStyle:'short'})+'</small>'+
         '</div><div class="qty"><button type="button" data-d="-1" aria-label="Retirer">−</button><span>'+fmt(i.qty)+
         '</span><button type="button" data-d="1" aria-label="Ajouter">+</button></div></li>';
     }).join('')+(list.length>200?'<li class="empty">'+(list.length-200)+' autres pièces : affine la recherche.</li>':''):'<li class="empty">'+(all.length?'Aucune pièce ne correspond.':'Aucune pièce. Appuie sur Scanner pour commencer.')+'</li>';
@@ -361,7 +361,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('kn').textContent=it.name;$('kc').textContent=it.code;$('kq').textContent=fmt(it.qty);
     $('kl').textContent=it.loc?'Emplacement : '+it.loc:'';
     $('ko').textContent=it.note?'Note : '+it.note:'';
-    $('km').textContent=it.by?'Dernière modification : '+String(it.by).split('@')[0]+', '+new Date(it.t).toLocaleString('fr-BE',{dateStyle:'short',timeStyle:'short'}):'';
+    $('km').textContent='Dernière modification : '+(it.by?String(it.by).split('@')[0]+', ':'')+new Date(it.t).toLocaleString('fr-BE',{dateStyle:'short',timeStyle:'short'});
     $('ke').dataset.c=it.code;
     try{if(scanner)scanner.pause(true)}catch(e){}
     if(!$('kdlg').open)$('kdlg').showModal();

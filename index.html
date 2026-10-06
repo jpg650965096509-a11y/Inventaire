@@ -1338,7 +1338,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('rl').innerHTML=list.length?list.slice(0,RQ_LIMIT).map(function(x){
       var it=items[idx(x.r.code)];
       return '<li data-r="'+esc(x.r.id)+'"><div class="info"><b>'+esc(it?it.name:x.r.code)+'</b><small>'+esc(x.r.code)+'</small>'+
-        '<small>'+fmt(x.r.qty)+' pièce(s) demandée(s) · '+esc(nm(x.r.by))+' · '+dstr(x.r.t)+'</small></div>'+
+        '<small>'+fmt(x.r.qty)+' pièce(s) demandée(s) · '+esc(nm(x.r.by))+' · '+dstr(x.r.t)+'</small>'+(x.r.note?'<small>Commentaire : '+esc(x.r.note)+'</small>':'')+'</div>'+
         '<div><span class="chip '+x.st+'">'+RQL[x.st]+'</span></div></li>';
     }).join('')+(list.length>RQ_LIMIT?'<li class="empty">'+(list.length-RQ_LIMIT)+' autres demandes : affine la recherche.</li>':''):'<li class="empty">'+(q?'Aucune demande ne correspond.':'Aucune demande.')+'</li>';
   }

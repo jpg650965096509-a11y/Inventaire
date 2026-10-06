@@ -49,7 +49,9 @@ button:focus-visible,input:focus-visible,a:focus-visible,label.btn:focus-within{
 input{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;
   background:var(--bg);color:var(--ink);font:16px Barlow,system-ui,sans-serif}
 label{display:block;font-weight:600;margin-bottom:10px}
-label input{margin-top:4px;font-weight:400}
+label input,label select{margin-top:4px;font-weight:400}
+select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;
+  background:var(--bg);color:var(--ink);font:16px Barlow,system-ui,sans-serif}
 .row{display:flex;gap:8px;align-items:center}
 .row>*{flex:1}
 #reader{margin-top:10px;border-radius:10px;overflow:hidden;min-height:1px}
@@ -136,6 +138,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p class="hint" id="km" style="margin:8px 0 0;white-space:pre-line"></p>
   <div class="row"><button type="button" class="btn" id="kx">Annuler</button><button type="button" class="btn pri" id="kv">Valider</button></div>
   <div class="row"><button type="button" id="ke" style="flex:1;background:none;border:0;color:var(--mute);text-decoration:underline;font:600 15px Barlow,system-ui,sans-serif;min-height:40px;cursor:pointer">Modifier la fiche</button></div>
+  <div class="row"><button type="button" id="kh" style="flex:1;background:none;border:0;color:var(--mute);text-decoration:underline;font:600 15px Barlow,system-ui,sans-serif;min-height:40px;cursor:pointer">Historique</button></div>
 </dialog>
 
 <dialog id="dlg">
@@ -192,6 +195,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <h2>Centre d'administration</h2>
   <p class="hint">Réservé aux administrateurs et aux responsables de la sécurité.</p>
   <button type="button" class="btn big" id="admUsers">Utilisateurs et rôles</button>
+  <button type="button" class="btn big" id="admJournal" style="margin-top:8px">Journal des mouvements</button>
+  <h2 style="margin-top:18px;font-size:20px">Envoi d'e-mail (test)</h2>
+  <label>URL du service e-mail<input id="mailUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></label>
+  <button type="button" class="btn big" id="admMail">Envoyer un e-mail de test</button>
+  <p class="hint" id="mailst" style="margin:6px 0 0"></p>
   <h2 style="margin-top:18px;font-size:20px">État du système</h2>
   <div id="sysinfo" class="hint" style="white-space:pre-line;margin-bottom:10px"></div>
   <div class="row"><button type="button" class="btn" id="admx">Fermer</button></div>
@@ -207,6 +215,28 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <label>Nom<input id="un" autocomplete="off"></label>
   <div id="ur" style="margin-bottom:10px"></div>
   <div class="row"><button type="button" class="btn" id="ux">Fermer</button><button type="button" class="btn pri" id="ua">Ajouter</button></div>
+</dialog>
+
+<dialog id="hdlg">
+  <h2>Historique</h2>
+  <p class="hint" id="hs" style="margin:0 0 8px"></p>
+  <div id="hl" style="max-height:55vh;overflow:auto"></div>
+  <div class="row"><button type="button" class="btn" id="hx">Fermer</button></div>
+</dialog>
+
+<dialog id="jdlg">
+  <h2>Journal des mouvements</h2>
+  <div class="row" style="flex-wrap:wrap;align-items:flex-start">
+    <label style="flex:1 1 45%">Du<input id="jd1" type="date"></label>
+    <label style="flex:1 1 45%">Au<input id="jd2" type="date"></label>
+  </div>
+  <label>Pièce (code ou nom)<input id="jp" autocomplete="off"></label>
+  <label>Personne<input id="ju" autocomplete="off"></label>
+  <label>Type<select id="jt"><option value="">Tous</option><option value="entree">Entrées</option><option value="sortie">Sorties</option></select></label>
+  <p class="hint" id="jc" style="margin:0 0 6px"></p>
+  <div id="jl" style="max-height:40vh;overflow:auto"></div>
+  <div class="row"><button type="button" class="btn" id="jmore">Afficher plus</button><button type="button" class="btn" id="jcsv">Export CSV</button></div>
+  <div class="row"><button type="button" class="btn" id="jx">Fermer</button></div>
 </dialog>
 
 <dialog id="tdlg">
@@ -227,7 +257,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='2.0.0';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='2.2.0';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -466,7 +496,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       else if(m==='400')toast('Règles Firebase à mettre à jour (index sur s)');
       else if(m==='401'||m==='403')toast('Accès refusé : compte non autorisé');
       else if(m==='noauth')failed=false;
-    }).then(function(){syncing=false;status()});
+    }).then(function(){syncing=false;status();if($('jdlg').hasAttribute('open'))jLoad()});
   }
   function later(){clearTimeout(st);st=setTimeout(sync,1200)}
   function status(){
@@ -531,6 +561,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var s=can('stock');
     $('kminus').style.display=s?'':'none';$('kplus').style.display=s?'':'none';$('kv').style.display=s?'':'none';
     $('ke').style.display=can('fiche')?'':'none';$('kx').textContent=s?'Annuler':'Fermer';
+    $('kh').style.display=(auth&&can('hist'))?'':'none';
     $('kn').textContent=it.name;$('kc').textContent=it.code;
     /* stock recalculé à l'affichage du détail : copie locale d'abord, puis après rafraîchissement des mouvements de la pièce */
     kready=false;kbase=0;kqty=0;$('kq').textContent='…';$('kst').textContent='calcul du stock…';
@@ -569,7 +600,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   }
   /* Rôles (cumulables) lus dans /allowed/<email> ; admin peut tout. stock = ajuster, fiche = créer/modifier/supprimer, danger = vider/restaurer */
   var KR='inventaire_roles_v1',roleT=0,myRoles=null;
-  var PERMS={stock:['admin','gestionnaire','operateur'],fiche:['admin','gestionnaire'],danger:['admin'],users:['admin','securityofficer'],admin:['admin','securityofficer']};
+  var PERMS={stock:['admin','gestionnaire','operateur'],fiche:['admin','gestionnaire'],danger:['admin'],users:['admin','securityofficer'],admin:['admin','securityofficer'],hist:['admin','securityofficer','gestionnaire']};
   (function(){var r=ld(KR,null);if(auth&&r&&r.email===auth.email&&Array.isArray(r.roles))myRoles=r.roles})();
   function can(p){
     if(!auth)return true;
@@ -935,6 +966,89 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('admdlg').showModal();
   };
   $('admx').onclick=function(){$('admdlg').close()};
+
+  /* Envoi d'e-mail (test) via un service Google Apps Script : le script vérifie le jeton Firebase et le rôle admin */
+  var KM='inventaire_mailurl_v1',MAIL_TO='jean-pierre.gagliano@outlook.com';
+  $('mailUrl').value=ld(KM,'');
+  $('mailUrl').onchange=function(){sv(KM,$('mailUrl').value.trim())};
+  $('admMail').onclick=function(){
+    var u=($('mailUrl').value||'').trim(),st=$('mailst'),hh=function(){return new Date().toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})};
+    if(!/^https:\/\/script\.google\.com\/macros\/s\/[^\s]+\/exec$/.test(u)){st.textContent="✗ Colle d'abord l'URL du service e-mail (elle se termine par /exec).";return}
+    sv(KM,u);st.textContent='Envoi en cours…';$('admMail').disabled=true;
+    token().then(function(tok){
+      return fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({
+        idToken:tok,to:MAIL_TO,subject:'Test e-mail - Inventaire pieces',
+        body:"Ceci est un e-mail de test envoyé depuis le Centre d'administration de l'application Inventaire (v"+VERSION+') par '+auth.email+' le '+new Date().toLocaleString('fr-BE')+'.'
+      })});
+    }).then(function(r){return r.json()}).then(function(j){
+      st.textContent=j&&j.ok?'✓ E-mail envoyé à '+MAIL_TO+' ('+hh()+')':'✗ Refusé : '+((j&&j.error)||'réponse inattendue');
+    }).catch(function(e){
+      st.textContent='✗ Service non joignable ou refusé par le navigateur ('+((e&&e.message)||e)+')';
+    }).then(function(){$('admMail').disabled=false});
+  };
+
+  /* Historique d'une pièce : stock de départ puis chaque mouvement avec le stock obtenu après lui */
+  function mvLabel(d){return d>0?'Entrée +'+fmt(d):'Sortie −'+fmt(-d)}
+  var bigNum='font:700 24px/1 "Barlow Condensed",Barlow,system-ui,sans-serif';
+  function openHistory(code){
+    var it=find(code)||items[idx(code)];if(!it)return;
+    $('hs').textContent=it.name+' · '+it.code;
+    $('hl').innerHTML='<p class="hint">Chargement…</p>';
+    if(!$('hdlg').open)$('hdlg').showModal();
+    refreshCode(code).then(function(){return mbycode(code)}).catch(function(){return []}).then(function(a){
+      a.sort(function(x,y){return x.t-y.t});
+      var run=num(it.qty),rows=a.map(function(r){run=r3(run+(Number(r.delta)||0));return{r:r,after:run}}).reverse();
+      $('hl').innerHTML=rows.map(function(x){
+        return '<div class="snap"><div><b>'+mvLabel(x.r.delta)+'</b><small>'+dstr(x.r.t)+' · '+esc(nm(x.r.by||''))+'</small></div><div style=\''+bigNum+'\'>'+fmt(x.after)+'</div></div>';
+      }).join('')+'<div class="snap"><div><b>Stock de départ</b><small>reprise du stock initial</small></div><div style=\''+bigNum+'\'>'+fmt(num(it.qty))+'</div></div>';
+    });
+  }
+  $('kh').onclick=function(){var c=$('ke').dataset.c;$('kdlg').close();openHistory(c)};
+  $('hx').onclick=function(){$('hdlg').close()};
+
+  /* Journal complet (admin / SecurityOfficer) : filtres, pages de 50, export CSV */
+  var jrows=[],jshown=0,JPAGE=50;
+  function jFilter(all){
+    var d1=$('jd1').value?new Date($('jd1').value+'T00:00:00').getTime():0,
+        d2=$('jd2').value?new Date($('jd2').value+'T23:59:59').getTime():Infinity,
+        p=$('jp').value.trim().toLowerCase(),u=$('ju').value.trim().toLowerCase(),t=$('jt').value;
+    return all.filter(function(r){
+      if(r.t<d1||r.t>d2)return false;
+      if(t&&r.type!==t)return false;
+      if(u&&String(r.by||'').toLowerCase().indexOf(u)<0)return false;
+      if(p){var it=items[idx(r.code)];if((r.code+' '+(it?it.name:'')).toLowerCase().indexOf(p)<0)return false}
+      return true;
+    }).sort(function(a,b){return b.t-a.t});
+  }
+  function jRender(){
+    $('jc').textContent=jrows.length+' mouvement'+(jrows.length>1?'s':'');
+    $('jl').innerHTML=jrows.slice(0,jshown).map(function(r){
+      var it=items[idx(r.code)];
+      return '<div class="snap"><div><b>'+mvLabel(r.delta)+'</b><small>'+esc(it?it.name:r.code)+' · '+esc(r.code)+'</small><small>'+dstr(r.t)+' · '+esc(nm(r.by||''))+'</small></div></div>';
+    }).join('')||'<p class="hint">Aucun mouvement.</p>';
+    $('jmore').style.display=jshown<jrows.length?'':'none';
+  }
+  function jLoad(){
+    mall().then(function(all){jrows=jFilter(all);jshown=Math.min(JPAGE,jrows.length);jRender()})
+      .catch(function(){$('jl').innerHTML='<p class="hint">Journal indisponible sur cet appareil.</p>'});
+  }
+  $('admJournal').onclick=function(){
+    ['jd1','jd2','jp','ju','jt'].forEach(function(id){$(id).value=''});
+    $('jdlg').showModal();jLoad();sync();
+  };
+  ['jd1','jd2','jp','ju'].forEach(function(id){$(id).oninput=jLoad});
+  $('jt').onchange=jLoad;
+  $('jmore').onclick=function(){jshown=Math.min(jshown+JPAGE,jrows.length);jRender()};
+  $('jx').onclick=function(){$('jdlg').close()};
+  $('jcsv').onclick=function(){
+    if(!jrows.length){toast('Rien à exporter');return}
+    var rows=[['Date','Heure','Code','Pièce','Type','Écart','Personne']].concat(jrows.map(function(r){
+      var it=items[idx(r.code)],d=new Date(r.t);
+      return [d.toLocaleDateString('fr-BE'),d.toLocaleTimeString('fr-BE'),r.code,it?it.name:'',r.type==='entree'?'Entrée':'Sortie',String(r.delta).replace('.',','),r.by||''];
+    }));
+    download('﻿'+rows.map(function(r){return r.map(csvQuote).join(';')}).join('\r\n'),'text/csv','journal-mouvements-'+day()+'.csv');
+    toast('Journal exporté');
+  };
   $('admUsers').onclick=function(){$('ur').innerHTML=roleBoxes(['lecteur'],false);usersList();$('udlg').showModal()};
   $('ux').onclick=function(){$('udlg').close()};
   $('ulist').onclick=function(e){

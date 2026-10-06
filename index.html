@@ -176,7 +176,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <dialog id="ldlg">
   <form id="lf">
     <h2>Connexion</h2>
-    <p class="hint">Premier accès : crée ton compte avec l'e-mail que l'administrateur a ajouté. Tu auras accès dès qu'il t'aura autorisé.</p>
+    <p class="hint"><b>Déjà un compte ?</b> Saisis ton e-mail et ton mot de passe, puis appuie sur <i>Se connecter</i>.<br><b>Première fois ?</b> Saisis l'e-mail que l'administrateur a ajouté, choisis un mot de passe (6 caractères minimum), puis appuie sur <i>Première fois : créer mon compte</i>.</p>
     <label>E-mail<input id="le" type="email" autocomplete="username" required></label>
     <label>Mot de passe<input id="lp" type="password" autocomplete="current-password" required></label>
     <div class="row">
@@ -184,7 +184,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       <button type="button" class="btn" id="lx">Fermer</button>
       <button type="submit" class="btn pri">Se connecter</button>
     </div>
-    <div class="row"><button type="button" class="btn" id="lc">Créer mon compte</button></div>
+    <div class="row"><button type="button" class="btn" id="lc">Première fois : créer mon compte</button></div>
   </form>
 </dialog>
 
@@ -223,7 +223,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.12.0';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='1.12.1';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -466,15 +466,16 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     render();
   }
   function loadRole(){
-    if(!auth||!navigator.onLine)return;
-    var b=(HARD?CONFIG.url:(cfg&&cfg.url))||'';if(!b)return;
-    token().then(function(tok){
+    if(!auth||!navigator.onLine)return Promise.resolve('error');
+    var b=(HARD?CONFIG.url:(cfg&&cfg.url))||'';if(!b)return Promise.resolve('error');
+    return token().then(function(tok){
       var k=encodeURIComponent(auth.email.toLowerCase().replace(/\./g,','));
       return fetch(b.replace(/\/+$/,'')+'/allowed/'+k+'.json?auth='+encodeURIComponent(tok));
     }).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}).then(function(v){
       var roles=(v&&typeof v==='object'&&v.roles)?String(v.roles).split(',').map(function(s){return s.trim().toLowerCase()}).filter(Boolean):[];
       myRoles=roles;roleT=Date.now();sv(KR,{email:auth.email,roles:roles});applyPerms();
-    }).catch(function(){});
+      return v===null?'none':'ok';
+    }).catch(function(){return 'error'});
   }
   function pauseScan(){try{if(scanner&&!paused){scanner.pause(true);paused=true}}catch(e){}}
   function resumeScan(){lastSeen=Date.now();try{if(scanner&&paused){scanner.resume();paused=false}}catch(e){paused=false}}
@@ -655,21 +656,26 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     e.preventDefault();
     var em=$('le').value.trim(),pw=$('lp').value;if(!em||!pw)return;
     idt('accounts:signInWithPassword',{email:em,password:pw,returnSecureToken:true}).then(function(j){
-      saveAuth(j);myRoles=null;$('lp').value='';$('ldlg').close();failed=false;lastOk=0;status();applyPerms();loadRole();sync();toast('Connecté : '+auth.email);
+      saveAuth(j);myRoles=null;$('lp').value='';$('ldlg').close();failed=false;lastOk=0;status();applyPerms();sync();toast('Connecté : '+auth.email);
+      loadRole().then(function(st){if(st==='none')toast("Ton e-mail n'est pas encore autorisé. Contacte l'administrateur.")});
     }).catch(function(err){
       var m=(err&&err.message)||'';
-      toast(/INVALID|EMAIL_NOT_FOUND|PASSWORD/.test(m)?'E-mail ou mot de passe incorrect':/TOO_MANY/.test(m)?'Trop d\'essais, réessaie plus tard':'Connexion impossible (réseau ?)');
+      toast(/INVALID|EMAIL_NOT_FOUND|PASSWORD/.test(m)?'E-mail ou mot de passe incorrect. Première fois ? Appuie sur « Première fois : créer mon compte ».':/TOO_MANY/.test(m)?'Trop d\'essais, réessaie plus tard':'Connexion impossible (réseau ?)');
     });
   };
   $('lc').onclick=function(){
     var em=$('le').value.trim(),pw=$('lp').value;
-    if(!em||pw.length<6){toast('E-mail et mot de passe (6 caractères minimum)');return}
+    if(!em){toast('Saisis ton e-mail');return}
+    if(pw.length<6){toast('Mot de passe : 6 caractères minimum.');return}
     idt('accounts:signUp',{email:em,password:pw,returnSecureToken:true}).then(function(j){
-      saveAuth(j);myRoles=null;$('lp').value='';$('ldlg').close();failed=false;lastOk=0;status();applyPerms();loadRole();sync();
-      toast("Compte créé. L'accès dépend de l'autorisation d'un administrateur.");
+      saveAuth(j);myRoles=null;$('lp').value='';$('ldlg').close();failed=false;lastOk=0;status();applyPerms();sync();
+      toast('Compte créé.');
+      loadRole().then(function(st){
+        toast(st==='none'?"Compte créé, mais ton e-mail n'est pas encore autorisé. Contacte l'administrateur.":'Compte créé. Bienvenue !');
+      });
     }).catch(function(err){
       var m=(err&&err.message)||'';
-      toast(/EMAIL_EXISTS/.test(m)?'Ce compte existe déjà : connecte-toi':/WEAK/.test(m)?'Mot de passe trop faible':/OPERATION_NOT_ALLOWED|ADMIN_ONLY/.test(m)?'Inscription désactivée':'Création impossible');
+      toast(/EMAIL_EXISTS/.test(m)?'Ce compte existe déjà : appuie sur « Se connecter ».':/WEAK/.test(m)?'Mot de passe trop faible':/OPERATION_NOT_ALLOWED|ADMIN_ONLY/.test(m)?'Inscription désactivée':'Création impossible');
     });
   };
   $('lr').onclick=function(){

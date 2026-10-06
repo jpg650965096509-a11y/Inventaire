@@ -53,7 +53,8 @@ input{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px
   background:var(--bg);color:var(--ink);font:16px Barlow,system-ui,sans-serif}
 label{display:block;font-weight:600;margin-bottom:10px}
 label input,label select{margin-top:4px;font-weight:400}
-#krs{margin:10px 0 2px;padding:9px 12px;border:1px solid var(--acc);border-left-width:6px;border-radius:10px;background:#FFF3C4;color:#14213D;font-weight:700;text-align:center}
+#krs{margin:10px 0 2px;padding:9px 12px;border:1px solid var(--acc);border-left-width:6px;border-radius:10px;background:#FFF3C4;color:#14213D;font-weight:700;text-align:center;white-space:pre-line}
+#krs small{display:block;font-weight:400;font-size:14px;overflow-wrap:anywhere}
 #krs:empty{display:none}
 select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;
   background:var(--bg);color:var(--ink);font:16px Barlow,system-ui,sans-serif}
@@ -1146,7 +1147,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     if(r.type==='approbation')return 'Demande approuvée ('+fmt(Number(r.saisie)||0)+')'+(r.note?' — '+r.note:'');
     if(r.type==='refus')return 'Demande refusée ('+fmt(Number(r.saisie)||0)+')'+(r.note?' — '+r.note:'');
     if(r.type==='cloture')return 'Demande clôturée ('+fmt(Number(r.saisie)||0)+')';
-    if(r.type==='reception')return (rl&&rl[r.id])||('Réception : '+fmt(Number(r.delta)||0));
+    if(r.type==='reception')return ((rl&&rl[r.id])||('Réception : '+fmt(Number(r.delta)||0)))+(r.note?' — '+r.note:'');
     return mvLabel(r.delta)+(r.demande?' (réception d\'une demande)':'');
   }
   var STK_T={entree:1,sortie:1,inventaire:1,reception:1};
@@ -1253,7 +1254,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   /* Les demandes sont des lignes du journal : demande (id), modification, approbation|refus (id~d), clôture (id~c), réceptions (champ demande) */
   function loadRq(){
     return mall().then(function(a){
-      var dem=[],dm={},cm={},got={},md={},lastR={},lastMv={};
+      var dem=[],dm={},cm={},got={},md={},rcs={},lastR={},lastMv={};
       a.forEach(function(m){
         if(m.demande&&(!lastR[m.demande]||m.t>lastR[m.demande]))lastR[m.demande]=m.t;
         if((m.type==='entree'||m.type==='sortie'||m.type==='inventaire')&&(!lastMv[m.code]||m.t>lastMv[m.code]))lastMv[m.code]=m.t;
@@ -1261,7 +1262,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         else if(m.type==='approbation'||m.type==='refus')dm[m.demande]={statut:m.type==='refus'?'refusee':'approuvee',motif:m.note,by:m.by,t:m.t};
         else if(m.type==='cloture')cm[m.demande]={by:m.by,t:m.t};
         else if(m.type==='modification'){(md[m.demande]=md[m.demande]||[]).push(m)}
-        else if(m.type==='reception')got[m.demande]=r3((got[m.demande]||0)+(Number(m.delta)||0));
+        else if(m.type==='reception'){got[m.demande]=r3((got[m.demande]||0)+(Number(m.delta)||0));(rcs[m.demande]=rcs[m.demande]||[]).push(m)}
       });
       return dem.map(function(m){
         var r={id:m.id,code:m.code,qty:Number(m.saisie)||0,note:m.note,by:m.by,t:m.t,mods:0},g=got[m.id]||0;
@@ -1270,7 +1271,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         if(ml.length){var lm=ml[ml.length-1];r.qty=Number(lm.saisie)||0;r.note=lm.note;r.mods=ml.length}
         var lt=Math.max(m.t,lastR[m.id]||0);
         /* over = un mouvement de stock (entrée, sortie, inventaire) a eu lieu sur la pièce après le dernier événement de la demande */
-        return{r:r,dec:dm[m.id],clo:cm[m.id],got:g,st:rqStatus(r,dm[m.id],cm[m.id],g),over:(lastMv[m.code]||0)>lt};
+        return{r:r,dec:dm[m.id],clo:cm[m.id],got:g,recs:(rcs[m.id]||[]).sort(function(p,q){return p.t-q.t}),st:rqStatus(r,dm[m.id],cm[m.id],g),over:(lastMv[m.code]||0)>lt};
       }).sort(function(x,y){return y.r.t-x.r.t});
     }).catch(function(){return []});
   }
@@ -1295,7 +1296,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var x=L.filter(function(y){return y.r.code===code}).sort(function(a,b){return (OPEN[b.st]?1:0)-(OPEN[a.st]?1:0)})[0],o=L.filter(function(y){return y.r.code===code&&OPEN[y.st]})[0];
     var ed=o&&canEditRq(o);$('krt').textContent=o?(ed?'Changer la demande':'Voir la demande'):'Demander';$('kr').dataset.open=o?o.r.id:'';$('kr').dataset.edit=ed?'1':'';
     if(x&&!OPEN[x.st]&&x.over)x=null; /* demande terminée : le bandeau disparaît au premier mouvement suivant */
-    $('krs').textContent=x?'Demande de '+fmt(x.r.qty)+' pièce(s) : '+RQL[x.st]+((x.st==='partielle'||x.st==='recue')?' ('+fmt(x.got)+' reçues)':'')+((x.st==='refusee'&&x.dec&&x.dec.motif)?' — '+x.dec.motif:''):'';
+    $('krs').textContent=x?'Demande de '+fmt(x.r.qty)+' pièce(s) : '+RQL[x.st]+((x.st==='partielle'||x.st==='recue')?' ('+fmt(x.got)+' reçues)':''):'';
+    if(x){
+      /* commentaire de la demande et motif de la décision, au-dessus des boutons */
+      var add=function(lab,t){if(!t)return;var e=document.createElement('small');e.textContent=lab+' : '+t;$('krs').appendChild(e)};
+      add('Commentaire',x.r.note);add('Motif',x.dec&&x.dec.motif);
+    }
   }
   function rqCard(x,mode){
     var it=items[idx(x.r.code)],act='';
@@ -1303,12 +1309,14 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       act='<input class="rmot" placeholder="Motif (facultatif)" autocomplete="off" style="flex:1 1 100%;margin-top:6px"><div class="row" style="flex:1 1 100%"><button class="btn pri" data-ap="'+esc(x.r.id)+'" type="button">Approuver</button><button class="btn danger" data-rf="'+esc(x.r.id)+'" type="button">Refuser</button></div>';
     }else if(mode==='receive'){
       var rest=r3(x.r.qty-x.got);if(rest<0)rest=0;
-      act='<input class="rrec" inputmode="decimal" value="'+esc(String(rest).replace('.',','))+'" aria-label="Quantité reçue" style="flex:1 1 100%;margin-top:6px"><div class="row" style="flex:1 1 100%"><button class="btn pri" data-rc="'+esc(x.r.id)+'" type="button">Réceptionner</button><button class="btn" data-cl="'+esc(x.r.id)+'" type="button">Clôturer</button></div>';
+      act='<input class="rrec" inputmode="decimal" value="'+esc(String(rest).replace('.',','))+'" aria-label="Quantité reçue" style="flex:1 1 100%;margin-top:6px"><input class="rcom" placeholder="Commentaire (bon de livraison, date de livraison…)" autocomplete="off" style="flex:1 1 100%;margin-top:6px"><div class="row" style="flex:1 1 100%"><button class="btn pri" data-rc="'+esc(x.r.id)+'" type="button">Réceptionner</button><button class="btn" data-cl="'+esc(x.r.id)+'" type="button">Clôturer</button></div>';
     }
     if(canEditRq(x))act+='<div class="row" style="flex:1 1 100%"><button class="btn" data-ch="'+esc(x.r.id)+'" type="button">Changer la quantité</button></div>';
     return '<div class="snap" data-id="'+esc(x.r.id)+'" style="flex-wrap:wrap"><div style="flex:1 1 100%"><b>'+esc(it?it.name:x.r.code)+'</b><small>'+esc(x.r.code)+'</small>'+
-      '<small>Demande de '+fmt(x.r.qty)+' pièce(s)'+(x.r.mods?' (modifiée)':'')+' · '+esc(nm(x.r.by))+' · '+dstr(x.r.t)+'</small>'+(x.r.note?'<small>'+esc(x.r.note)+'</small>':'')+
-      '<small style="font-weight:600">'+RQL[x.st]+((x.st==='partielle'||x.st==='recue'||x.st==='cloturee')?' · '+fmt(x.got)+' reçues':'')+(x.dec?' · par '+esc(nm(x.dec.by)):'')+(x.dec&&x.dec.motif?' · « '+esc(x.dec.motif)+' »':'')+'</small></div>'+act+'</div>';
+      '<small>Demande de '+fmt(x.r.qty)+' pièce(s)'+(x.r.mods?' (modifiée)':'')+' · '+esc(nm(x.r.by))+' · '+dstr(x.r.t)+'</small>'+
+      '<small style="font-weight:600">'+RQL[x.st]+((x.st==='partielle'||x.st==='recue'||x.st==='cloturee')?' · '+fmt(x.got)+' reçues':'')+(x.dec?' · par '+esc(nm(x.dec.by)):'')+'</small>'+
+      (x.r.note?'<small>Commentaire : '+esc(x.r.note)+'</small>':'')+(x.dec&&x.dec.motif?'<small>Motif : '+esc(x.dec.motif)+'</small>':'')+
+      x.recs.map(function(m){return '<small>Réception +'+fmt(m.delta)+' · '+esc(nm(m.by))+' · '+dstr(m.t)+(m.note?' · « '+esc(m.note)+' »':'')+'</small>'}).join('')+'</div>'+act+'</div>';
   }
   /* Liste des demandes comme la liste des pièces : une ligne par demande, recherche, clic = écran de gestion */
   var rqL=[],rqOpen=null,RQ_LIMIT=20;
@@ -1339,7 +1347,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var x=rqL.filter(function(y){return y.r.id===rqOpen})[0],box=$('rdb'),html=x?rqCard(x,rqMode(x)):'<p class="hint">Demande introuvable.</p>';
     if(box.dataset.k===rqOpen+'|'+html)return;
     var keep={},act=document.activeElement,focus='';
-    ['rmot','rrec'].forEach(function(c){var e=box.querySelector('.'+c);if(e&&e.value!==e.defaultValue)keep[c]=e.value;if(e&&e===act)focus=c});
+    ['rmot','rrec','rcom'].forEach(function(c){var e=box.querySelector('.'+c);if(e&&e.value!==e.defaultValue)keep[c]=e.value;if(e&&e===act)focus=c});
     box.innerHTML=html;box.dataset.k=rqOpen+'|'+html;
     Object.keys(keep).forEach(function(c){var e=box.querySelector('.'+c);if(e)e.value=keep[c]});
     if(focus){var f=box.querySelector('.'+focus);if(f)f.focus()}
@@ -1371,7 +1379,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       if(needAuth('receive'))return;
       var q=num((card.querySelector('.rrec')||{}).value);
       if(!(q>0)){toast('Indique la quantité reçue');return}
-      addMv(x.r.code,q,{type:'reception',saisie:q,demande:x.r.id}).then(function(){fillStocks();rqRefresh();toast('Réception enregistrée : +'+fmt(q))});
+      addMv(x.r.code,q,{type:'reception',saisie:q,demande:x.r.id,note:((card.querySelector('.rcom')||{}).value||'').trim()}).then(function(){fillStocks();rqRefresh();toast('Réception enregistrée : +'+fmt(q))});
     }else if(cl){
       if(needAuth('decide'))return;
       ask('Clôturer cette demande ? Le reste éventuel ne sera plus attendu.','Clôturer',function(){decide(x,'cloture','').then(function(){toast('Demande clôturée')})});

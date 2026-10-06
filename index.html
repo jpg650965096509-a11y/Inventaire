@@ -257,7 +257,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='2.2.1';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='2.3.0';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -600,7 +600,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   }
   /* Rôles (cumulables) lus dans /allowed/<email> ; admin peut tout. stock = ajuster, fiche = créer/modifier/supprimer, danger = vider/restaurer */
   var KR='inventaire_roles_v1',roleT=0,myRoles=null;
-  var PERMS={stock:['admin','gestionnaire','operateur'],fiche:['admin','gestionnaire'],danger:['admin'],users:['admin','securityofficer'],admin:['admin','securityofficer'],hist:['admin','securityofficer','gestionnaire']};
+  var PERMS={stock:['admin','superuser','operateur'],fiche:['admin','superuser'],danger:['admin'],users:['admin','securityofficer'],admin:['admin','securityofficer'],hist:['admin','securityofficer','superuser']};
+  var RLAB={admin:'Admin',securityofficer:'SecurityOfficer',superuser:'SuperUser',operateur:'Opérateur',lecteur:'Lecteur'};
+  function rl(r){return RLAB[r]||r}
   (function(){var r=ld(KR,null);if(auth&&r&&r.email===auth.email&&Array.isArray(r.roles))myRoles=r.roles})();
   function can(p){
     if(!auth)return true;
@@ -610,7 +612,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   }
   function needAuth(p){
     if(!auth){toast('Connecte-toi pour modifier');openLogin();return true}
-    if(!can(p)){toast('Droits insuffisants'+(myRoles&&myRoles.length?' ('+myRoles.join(', ')+')':''));return true}
+    if(!can(p)){toast('Droits insuffisants'+(myRoles&&myRoles.length?' ('+myRoles.map(rl).join(', ')+')':''));return true}
     return false;
   }
   function applyPerms(){
@@ -620,7 +622,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('trBtn').style.display=f?'':'none';
     $('clrBtn').style.display=can('danger')?'':'none';
     $('admBtn').style.display=(auth&&can('admin'))?'':'none';
-    $('hv').textContent='v'+VERSION+(auth&&myRoles&&myRoles.length?' · '+myRoles.join('+'):'');
+    $('hv').textContent='v'+VERSION+(auth&&myRoles&&myRoles.length?' · '+myRoles.map(rl).join('+'):'');
     render();
   }
   function loadRole(){
@@ -919,8 +921,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('cfo').onclick=function(){var f=cfCb;cfCb=null;$('cfdlg').close();if(f)f()};
 
   /* Écran Utilisateurs (admin) : gestion de /allowed (nom + rôles) */
-  var ROLES=['admin','securityofficer','gestionnaire','operateur','lecteur'];
-  var RLAB={securityofficer:'SecurityOfficer'};
+  var ROLES=['admin','securityofficer','superuser','operateur','lecteur'];
   function iAmAdmin(){return !!(myRoles&&myRoles.indexOf('admin')>-1)}
   function dbUrl(){return ((HARD?CONFIG.url:(cfg&&cfg.url))||'').replace(/\/+$/,'')}
   function fb(m,path,b){
@@ -979,7 +980,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     token().then(function(tok){
       return fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({
         idToken:tok,to:MAIL_TO,subject:'Test e-mail - Inventaire pieces',
-        body:"Ceci est un e-mail de test envoyé depuis le Centre d'administration de l'application Inventaire (v"+VERSION+') par '+auth.email+' le '+new Date().toLocaleString('fr-BE')+'.'
+        body:"Ceci est un e-mail de test envoyé depuis le Centre d'administration de l'application Inventaire (v"+VERSION+') le '+new Date().toLocaleString('fr-BE')+'.'
       })});
     }).then(function(r){return r.text().then(function(t){return{s:r.status,t:t}})}).then(function(x){
       var j=null;try{j=JSON.parse(x.t)}catch(e){}

@@ -215,7 +215,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <h2 id="tct">Confirmation</h2>
   <p id="tcm" style="margin:0 0 12px;white-space:pre-line"></p>
   <label><span id="tcl"></span><input id="tci" autocomplete="off" inputmode="text"></label>
-  <div class="row"><button type="button" class="btn" id="tcn">Annuler</button><button type="button" class="btn danger" id="tco" disabled>Confirmer</button></div>
+  <div class="row"><button type="button" class="btn" id="tcn">Annuler</button><button type="button" class="btn danger" id="tco">Confirmer</button></div>
 </dialog>
 
 <dialog id="cfdlg">
@@ -345,7 +345,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='3.1.1';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='3.1.2';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -1250,20 +1250,20 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   /* confirmation « forte » : il faut taper la valeur demandée pour activer le bouton */
   var tcCb=null;
   function cfCodes(){
-    var d=new Date(),o=[],i,t,y;
+    var d=new Date(),o=[],i,t;
     for(i=0;i<3;i++){
-      t=new Date(d.getTime()-i*6e4);y=Math.floor((Date.UTC(t.getFullYear(),t.getMonth(),t.getDate())-Date.UTC(t.getFullYear(),0,0))/864e5);
-      o.push(('0'+t.getHours()).slice(-2)+('0'+t.getMinutes()).slice(-2)+('00'+y).slice(-3));
+      t=new Date(d.getTime()-i*6e4);
+      o.push(('0'+t.getHours()).slice(-2)+('0'+t.getMinutes()).slice(-2)+('0'+t.getDate()).slice(-2));
     }
     return o;
   }
   function askTyped(title,msg,cb){
     $('tct').textContent=title;$('tcm').textContent=msg;$('tcl').textContent='Code de confirmation';$('tci').value='';
-    tcCb=cb;$('tco').disabled=true;$('tcdlg').showModal();
+    tcCb=cb;$('tcdlg').showModal();setTimeout(function(){$('tci').focus()},50);
   }
-  $('tci').oninput=function(){$('tco').disabled=cfCodes().indexOf($('tci').value.trim())<0};
+  $('tci').onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();$('tco').click()}};
   $('tcn').onclick=function(){tcCb=null;$('tcdlg').close()};
-  $('tco').onclick=function(){if(cfCodes().indexOf($('tci').value.trim())<0){$('tco').disabled=true;return}var f=tcCb;tcCb=null;$('tcdlg').close();if(f)f()};
+  $('tco').onclick=function(){if(cfCodes().indexOf($('tci').value.trim())<0){toast('Code incorrect');$('tci').select();return}var f=tcCb;tcCb=null;$('tcdlg').close();if(f)f()};
   $('cfn').onclick=function(){cfCb=null;$('cfdlg').close()};
   $('cfo').onclick=function(){var f=cfCb;cfCb=null;$('cfdlg').close();if(f)f()};
 

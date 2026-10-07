@@ -113,7 +113,10 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <button class="btn pri big" id="scanBtn" type="button">Scanner</button>
     <div id="reader"></div>
     <p class="hint" id="rd" style="margin:6px 0 0"></p>
-    <label style="display:flex;gap:8px;align-items:center;margin:8px 0 0;font-weight:400"><input type="checkbox" id="pm" style="width:auto;min-height:0;margin:0"> Mode précis (plus lent)</label>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 0">
+      <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="pm" style="width:auto;min-height:0;margin:0"> Mode précis (plus lent)</label>
+      <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="fl" style="width:auto;min-height:0;margin:0"> Flash</label>
+    </div>
     <div class="opts">
       <label class="step">Pas +/−<input id="step" type="text" inputmode="decimal" value="1"></label>
       <label style="flex:1">Code saisi ou lecteur Bluetooth<input id="manual" type="text" autocomplete="off" enterkeyhint="done"></label>
@@ -208,6 +211,13 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <div class="row"><button type="button" class="btn" id="pvn">Annuler</button><button type="button" class="btn pri" id="pvo">Importer</button></div>
 </dialog>
 
+<dialog id="tcdlg">
+  <h2 id="tct">Confirmation</h2>
+  <p id="tcm" style="margin:0 0 12px;white-space:pre-line"></p>
+  <label><span id="tcl"></span><input id="tci" autocomplete="off" inputmode="text"></label>
+  <div class="row"><button type="button" class="btn" id="tcn">Annuler</button><button type="button" class="btn danger" id="tco" disabled>Confirmer</button></div>
+</dialog>
+
 <dialog id="cfdlg">
   <h2 id="cft">Confirmer</h2>
   <p id="cfm" style="margin:0 0 12px"></p>
@@ -236,6 +246,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p class="hint" id="mailst" style="margin:6px 0 0"></p>
   <h2 style="margin-top:18px;font-size:20px">État du système</h2>
   <div id="sysinfo" class="hint" style="white-space:pre-line;margin-bottom:10px"></div>
+  </div>
+  <div id="admDanger" style="display:none">
+    <h2 style="margin-top:18px;font-size:20px;color:var(--bad)">Zone dangereuse</h2>
+    <p class="hint">Réservé aux SuperAdmin. Supprime définitivement, sur le serveur et sur tous les appareils, toutes les pièces et tout le journal.</p>
+    <button type="button" class="btn big danger" id="admPurge">Supprimer toutes les pièces et tout le journal</button>
   </div>
   <div class="row"><button type="button" class="btn" id="admx">Fermer</button></div>
 </dialog>
@@ -330,7 +345,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='3.0.0';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='3.1.0';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -653,10 +668,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function sync(){
     if(!cfg||syncing||!navigator.onLine)return;
     if(!auth){status();return}
-    syncing=true;status();var t0=Date.now();
-    var full=!cfg.full||t0-cfg.full>864e5;
-    var q=full?'':'?orderBy=%22s%22&startAt='+Math.max(0,(cfg.since||0)-3e5);
-    req('GET',null,q).then(function(rm){
+    syncing=true;status();var t0=Date.now(),full,q;
+    purgeCheck().then(function(){
+      full=!cfg.full||t0-cfg.full>864e5;
+      q=full?'':'?orderBy=%22s%22&startAt='+Math.max(0,(cfg.since||0)-3e5);
+      return req('GET',null,q);
+    }).then(function(rm){
       rm=rm||{};var changed=false;
       Object.keys(rm).forEach(function(k){
         var r=rm[k];if(!r||!r.code)return;var i=idx(r.code);
@@ -832,14 +849,14 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   }
   /* Rôles (cumulables) lus dans /allowed/<email> ; admin peut tout. stock = ajuster, fiche = créer/modifier/supprimer, danger = vider/restaurer */
   var KR='inventaire_roles_v1',roleT=0,myRoles=null;
-  var PERMS={stock:['admin','superuser','operateur'],fiche:['admin','superuser'],danger:['admin'],users:['admin','securityofficer'],admin:['admin','securityofficer'],hist:['admin','securityofficer','superuser'],decide:['admin','superuser'],receive:['admin','superuser']};
-  var RLAB={admin:'Admin',securityofficer:'SecurityOfficer',superuser:'SuperUser',operateur:'Opérateur',lecteur:'Lecteur'};
+  var PERMS={stock:['admin','superuser','operateur'],fiche:['admin','superuser'],danger:['admin'],users:['admin','securityofficer'],admin:['admin','securityofficer'],hist:['admin','securityofficer','superuser'],decide:['admin','superuser'],receive:['admin','superuser'],purge:['superadmin']};
+  var RLAB={superadmin:'SuperAdmin',admin:'Admin',securityofficer:'SecurityOfficer',superuser:'SuperUser',operateur:'Opérateur',lecteur:'Lecteur'};
   function rl(r){return RLAB[r]||r}
   (function(){var r=ld(KR,null);if(auth&&r&&r.email===auth.email&&Array.isArray(r.roles))myRoles=r.roles})();
   function can(p){
     if(!auth)return true;
     if(!myRoles)return false;
-    for(var i=0;i<myRoles.length;i++)if(myRoles[i]==='admin'||PERMS[p].indexOf(myRoles[i])>-1)return true;
+    for(var i=0;i<myRoles.length;i++){var r=myRoles[i];if(p!=='purge'&&(r==='admin'||r==='superadmin'))return true;if(PERMS[p].indexOf(r)>-1)return true}
     return false;
   }
   function needAuth(p){
@@ -855,6 +872,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('clrBtn').style.display=can('danger')?'':'none';
     $('admBtn').style.display='';
     $('admOnly').style.display=can('admin')?'':'none';
+    $('admDanger').style.display=(auth&&can('purge'))?'':'none';
     $('admh').textContent=can('admin')?'Réservé aux administrateurs et aux responsables de la sécurité pour la gestion ; les outils sur les pièces dépendent de ton rôle.':'Outils sur les pièces et les données, selon ton rôle.';
     $('rqBtn').style.display=(auth&&can('stock'))?'':'none';
     $('hv').textContent='v'+VERSION+(auth&&myRoles&&myRoles.length?' · '+myRoles.map(rl).join('+'):'');
@@ -891,6 +909,18 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     if(navigator.vibrate)navigator.vibrate(60);
     handleCode(text);
   }
+  /* Flash = lampe torche de la caméra arrière, quand elle existe ; le choix est mémorisé sur l'appareil */
+  var flash=ld('inventaire_flash_v1',false)===true;
+  function applyTorch(on){
+    if(!scanner||!scanner.applyVideoConstraints)return Promise.resolve(false);
+    try{return scanner.applyVideoConstraints({advanced:[{torch:on}]}).then(function(){return true}).catch(function(){return false})}
+    catch(e){return Promise.resolve(false)}
+  }
+  function flashOff(){flash=false;$('fl').checked=false;sv('inventaire_flash_v1',false)}
+  function flashSync(){
+    if(!flash)return;
+    applyTorch(true).then(function(ok){if(!ok){toast('Flash non disponible sur cet appareil');flashOff()}});
+  }
   function startScan(){
     if(!window.Html5Qrcode){toast('Scanner indisponible : bibliothèque non chargée');return}
     if(scanner)return;
@@ -907,7 +937,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       videoConstraints:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080},advanced:[{focusMode:'continuous'}]}
     }:{fps:10,qrbox:{width:260,height:150}};
     scanner.start({facingMode:'environment'},sconf,onScan,function(){})
-      .then(function(){$('scanBtn').textContent='Arrêter le scan'})
+      .then(function(){$('scanBtn').textContent='Arrêter le scan';flashSync()})
       .catch(function(err){toast('Erreur caméra : '+err);scanner=null;$('reader').innerHTML=''});
   }
   function stopScan(){
@@ -1000,6 +1030,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   };
   /* Événements */
   $('scanBtn').onclick=function(){scanner?stopScan():startScan()};
+  $('fl').checked=flash;
+  $('fl').onchange=function(){
+    flash=$('fl').checked;sv('inventaire_flash_v1',flash);
+    if(!scanner){toast(flash?"Le flash s'allumera au prochain scan":'Flash éteint');return}
+    applyTorch(flash).then(function(ok){if(!ok&&flash){toast('Flash non disponible sur cet appareil');flashOff()}});
+  };
   $('pm').checked=precis;
   $('pm').onchange=function(){
     precis=$('pm').checked;sv('inventaire_precis_v1',precis);
@@ -1211,12 +1247,21 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   /* Boîte de confirmation de l'app */
   var cfCb=null;
   function ask(msg,label,cb){$('cfm').textContent=msg;$('cfo').textContent=label||'Confirmer';cfCb=cb;$('cfdlg').showModal()}
+  /* confirmation « forte » : il faut taper la valeur demandée pour activer le bouton */
+  var tcCb=null,tcExp='';
+  function askTyped(title,msg,expected,label,cb){
+    $('tct').textContent=title;$('tcm').textContent=msg;$('tcl').textContent=label;$('tci').value='';
+    tcExp=String(expected).trim().toLowerCase();tcCb=cb;$('tco').disabled=true;$('tcdlg').showModal();
+  }
+  $('tci').oninput=function(){$('tco').disabled=($('tci').value.trim().toLowerCase()!==tcExp)};
+  $('tcn').onclick=function(){tcCb=null;$('tcdlg').close()};
+  $('tco').onclick=function(){if($('tco').disabled)return;var f=tcCb;tcCb=null;$('tcdlg').close();if(f)f()};
   $('cfn').onclick=function(){cfCb=null;$('cfdlg').close()};
   $('cfo').onclick=function(){var f=cfCb;cfCb=null;$('cfdlg').close();if(f)f()};
 
   /* Écran Utilisateurs (admin) : gestion de /allowed (nom + rôles) */
-  var ROLES=['admin','securityofficer','superuser','operateur','lecteur'];
-  function iAmAdmin(){return !!(myRoles&&myRoles.indexOf('admin')>-1)}
+  var ROLES=['superadmin','admin','securityofficer','superuser','operateur','lecteur'];
+  function iAmAdmin(){return !!(myRoles&&(myRoles.indexOf('admin')>-1||myRoles.indexOf('superadmin')>-1))}
   function dbUrl(){return ((HARD?CONFIG.url:(cfg&&cfg.url))||'').replace(/\/+$/,'')}
   function fb(m,path,b){
     return token().then(function(tok){
@@ -1229,7 +1274,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   /* lock = on ne peut pas se retirer admin ; all = ligne entière verrouillée ; seul un admin peut accorder ou retirer admin */
   function roleBoxes(sel,lock,all){
     return ROLES.map(function(r){
-      var dis=all||(lock&&r==='admin')||(r==='admin'&&!iAmAdmin());
+      var dis=all||(lock&&(r==='admin'||r==='superadmin'))||((r==='admin'||r==='superadmin')&&!iAmAdmin());
       return '<label style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 6px 0;font-weight:400"><input type="checkbox" value="'+r+'"'+(sel.indexOf(r)>-1?' checked':'')+(dis?' disabled':'')+' style="width:auto;min-height:0;margin:0"> '+(RLAB[r]||r)+'</label>';
     }).join('');
   }
@@ -1264,7 +1309,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     uOpen=k||null;
     var me=auth?ukey(auth.email):'';
     if(k){
-      var i=uInfo(uData[k]),self=(k===me),locked=(!iAmAdmin()&&i.roles.indexOf('admin')>-1);
+      var i=uInfo(uData[k]),self=(k===me),locked=(!iAmAdmin()&&(i.roles.indexOf('admin')>-1||i.roles.indexOf('superadmin')>-1));
       $('udt').textContent=i.name||k.replace(/,/g,'.');
       $('ude').value=k.replace(/,/g,'.');$('ude').readOnly=true;$('udn').value=i.name;$('udn').disabled=true;
       $('udh').textContent=locked?'Réservé aux admins : tu ne peux pas modifier cette personne.':(self?'C\'est ton compte : tu ne peux pas te retirer ni retirer ton rôle Admin.':'');
@@ -1286,6 +1331,41 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('admdlg').showModal();
   };
   $('admx').onclick=function(){$('admdlg').close()};
+
+  /* Remise à zéro de la copie locale (pièces et journal) ; les sauvegardes locales sont conservées */
+  function wipeLocal(){
+    items=[];ixOk=false;dirty=[];dset=null;touched={};stk={};lastT={};mpend=0;
+    sv(KD,dirty);cfg.since=0;cfg.full=0;cfg.mfull=0;cfg.msince=0;sv(KC,cfg);
+    try{localStorage.removeItem(KEY)}catch(e){}
+    if(!idbItems)return Promise.resolve();
+    return Promise.all([mtx('readwrite',function(st){st.clear()},'it'),mtx('readwrite',function(st){st.clear()},'mv')]);
+  }
+  /* Un SuperAdmin a vidé la base : le repère meta/purgeAt le dit aux autres appareils, qui vident leur copie */
+  function purgeCheck(){
+    return req('GET',null,'','meta/purgeAt').then(function(pa){
+      if(typeof pa!=='number')return;
+      var known=cfg.purge||cfg.since||0;
+      if(pa>known)return wipeLocal().then(function(){cfg.purge=pa;sv(KC,cfg);render();toast('Les données ont été réinitialisées par un SuperAdmin')});
+    });
+  }
+  function purgeAll(){
+    var t=Date.now();syncing=true;status();toast('Suppression en cours…');
+    req('DELETE',null,'','mouvements').then(function(){return req('DELETE')}).then(function(){return req('PUT',t,'','meta/purgeAt')})
+      .then(function(){cfg.purge=t;return wipeLocal()})
+      .then(function(){render();toast('Toutes les pièces et tout le journal ont été supprimés')})
+      .catch(function(e){toast('Suppression impossible ('+((e&&e.message)||e)+') : règles Firebase à jour ?')})
+      .then(function(){syncing=false;status()});
+  }
+  $('admPurge').onclick=function(){
+    if(needAuth('purge'))return;
+    mall().then(function(a){return a.length}).catch(function(){return 0}).then(function(nm){
+      var np=items.length,tot=np+nm;
+      ask('Supprimer DÉFINITIVEMENT sur le serveur toutes les pièces ('+fmt(np)+', corbeille comprise) et tout le journal ('+fmt(nm)+' lignes), pour tous les appareils ? Un fichier de sauvegarde des pièces va être téléchargé d\'abord. Cette opération ne peut pas être annulée.','Continuer',function(){
+        $('bj').click();
+        askTyped('Dernière confirmation',fmt(np)+' pièce(s) + '+fmt(nm)+' ligne(s) de journal = '+fmt(tot)+' élément(s) seront supprimés.',String(tot),'Tape '+tot+' pour confirmer',purgeAll);
+      });
+    });
+  };
   $('admData').addEventListener('click',function(e){if(e.target.closest('button'))$('admdlg').close()});
   $('imp').addEventListener('change',function(){$('admdlg').close()});
 
@@ -1631,19 +1711,21 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     uOpenDlg(li.getAttribute('data-u'));
   };
   $('udv').onclick=function(){
-    var roles=checkedRoles($('udr')).join(','),name=$('udn').value.trim();
-    if(uOpen){
-      var k=uOpen;
-      fb('PUT','/allowed/'+encodeURIComponent(k),{name:uInfo(uData[k]).name,roles:roles}).then(function(){
-        ustat('Enregistré',k);$('uddlg').close();usersList();
-      }).catch(function(){ustat('Enregistrement impossible (droits ?)',k,true)});
-    }else{
-      var em=$('ude').value.trim();
+    var sel=checkedRoles($('udr')),roles=sel.join(','),name=$('udn').value.trim(),isNew=!uOpen,k,em;
+    if(isNew){
+      em=$('ude').value.trim();
       if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail invalide');return}
-      fb('PUT','/allowed/'+encodeURIComponent(ukey(em)),{name:name||em.split('@')[0],roles:roles}).then(function(){
-        ustat('Personne ajoutée',ukey(em));$('uddlg').close();usersList();
-      }).catch(function(){ustat('Ajout impossible (droits ?)',ukey(em),true)});
-    }
+      k=ukey(em);
+    }else{k=uOpen;em=k.replace(/,/g,'.')}
+    var was=isNew?false:uInfo(uData[k]).roles.indexOf('superadmin')>-1,now=sel.indexOf('superadmin')>-1;
+    var go=function(){
+      var body={name:isNew?(name||em.split('@')[0]):uInfo(uData[k]).name,roles:roles};
+      fb('PUT','/allowed/'+encodeURIComponent(k),body).then(function(){
+        ustat(isNew?'Personne ajoutée':'Enregistré',k);$('uddlg').close();usersList();
+      }).catch(function(){ustat(isNew?'Ajout impossible (droits ?)':'Enregistrement impossible (droits ?)',k,true)});
+    };
+    if(was!==now)askTyped(now?'Donner le rôle SuperAdmin':'Retirer le rôle SuperAdmin',(now?'Un SuperAdmin peut supprimer toutes les pièces et tout le journal sur le serveur. ':'')+'Pour confirmer, tape l\'adresse e-mail de la personne concernée.',em,'E-mail : '+em,go);
+    else go();
   };
   $('udrm').onclick=function(){
     var kk=uOpen;if(!kk)return;

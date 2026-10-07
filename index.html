@@ -345,7 +345,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='3.1.2';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='3.1.4';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -1142,7 +1142,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   };
   $('snow').onclick=function(){
     if(!navigator.onLine){toast('Hors ligne : synchro impossible');return}
-    failed=false;sync();toast('Synchronisation lancée');
+    failed=false;sync();loadRole();toast('Synchronisation lancée');
     setTimeout(accInfo,1500);setTimeout(accInfo,4000);
   };
   /* la synchro n'efface jamais une ligne locale : après un nettoyage du serveur, on vide la copie de cet appareil (sauf les envois en attente) et on la recharge */
@@ -1282,7 +1282,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   /* lock = on ne peut pas se retirer admin ; all = ligne entière verrouillée ; seul un admin peut accorder ou retirer admin */
   function roleBoxes(sel,lock,all){
     return ROLES.map(function(r){
-      var dis=all||(lock&&sel.indexOf(r)>-1&&(r==='admin'||r==='superadmin'))||((r==='admin'||r==='superadmin')&&!iAmAdmin());
+      var dis=all||(lock&&r==='admin'&&sel.indexOf(r)>-1)||((r==='admin'||r==='superadmin')&&!iAmAdmin());
       return '<label style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 6px 0;font-weight:400"><input type="checkbox" value="'+r+'"'+(sel.indexOf(r)>-1?' checked':'')+(dis?' disabled':'')+' style="width:auto;min-height:0;margin:0"> '+(RLAB[r]||r)+'</label>';
     }).join('');
   }
@@ -1320,7 +1320,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       var i=uInfo(uData[k]),self=(k===me),locked=(!iAmAdmin()&&(i.roles.indexOf('admin')>-1||i.roles.indexOf('superadmin')>-1));
       $('udt').textContent=i.name||k.replace(/,/g,'.');
       $('ude').value=k.replace(/,/g,'.');$('ude').readOnly=true;$('udn').value=i.name;$('udn').disabled=true;
-      $('udh').textContent=locked?'Réservé aux admins : tu ne peux pas modifier cette personne.':(self?'C\'est ton compte : tu ne peux pas te retirer ni retirer ton rôle Admin.':'');
+      $('udh').textContent=locked?'Réservé aux admins : tu ne peux pas modifier cette personne.':(self?'C\'est ton compte : tu ne peux pas te retirer ni retirer ton propre rôle Admin.':'');
       $('udr').innerHTML=roleBoxes(i.roles,self,locked);
       $('udv').textContent='Enregistrer';$('udv').style.display=locked?'none':'';$('udrm').style.display=(self||locked)?'none':'';
     }else{
@@ -1331,12 +1331,15 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     }
     $('uddlg').showModal();
   }
-  $('admBtn').onclick=function(){
+  function admInfo(){
     var l=live(),b=dbUrl().replace('https://','').split('.')[0];
     $('sysinfo').textContent='Version : '+VERSION+'\nBase : '+(b||'—')+'\nInventaire : '+((HARD?CONFIG.room:(cfg&&cfg.room))||'—')+
       '\nCompte : '+(auth?auth.email:'—')+'\nRôles : '+((myRoles&&myRoles.length)?myRoles.map(function(r){return RLAB[r]||r}).join(', '):'—')+
       '\nPièces : '+l.length+'\nDernière synchro : '+(lastOk?dstr(lastOk):'—');
-    $('admdlg').showModal();
+  }
+  $('admBtn').onclick=function(){
+    admInfo();$('admdlg').showModal();
+    loadRole().then(function(){if($('admdlg').hasAttribute('open'))admInfo()});
   };
   $('admx').onclick=function(){$('admdlg').close()};
 
@@ -1730,6 +1733,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       var body={name:isNew?(name||em.split('@')[0]):uInfo(uData[k]).name,roles:roles};
       fb('PUT','/allowed/'+encodeURIComponent(k),body).then(function(){
         ustat(isNew?'Personne ajoutée':'Enregistré',k);$('uddlg').close();usersList();
+        if(auth&&k===ukey(auth.email))loadRole();
       }).catch(function(){ustat(isNew?'Ajout impossible (droits ?)':'Enregistrement impossible (droits ?)',k,true)});
     };
     if(was!==now)askTyped(now?'Donner le rôle SuperAdmin':'Retirer le rôle SuperAdmin',(now?'Un SuperAdmin peut supprimer toutes les pièces et tout le journal sur le serveur.\n':'')+'Personne concernée : '+em,go);

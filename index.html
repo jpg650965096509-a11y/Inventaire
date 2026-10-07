@@ -345,7 +345,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='3.1.0';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='3.1.1';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -1248,14 +1248,22 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   var cfCb=null;
   function ask(msg,label,cb){$('cfm').textContent=msg;$('cfo').textContent=label||'Confirmer';cfCb=cb;$('cfdlg').showModal()}
   /* confirmation « forte » : il faut taper la valeur demandée pour activer le bouton */
-  var tcCb=null,tcExp='';
-  function askTyped(title,msg,expected,label,cb){
-    $('tct').textContent=title;$('tcm').textContent=msg;$('tcl').textContent=label;$('tci').value='';
-    tcExp=String(expected).trim().toLowerCase();tcCb=cb;$('tco').disabled=true;$('tcdlg').showModal();
+  var tcCb=null;
+  function cfCodes(){
+    var d=new Date(),o=[],i,t,y;
+    for(i=0;i<3;i++){
+      t=new Date(d.getTime()-i*6e4);y=Math.floor((Date.UTC(t.getFullYear(),t.getMonth(),t.getDate())-Date.UTC(t.getFullYear(),0,0))/864e5);
+      o.push(('0'+t.getHours()).slice(-2)+('0'+t.getMinutes()).slice(-2)+('00'+y).slice(-3));
+    }
+    return o;
   }
-  $('tci').oninput=function(){$('tco').disabled=($('tci').value.trim().toLowerCase()!==tcExp)};
+  function askTyped(title,msg,cb){
+    $('tct').textContent=title;$('tcm').textContent=msg;$('tcl').textContent='Code de confirmation';$('tci').value='';
+    tcCb=cb;$('tco').disabled=true;$('tcdlg').showModal();
+  }
+  $('tci').oninput=function(){$('tco').disabled=cfCodes().indexOf($('tci').value.trim())<0};
   $('tcn').onclick=function(){tcCb=null;$('tcdlg').close()};
-  $('tco').onclick=function(){if($('tco').disabled)return;var f=tcCb;tcCb=null;$('tcdlg').close();if(f)f()};
+  $('tco').onclick=function(){if(cfCodes().indexOf($('tci').value.trim())<0){$('tco').disabled=true;return}var f=tcCb;tcCb=null;$('tcdlg').close();if(f)f()};
   $('cfn').onclick=function(){cfCb=null;$('cfdlg').close()};
   $('cfo').onclick=function(){var f=cfCb;cfCb=null;$('cfdlg').close();if(f)f()};
 
@@ -1274,7 +1282,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   /* lock = on ne peut pas se retirer admin ; all = ligne entière verrouillée ; seul un admin peut accorder ou retirer admin */
   function roleBoxes(sel,lock,all){
     return ROLES.map(function(r){
-      var dis=all||(lock&&(r==='admin'||r==='superadmin'))||((r==='admin'||r==='superadmin')&&!iAmAdmin());
+      var dis=all||(lock&&sel.indexOf(r)>-1&&(r==='admin'||r==='superadmin'))||((r==='admin'||r==='superadmin')&&!iAmAdmin());
       return '<label style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 6px 0;font-weight:400"><input type="checkbox" value="'+r+'"'+(sel.indexOf(r)>-1?' checked':'')+(dis?' disabled':'')+' style="width:auto;min-height:0;margin:0"> '+(RLAB[r]||r)+'</label>';
     }).join('');
   }
@@ -1362,7 +1370,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       var np=items.length,tot=np+nm;
       ask('Supprimer DÉFINITIVEMENT sur le serveur toutes les pièces ('+fmt(np)+', corbeille comprise) et tout le journal ('+fmt(nm)+' lignes), pour tous les appareils ? Un fichier de sauvegarde des pièces va être téléchargé d\'abord. Cette opération ne peut pas être annulée.','Continuer',function(){
         $('bj').click();
-        askTyped('Dernière confirmation',fmt(np)+' pièce(s) + '+fmt(nm)+' ligne(s) de journal = '+fmt(tot)+' élément(s) seront supprimés.',String(tot),'Tape '+tot+' pour confirmer',purgeAll);
+        askTyped('Dernière confirmation',fmt(np)+' pièce(s) + '+fmt(nm)+' ligne(s) de journal = '+fmt(tot)+' élément(s) seront supprimés.',purgeAll);
       });
     });
   };
@@ -1724,7 +1732,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         ustat(isNew?'Personne ajoutée':'Enregistré',k);$('uddlg').close();usersList();
       }).catch(function(){ustat(isNew?'Ajout impossible (droits ?)':'Enregistrement impossible (droits ?)',k,true)});
     };
-    if(was!==now)askTyped(now?'Donner le rôle SuperAdmin':'Retirer le rôle SuperAdmin',(now?'Un SuperAdmin peut supprimer toutes les pièces et tout le journal sur le serveur. ':'')+'Pour confirmer, tape l\'adresse e-mail de la personne concernée.',em,'E-mail : '+em,go);
+    if(was!==now)askTyped(now?'Donner le rôle SuperAdmin':'Retirer le rôle SuperAdmin',(now?'Un SuperAdmin peut supprimer toutes les pièces et tout le journal sur le serveur.\n':'')+'Personne concernée : '+em,go);
     else go();
   };
   $('udrm').onclick=function(){

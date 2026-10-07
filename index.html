@@ -330,7 +330,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='2.9.0';
+  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='3.0.0';
   var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
@@ -347,7 +347,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   var HARD=!!(CONFIG.url&&CONFIG.room);
   if(HARD&&(!cfg||String(cfg.url).replace(/\/+$/,'')!==CONFIG.url||cfg.room!==CONFIG.room)){
     cfg={url:CONFIG.url,room:CONFIG.room};sv(KC,cfg);
-    dirty=items.map(function(i){return i.code});sv(KD,dirty);
+    dirty=items.map(function(i){return i.code});dset=null;sv(KD,dirty);
   }
 
   /* Le message est un "popover" : il passe au-dessus des fenêtres modales (sinon il restait caché derrière) */
@@ -366,7 +366,15 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
   /* Données : les suppressions restent en "pierre tombale" (del:true) pour se propager aux autres téléphones */
   function live(){return items.filter(function(i){return !i.del})}
-  function idx(c){for(var i=0;i<items.length;i++)if(items[i].code===c)return i;return -1}
+  /* index code -> position (recalculé si la liste est remplacée) ; indispensable avec des dizaines de milliers de pièces */
+  var ixm=Object.create(null),ixOk=false,dset=null;
+  function ixBuild(){ixm=Object.create(null);for(var i=0;i<items.length;i++)ixm[items[i].code]=i;ixOk=true}
+  function ixAdd(c){if(ixOk)ixm[c]=items.length-1}
+  function idx(c){if(!ixOk)ixBuild();var k=ixm[c];return(k!==undefined&&items[k]&&items[k].code===c)?k:-1}
+  function markDirty(c){
+    if(!dset){dset=Object.create(null);dirty.forEach(function(d){dset[d]=1})}
+    if(!dset[c]){dset[c]=1;dirty.push(c)}
+  }
   function find(c){var k=idx(c);return k>-1&&!items[k].del?items[k]:null}
   function dstr(t){return new Date(t).toLocaleString('fr-BE',{dateStyle:'short',timeStyle:'short'})}
   function nm(b){return String(b).split('@')[0]}
@@ -376,26 +384,62 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     it.t=Date.now();it.by=op;
     if(old&&!old.del){if(old.c){it.c=old.c;it.cb=old.cb||''}}
     else if(it.c===undefined){it.c=it.t;it.cb=op}
-    if(k>-1)items[k]=it;else items.push(it);
-    if(dirty.indexOf(it.code)<0)dirty.push(it.code);
+    if(k>-1)items[k]=it;else{items.push(it);ixAdd(it.code)}
+    markDirty(it.code);touch(it.code);
   }
   /* Une suppression garde les données de la pièce (corbeille) ; t/by = date et auteur de la suppression */
   function tomb(c){
     var k=idx(c);if(k<0||items[k].del)return;
     var o={};for(var f in items[k])o[f]=items[k][f];
     o.del=true;o.t=Date.now();o.by=op;o.d=o.t;o.db=op;items[k]=o;
-    if(dirty.indexOf(c)<0)dirty.push(c);
+    markDirty(c);touch(c);
   }
-  function commit(){sv(KEY,items);sv(KD,dirty);render();status();later()}
+  /* Les pièces et les sauvegardes sont conservées dans IndexedDB (pas de limite de 5 Mo) ; sans IndexedDB on garde l'ancien stockage local */
+  var idbItems=false,touched={};
+  function touch(c){touched[c]=1}
+  function flushItems(){
+    var codes=Object.keys(touched);touched={};
+    if(!idbItems){sv(KEY,items);return Promise.resolve()}
+    if(!codes.length)return Promise.resolve();
+    var recs=[];codes.forEach(function(c){var k=idx(c);if(k>-1)recs.push(items[k])});
+    return mtx('readwrite',function(st){recs.forEach(function(r){st.put(r)})},'it')
+      .catch(function(){toast('Stockage local indisponible : modifications non conservées sur cet appareil')});
+  }
+  function saveSnaps(){
+    if(!idbItems){
+      while(snaps.length&&!svq(KS,snaps))snaps.pop();
+      if(!snaps.length)toast('Sauvegarde locale impossible : espace plein');
+      return Promise.resolve();
+    }
+    return mtx('readwrite',function(st){st.clear();snaps.forEach(function(r){st.put(r)})},'sn')
+      .catch(function(){toast('Sauvegarde locale impossible : espace plein')});
+  }
+  /* Chargement au démarrage ; première fois : reprise des pièces et sauvegardes de l'ancien stockage local, qu'on libère ensuite */
+  function loadItems(){
+    return mready.then(function(ok){
+      if(!ok)return;
+      idbItems=true;
+      return mtx('readonly',function(st){return st.getAll()},'it').then(function(a){
+        if(a&&a.length){items=a;return}
+        if(items.length)return mtx('readwrite',function(st){items.forEach(function(r){st.put(r)})},'it').then(function(){try{localStorage.removeItem(KEY)}catch(e){}});
+      }).then(function(){return mtx('readonly',function(st){return st.getAll()},'sn')}).then(function(a){
+        if(a&&a.length){snaps=a.sort(function(x,y){return y.t-x.t});return}
+        if(snaps.length)return mtx('readwrite',function(st){snaps.forEach(function(r){st.put(r)})},'sn').then(function(){try{localStorage.removeItem(KS)}catch(e){}});
+      }).catch(function(){idbItems=false});
+    }).then(function(){items.forEach(function(i){if(!i.t)i.t=Date.now()});ixOk=false});
+  }
+  function commit(){flushItems();sv(KD,dirty);render();status();later()}
 
   /* ===== Mouvements (journal) : stock = stock de départ (ancien champ qty, figé) + somme des mouvements ===== */
   var mdb=null,mpend=0,stk={},mreset=false,lastT={};
   var mready=new Promise(function(res){
     try{
-      var r=indexedDB.open('inventaire_mvt',3);
+      var r=indexedDB.open('inventaire_mvt',4);
       r.onupgradeneeded=function(e){
         var d=r.result,s;
         if(!d.objectStoreNames.contains('mv')){s=d.createObjectStore('mv',{keyPath:'id'});s.createIndex('code','code');s.createIndex('d','d')}
+        if(!d.objectStoreNames.contains('it'))d.createObjectStore('it',{keyPath:'code'});
+        if(!d.objectStoreNames.contains('sn'))d.createObjectStore('sn',{keyPath:'t'});
         /* v3 : demandes et décisions sont désormais des lignes du journal ; on garde seulement les envois en attente et on recharge le reste */
         if(e.oldVersion>0&&e.oldVersion<3){
           ['rq','dc'].forEach(function(n){if(d.objectStoreNames.contains(n))d.deleteObjectStore(n)});
@@ -461,14 +505,27 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   /* Types sans effet sur le stock : delta = 0 (la trace est gardée) */
   var NOSTK={inventaire:1,demande:1,modification:1,approbation:1,refus:1,cloture:1};
   /* Une ligne du journal. extra = {type, saisie (valeur tapée à l'écran), note, demande (id de la demande liée), id (identifiant imposé)} */
-  function addMv(code,delta,extra){
+  function mkRec(code,delta,extra){
     extra=extra||{};delta=r3(delta);
     var type=extra.type||(delta>0?'entree':'sortie');
-    if(!delta&&!NOSTK[type]&&type!=='import')return Promise.resolve();
+    if(!delta&&!NOSTK[type]&&type!=='import')return null;
     var t=Date.now(),rec={id:extra.id||newId(),code:code,delta:NOSTK[type]&&type!=='inventaire'?0:delta,type:type,by:String(op||'').toLowerCase(),t:t,dateAction_t:dtxt(t),d:1};
     if(extra.saisie!==undefined)rec.saisie=extra.saisie;
     if(extra.note)rec.note=extra.note;
     if(extra.demande)rec.demande=extra.demande;
+    return rec;
+  }
+  /* plusieurs lignes d'un coup (import, restauration) : une seule transaction. list = [[code,delta,extra],…] */
+  function addMvMany(list){
+    var recs=[];list.forEach(function(a){var r=mkRec(a[0],a[1],a[2]);if(r)recs.push(r)});
+    if(!recs.length)return Promise.resolve(0);
+    mpend+=recs.length;stk={};
+    return mtx('readwrite',function(st){recs.forEach(function(r){st.put(r)})}).then(function(){status();later();return recs.length})
+      .catch(function(){mpend-=recs.length;toast('Journal indisponible sur cet appareil : mouvements non enregistrés');return 0});
+  }
+  function addMv(code,delta,extra){
+    extra=extra||{};
+    var rec=mkRec(code,delta,extra);if(!rec)return Promise.resolve();
     var go=function(){
       delete stk[code];mpend++;
       return mput(rec).then(function(){status();later();return true})
@@ -491,10 +548,14 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       /* envoi par étapes : les règles serveur lisent l'état déjà enregistré (une décision exige que la demande existe, une réception exige l'approbation) */
       var ST={modification:2,approbation:2,refus:2,reception:3,cloture:3},refused=0,pay=function(r){var o={};['code','delta','type','by','t','saisie','note','demande','dateAction_t','compte','attendu'].forEach(function(f){if(r[f]!==undefined)o[f]=r[f]});o.s=t0;o.envoiFirebase_s=dtxt(t0);return o};
       var refus=function(e){return /^(400|401|403)$/.test(e&&e.message)};
-      var done=function(list){return Promise.all(list.map(function(r){delete r.d;return mput(r)}))};
+      var done=function(list){list.forEach(function(r){delete r.d});return mtx('readwrite',function(st){list.forEach(function(r){st.put(r)})})};
+      var CH=2000;
       var stage=function(n){
-        var list=dl.filter(function(r){return (ST[r.type]||1)===n});
-        if(!list.length)return Promise.resolve();
+        var all=dl.filter(function(r){return (ST[r.type]||1)===n});
+        var chunks=[];for(var ci=0;ci<all.length;ci+=CH)chunks.push(all.slice(ci,ci+CH));
+        return chunks.reduce(function(pr,ch){return pr.then(function(){return sendChunk(ch)})},Promise.resolve());
+      };
+      var sendChunk=function(list){
         var up={};list.forEach(function(r){up[r.id]=pay(r)});
         return req('PATCH',up,'','mouvements').then(function(){return done(list)}).catch(function(e){
           if(!refus(e))throw e;
@@ -526,9 +587,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     stockAll().then(function(m){
       snaps.unshift({t:Date.now(),why:why,items:l.map(function(i){return[i.code,i.name,stockFrom(m,i),i.loc,i.note]})});
       snaps=snaps.slice(0,3);
-      while(snaps.length&&!svq(KS,snaps))snaps.pop();
-      if(!snaps.length)toast('Sauvegarde locale impossible : espace plein');
-      if(cb)cb();
+      saveSnaps().then(function(){if(cb)cb()});
     });
   }
   /* Restauration / import : les quantités du fichier sont des stocks absolus, traduits en mouvements d'écart */
@@ -544,7 +603,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         });
         live().forEach(function(i){if(!keep[i.code])tomb(i.code)});
         commit();
-        return Promise.all(mvs.map(function(a){return addMv(a[0],a[1],{type:'import',saisie:a[2],note:'Restauration'})})).then(function(){fillStocks();toast('Données restaurées')});
+        return addMvMany(mvs.map(function(a){return [a[0],a[1],{type:'import',saisie:a[2],note:'Restauration'}]})).then(function(){fillStocks();toast('Données restaurées')});
       });
     });
   }
@@ -584,7 +643,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   }
   function req(m,b,q,p){
     return token().then(function(tok){
-      var ac=new AbortController(),to=setTimeout(function(){ac.abort()},30000);
+      var ac=new AbortController(),to=setTimeout(function(){ac.abort()},(m==='GET'&&!q)?120000:30000);
       return fetch(base(q,tok,p),{method:m,body:b?JSON.stringify(b):undefined,signal:ac.signal}).then(function(r){
         clearTimeout(to);if(!r.ok)throw new Error(r.status);return r.json();
       });
@@ -601,18 +660,20 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       rm=rm||{};var changed=false;
       Object.keys(rm).forEach(function(k){
         var r=rm[k];if(!r||!r.code)return;var i=idx(r.code);
-        if(i<0){items.push(r);changed=true}else if(r.t>items[i].t){items[i]=r;changed=true}
+        if(i<0){items.push(r);ixAdd(r.code);touch(r.code);changed=true}else if(r.t>items[i].t){items[i]=r;touch(r.code);changed=true}
       });
-      var up={},sent={},n=0;
+      var parts=[],up={},sent={},n=0;
       dirty.forEach(function(c){
         var i=idx(c);if(i<0)return;
         var o={};for(var f in items[i])o[f]=items[i][f];o.s=t0;
         up[key(c)]=o;sent[c]=items[i].t;n++;
+        if(n%2000===0){parts.push(up);up={}}
       });
-      return (n?req('PATCH',up):Promise.resolve()).then(function(){
-        dirty=dirty.filter(function(c){var i=idx(c);return i>-1&&(sent[c]===undefined||items[i].t!==sent[c])});
+      if(Object.keys(up).length)parts.push(up);
+      return parts.reduce(function(pr,pt){return pr.then(function(){return req('PATCH',pt)})},Promise.resolve()).then(function(){
+        dirty=dirty.filter(function(c){var i=idx(c);return i>-1&&(sent[c]===undefined||items[i].t!==sent[c])});dset=null;
         cfg.since=t0;if(full)cfg.full=t0;sv(KC,cfg);
-        lastOk=Date.now();failed=false;sv(KEY,items);sv(KD,dirty);if(changed)render();
+        lastOk=Date.now();failed=false;flushItems();sv(KD,dirty);if(changed)render();
         if(Date.now()-roleT>6e5)loadRole();
       }).then(function(){return syncMv(t0)});
     }).catch(function(e){
@@ -932,7 +993,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         if(x.isNew||x.d)mvs.push([x.code,x.d,x.q]);
       });
       commit();
-      Promise.all(mvs.map(function(a){return addMv(a[0],a[1],{type:'import',saisie:a[2],note:'Import CSV'})})).then(function(){
+      addMvMany(mvs.map(function(a){return [a[0],a[1],{type:'import',saisie:a[2],note:'Import CSV'}]})).then(function(){
         fillStocks();toast('Import : '+pl.nNew+' ajoutée(s), '+pl.nUpd+' mise(s) à jour, '+pl.nSame+' inchangée(s)');
       });
     });
@@ -1113,7 +1174,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var o={};for(var f in items[k])o[f]=items[k][f];
     delete o.del;delete o.d;delete o.db;o.name=o.name||o.code;o.qty=num(o.qty);o.loc=o.loc||'';o.note=o.note||'';
     o.t=Date.now();o.by=op;items[k]=o;
-    if(dirty.indexOf(o.code)<0)dirty.push(o.code);
+    markDirty(o.code);touch(o.code);
     commit();trashList();toast('Pièce restaurée');
   };
   $('bakBtn').onclick=function(){snapList();$('bdlg').showModal()};
@@ -1596,11 +1657,13 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   document.addEventListener('visibilitychange',function(){if(!document.hidden)sync()});
   setInterval(function(){if(!document.hidden)sync()},15000);
 
-  if(!snaps.length||Date.now()-snaps[0].t>864e5)snap('auto');
   $('ver').textContent='Version '+VERSION;$('hv').textContent='v'+VERSION;
   mdirty().then(function(a){mpend=a.length;status()}).catch(function(){});
-  sv(KEY,items);applyPerms();status();sync();loadRole();
-  if(HARD&&!auth)setTimeout(openLogin,400);
+  loadItems().then(function(){
+    if(!snaps.length||Date.now()-snaps[0].t>864e5)snap('auto');
+    applyPerms();status();sync();loadRole();
+    if(HARD&&!auth)setTimeout(openLogin,400);
+  });
   if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
 })();
 </script>

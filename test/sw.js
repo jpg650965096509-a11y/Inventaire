@@ -1,8 +1,11 @@
 /* Service worker : mode hors ligne de l'inventaire.
-   À placer dans le même dossier que inventaire.html (ou index.html). */
-var V = 'inventaire-test-v2';
-/* seules les anciennes versions du cache de CET environnement sont supprimees (le test a son propre cache) */
-var FAM = /^inventaire-test-v\d+$/;
+   CE FICHIER EST IDENTIQUE pour la production (/Inventaire/) et le test (/Inventaire/test/) : à envoyer tel quel aux deux endroits.
+   Le nom du cache est déduit du dossier d'où il est servi, et seules les anciennes versions du cache de CET environnement sont supprimées. */
+var VERSION_CACHE = 5; /* à augmenter seulement si la logique du cache change */
+var TEST = /\/test\/[^/]*$/.test(self.location.pathname);
+var PREFIX = TEST ? 'inventaire-test-v' : 'inventaire-v';
+var V = PREFIX + VERSION_CACHE;
+var FAM = new RegExp('^' + PREFIX + '\\d+$');
 var LIB = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
 
 self.addEventListener('install', function (e) {

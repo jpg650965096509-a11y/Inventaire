@@ -1,8 +1,8 @@
 /* Service worker : mode hors ligne de l'inventaire.
    À placer dans le même dossier que inventaire.html (ou index.html). */
-var V = 'inventaire-v4';
+var V = 'inventaire-test-v2';
 /* seules les anciennes versions du cache de CET environnement sont supprimees (le test a son propre cache) */
-var FAM = /^inventaire-v\d+$/;
+var FAM = /^inventaire-test-v\d+$/;
 var LIB = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
 
 self.addEventListener('install', function (e) {

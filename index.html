@@ -119,7 +119,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <p class="hint" id="rd" style="margin:6px 0 0"></p>
     <div style="display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 0">
       <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="pm" style="width:auto;min-height:0;margin:0"> Mode précis (plus lent)</label>
-      <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="fl" style="width:auto;min-height:0;margin:0"> Flash</label>
+      <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="flashCb" style="width:auto;min-height:0;margin:0"> Flash</label>
     </div>
     <div class="opts">
       <label class="step">Pas +/−<input id="step" type="text" inputmode="decimal" value="1"></label>
@@ -379,7 +379,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='3.4.2';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='3.4.3';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -975,7 +975,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     try{return scanner.applyVideoConstraints({advanced:[{torch:on}]}).then(function(){return true}).catch(function(){return false})}
     catch(e){return Promise.resolve(false)}
   }
-  function flashOff(){flash=false;$('fl').checked=false;sv('inventaire_flash_v1',false)}
+  function flashOff(){flash=false;$('flashCb').checked=false;sv('inventaire_flash_v1',false)}
   function flashSync(){
     if(!flash)return;
     applyTorch(true).then(function(ok){if(!ok){toast('Flash non disponible sur cet appareil');flashOff()}});
@@ -1370,9 +1370,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
   /* Événements */
   $('scanBtn').onclick=function(){scanner?stopScan():startScan()};
-  $('fl').checked=flash;
-  $('fl').onchange=function(){
-    flash=$('fl').checked;sv('inventaire_flash_v1',flash);
+  $('flashCb').checked=flash;
+  $('flashCb').onchange=function(){
+    flash=$('flashCb').checked;sv('inventaire_flash_v1',flash);
     if(!scanner){toast(flash?"Le flash s'allumera au prochain scan":'Flash éteint');return}
     applyTorch(flash).then(function(ok){if(!ok&&flash){toast('Flash non disponible sur cet appareil');flashOff()}});
   };

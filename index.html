@@ -324,7 +324,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <label>Type<select id="jt"><option value="">Tous</option><option value="entree">Entrées</option><option value="sortie">Sorties</option><option value="inventaire">Inventaires</option><option value="import">Imports</option><option value="demande">Demandes</option><option value="modification">Modifications</option><option value="approbation">Approbations</option><option value="refus">Refus</option><option value="reception">Réceptions</option><option value="cloture">Clôtures</option></select></label>
   <p class="hint" id="jc" style="margin:0 0 6px"></p>
   <div id="jl" style="max-height:40vh;overflow:auto"></div>
-  <div class="row"><button type="button" class="btn" id="jmore">Afficher plus</button><button type="button" class="btn" id="jcsv">Export CSV</button></div>
+  <div class="row"><button type="button" class="btn" id="jmore">Afficher plus</button><button type="button" class="btn" id="jcsv">Export CSV</button><button type="button" class="btn" id="jlot" title="Fichier texte : une ligne par code-barres, au format CODE-BARRES.QTE">Export lot</button></div>
   <div class="row"><button type="button" class="btn" id="jx">Fermer</button></div>
 </dialog>
 
@@ -352,7 +352,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='3.2.0';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='3.2.1';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1507,6 +1507,22 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('jt').onchange=jLoad;
   $('jmore').onclick=function(){jshown=Math.min(jshown+JPAGE,jrows.length);jRender()};
   $('jx').onclick=function(){$('jdlg').close()};
+  /* Export « lot » : une ligne par code-barres, CODE-BARRES.QTE ; un seul type à la fois (entrées, sorties, inventaires ou réceptions) */
+  var LOT_T={entree:'entrees',sortie:'sorties',inventaire:'inventaires',reception:'receptions'};
+  $('jlot').onclick=function(){
+    var t=$('jt').value;
+    if(!LOT_T[t]){toast('Choisis un type : Entrées, Sorties, Inventaires ou Réceptions');return}
+    var m={},order=[];
+    jrows.slice().sort(function(a,b){return a.t-b.t}).forEach(function(r){
+      var q=t==='inventaire'?(r.saisie!==undefined?r.saisie:r.compte):(t==='sortie'?-r.delta:r.delta);
+      q=Number(q);if(!isFinite(q))return;
+      if(!(r.code in m)){m[r.code]=0;order.push(r.code)}
+      m[r.code]=t==='inventaire'?q:r3(m[r.code]+q); /* inventaire : dernière valeur comptée ; sinon somme */
+    });
+    if(!order.length){toast('Rien à exporter');return}
+    download(order.map(function(c){return c+'.'+String(m[c]).replace('.',',')}).join('\r\n')+'\r\n','text/plain','lot-'+LOT_T[t]+'-'+day()+'.txt');
+    toast(order.length+' ligne(s) exportée(s) au format CODE-BARRES.QTE');
+  };
   $('jcsv').onclick=function(){
     if(!jrows.length){toast('Rien à exporter');return}
     var rows=[['Date','Heure','Code','Pièce','Type','Valeur saisie','Écart','Personne','Commentaire']].concat(jrows.map(function(r){

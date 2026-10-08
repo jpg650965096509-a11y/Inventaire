@@ -147,6 +147,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <dialog id="kdlg">
   <h2 id="kn"></h2>
   <p class="hint" id="kc" style="margin:0"></p>
+  <div id="kprod" style="display:none;margin:8px 0;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb,var(--line) 25%,var(--card))"><small class="hint" style="margin:0;font-weight:700;letter-spacing:.04em">PRODUIT</small><div id="kmn" style="margin-top:4px"></div><button type="button" class="btn" id="kprq" style="display:none;margin-top:6px">Demander</button></div>
   <div id="kpl" style="text-align:center;margin:10px 0 0"></div>
   <div class="qty" style="justify-content:center;gap:18px;margin:8px 0 2px">
     <button type="button" id="kminus" aria-label="Retirer" style="width:56px;height:56px">−</button>
@@ -154,7 +155,6 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <button type="button" id="kplus" aria-label="Ajouter" style="width:56px;height:56px">+</button>
   </div>
   <p class="hint" id="kst" style="text-align:center;margin:0 0 10px">en stock</p>
-  <p id="kmn" style="text-align:center;margin:-4px 0 8px;display:none"></p>
   <p id="kl" style="margin:4px 0"></p>
   <p id="ko" style="margin:4px 0"></p>
   <div id="klg" style="margin:6px 0"></div>
@@ -407,7 +407,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.1.1';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.1.2';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1024,7 +1024,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   }
   function showStock(it){
     var s=can('stock');
-    ksel=null;kmulti=lgMulti(it);kls={};kCtl();
+    ksel=null;kmulti=lgMulti(it);kls={};kCtl();kTot=null;$('kprod').style.display='none';
+    if(kmulti)$('kdlg').insertBefore($('klg'),$('kpl'));else $('kdlg').insertBefore($('klg'),$('km'));
     $('kg').style.display=can('fiche')?'':'none';
     $('ke').style.display=can('fiche')?'':'none';$('kx').textContent=s?'Annuler':'Fermer';
     $('kh').style.display=(auth&&can('hist'))?'':'none';
@@ -1068,14 +1069,21 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   var precis=ld('inventaire_precis_v1',false)===true;
   var kTot=null;
   function kmnPaint(L){
-    var code=$('ke').dataset.c,it=find(code),e=$('kmn');
-    if(!it||kTot===null)return;
+    var code=$('ke').dataset.c,it=find(code),e=$('kmn'),box=$('kprod'),rq=$('kprq');
+    if(!it||kTot===null){box.style.display='none';return}
     var has=it.mn!==undefined&&it.mn!==null&&it.mn!=='';
-    e.style.display=has?'':'none';if(!has)return;
-    var k=lowCalc(it,kTot,L),h='';
-    if(k.order>0)h+='<span class="chip low">À commander : '+fmt(k.order)+'</span> ';
-    if(k.pend>0&&k.low)h+='<span class="chip ord">Déjà demandé : '+fmt(k.pend)+'</span>';
-    e.innerHTML=(h?h+'<br>':'')+'<small class="hint">Stock total '+fmt(kTot)+' · seuil '+fmt(it.mn)+'</small>';
+    /* pièce à une seule ligne sans seuil : rien à ajouter au grand chiffre du stock */
+    if(!has&&!kmulti){box.style.display='none';return}
+    box.style.display='';
+    var h='',k=null;
+    if(has){
+      k=lowCalc(it,kTot,L);
+      if(k.order>0)h+='<span class="chip low">À commander : '+fmt(k.order)+'</span> ';
+      if(k.pend>0&&k.low)h+='<span class="chip ord">Déjà demandé : '+fmt(k.pend)+'</span>';
+    }
+    e.innerHTML=(h?h+'<br>':'')+'<small class="hint">Stock total '+fmt(kTot)+(has?' · seuil '+fmt(it.mn):'')+'</small>';
+    rq.style.display=(k&&k.low&&can('stock')&&$('kr').style.display!=='none')?'':'none';
+    rq.textContent=$('krt').textContent;
   }
   function kmnDraw(it,tot){
     kTot=tot;kmnPaint(rqL);
@@ -1502,6 +1510,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       });
     }).catch(function(e){$('pvm').textContent='✗ '+((e&&e.message)||e);$('pvo').disabled=true});
   }
+  $('kprq').onclick=function(){$('kr').click()};
   $('lowBtn').onclick=function(){lowOnly=!lowOnly;lim=LIMIT;render()};
   $('pvq').onchange=impPreview;
   $('pvc').onchange=impPreview;
@@ -2380,7 +2389,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function canEditRq(x){return x.st==='attente'&&can('stock')&&(can('decide')||String(x.r.by).toLowerCase()===me())}
   function kreq(L,code){
     var x=L.filter(function(y){return y.r.code===code}).sort(function(a,b){return (OPEN[b.st]?1:0)-(OPEN[a.st]?1:0)})[0],o=L.filter(function(y){return y.r.code===code&&OPEN[y.st]})[0];
-    var ed=o&&canEditRq(o);$('krt').textContent=o?(ed?'Changer la demande':'Voir la demande'):'Demander';$('kr').dataset.open=o?o.r.id:'';$('kr').dataset.edit=ed?'1':'';
+    var ed=o&&canEditRq(o);$('krt').textContent=o?(ed?'Changer la demande':'Voir la demande'):'Demander';$('kr').dataset.open=o?o.r.id:'';$('kr').dataset.edit=ed?'1':'';$('kprq').textContent=$('krt').textContent;
     if(x&&!OPEN[x.st]&&x.over)x=null; /* demande terminée : le bandeau disparaît au premier mouvement suivant */
     $('krs').textContent=x?'Demande de '+fmt(x.r.qty)+' pièce(s) : '+RQL[x.st]+((x.st==='partielle'||x.st==='recue')?' ('+fmt(x.got)+' reçues)':''):'';
     if(x){

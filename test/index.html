@@ -71,7 +71,7 @@ select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10p
 .opts label{margin:0}
 #list,#rl,#ul,#uksl{list-style:none;margin:0;padding:0}
 .chip{display:inline-block;padding:4px 10px;border-radius:999px;font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap;background:#E7EAF1;color:#14213D}
-.chip.low{background:#F8CFCB;color:#8A1C12}.chip.attente{background:#FFE08A}.chip.approuvee,.chip.partielle{background:#CFE3FF}.chip.recue{background:#CDEFD3}.chip.refusee{background:#F8CFCB}.chip.cloturee{background:#E0E0E0}
+.chip.low{background:#F8CFCB;color:#8A1C12}.chip.ord{background:#CFE3FF;color:#14213D}.chip.attente{background:#FFE08A}.chip.approuvee,.chip.partielle{background:#CFE3FF}.chip.recue{background:#CDEFD3}.chip.refusee{background:#F8CFCB}.chip.cloturee{background:#E0E0E0}
 #list li,#rl li,#ul li,#uksl li{display:flex;gap:10px;align-items:center;justify-content:space-between;
   background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
 .info{min-width:0;flex:1}
@@ -325,6 +325,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <h2 id="qt">Demander des pièces</h2>
   <p class="hint" id="qn" style="margin:0 0 8px"></p>
   <label>Quantité demandée<input id="qq" inputmode="decimal" autocomplete="off"></label>
+  <label id="qlgw" style="display:none">Destination<select id="qlg"></select></label>
   <label>Commentaire (facultatif)<input id="qc" autocomplete="off"></label>
   <div class="row"><button type="button" class="btn cancel" id="qx">Annuler</button><button type="button" class="btn pri" id="qv">Envoyer la demande</button></div>
 </dialog>
@@ -406,7 +407,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.1.0';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.1.1';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -746,10 +747,22 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   }
   /* « À commander » : stock total inférieur ou égal au seuil de la pièce (seuil vide = jamais) */
   function fold(s){return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+  function lowCalc(it,tot,L){
+    var pend=0;(L||[]).forEach(function(x){if(x.r.code===it.code&&OPEN[x.st])pend+=Math.max(0,x.r.qty-x.got)});pend=r3(pend);
+    var low=lowQ(it,tot),need=low?Math.max(1,r3(Number(it.mn)-tot)):0;
+    return{low:low,need:need,pend:pend,order:low?Math.max(0,r3(need-pend)):0};
+  }
   function lowQ(it,st){if(!it||it.mn===undefined||it.mn===null||it.mn==='')return false;var m=Number(it.mn);return isFinite(m)&&st<=m}
+  function lowPaint(c){
+    var lb=document.querySelector('#list [data-lo="'+String(c).replace(/"/g,'')+'"]'),it=find(c);if(!lb||!it)return;
+    var t=Number(lb.dataset.t);if(!isFinite(t)||lb.dataset.t===undefined){lb.style.display='none';return}
+    var k=lowCalc(it,t,rqL);
+    lb.style.display=k.low?'':'none';
+    lb.innerHTML=k.order>0?'<span class="chip low">À commander : '+fmt(k.order)+'</span> seuil '+fmt(it.mn):'<span class="chip ord">Demandé : '+fmt(k.pend)+'</span> seuil '+fmt(it.mn);
+  }
   function fillStocks(){
     var sp=document.querySelectorAll('#list [data-q]');
-    for(var i=0;i<sp.length;i++)(function(el){var c=el.getAttribute('data-q');stockOf(c).then(function(v){el.textContent=fmt(v);var lb=document.querySelector('#list [data-lo="'+c.replace(/"/g,'')+'"]');if(lb)lb.style.display=lowQ(find(c),v)?'':'none';var it=find(c),d=document.querySelector('#list [data-u="'+c.replace(/"/g,'')+'"]');if(it&&d)d.textContent=dstr(upd(it))})})(sp[i]);
+    for(var i=0;i<sp.length;i++)(function(el){var c=el.getAttribute('data-q');stockOf(c).then(function(v){el.textContent=fmt(v);var lb=document.querySelector('#list [data-lo="'+c.replace(/"/g,'')+'"]');if(lb)lb.dataset.t=v;lowPaint(c);var it=find(c),d=document.querySelector('#list [data-u="'+c.replace(/"/g,'')+'"]');if(it&&d)d.textContent=dstr(upd(it))})})(sp[i]);
   }
   /* Envoi des mouvements en attente puis récupération des nouveaux (ajout seul, jamais de modification) */
   function syncMv(t0){
@@ -968,7 +981,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       return '<li data-c="'+esc(i.code)+'"><div class="info"><b>'+esc(i.name)+'</b><small>'+esc(curOf(i))+(i.ref?' · '+esc(i.ref):'')+'</small>'+
         (lgMulti(i)?'<small>'+lgArr(i).length+' lignes de stock</small>':(i.loc?'<small>Emplacement : '+esc(i.loc)+'</small>':''))+
         '<small>Mis à jour le <span data-u="'+esc(i.code)+'">'+dstr(upd(i))+'</span></small>'+
-        (i.mn!==undefined&&i.mn!==null&&i.mn!==''?'<small data-lo="'+esc(i.code)+'" style="display:none"><span class="chip low">À commander</span> seuil '+fmt(i.mn)+'</small>':'')+
+        (i.mn!==undefined&&i.mn!==null&&i.mn!==''?'<small data-lo="'+esc(i.code)+'" style="display:none"></small>':'')+
         '<small class="rqb" data-rb="'+esc(i.code)+'" style="font-weight:600"></small>'+
         '</div><div class="qty"><span data-q="'+esc(i.code)+'">…</span></div></li>';
     }).join('')+(list.length>lim?'<li class="empty more" data-more="1">Afficher '+Math.min(LIMIT,list.length-lim)+' de plus ('+(list.length-lim)+' restantes)</li>':''):'<li class="empty">'+(all.length?'Aucune pièce ne correspond.':'Aucune pièce. Appuie sur Scanner pour commencer.')+'</li>';
@@ -1053,10 +1066,20 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     return (10-sum%10)%10===Number(s[n-1]);
   }
   var precis=ld('inventaire_precis_v1',false)===true;
-  function kmnDraw(it,tot){
-    var e=$('kmn'),has=it.mn!==undefined&&it.mn!==null&&it.mn!=='';
+  var kTot=null;
+  function kmnPaint(L){
+    var code=$('ke').dataset.c,it=find(code),e=$('kmn');
+    if(!it||kTot===null)return;
+    var has=it.mn!==undefined&&it.mn!==null&&it.mn!=='';
     e.style.display=has?'':'none';if(!has)return;
-    e.innerHTML=lowQ(it,tot)?'<span class="chip low">À commander</span> seuil '+fmt(it.mn):'<small class="hint">Seuil de commande : '+fmt(it.mn)+'</small>';
+    var k=lowCalc(it,kTot,L),h='';
+    if(k.order>0)h+='<span class="chip low">À commander : '+fmt(k.order)+'</span> ';
+    if(k.pend>0&&k.low)h+='<span class="chip ord">Déjà demandé : '+fmt(k.pend)+'</span>';
+    e.innerHTML=(h?h+'<br>':'')+'<small class="hint">Stock total '+fmt(kTot)+' · seuil '+fmt(it.mn)+'</small>';
+  }
+  function kmnDraw(it,tot){
+    kTot=tot;kmnPaint(rqL);
+    loadRq().then(function(L){if($('ke').dataset.c===it.code)kmnPaint(L)});
   }
   var paused=false,keep=false,lastSeen=0,kqty=0,kbase=0,kready=false;
   function kdraw(){
@@ -2327,7 +2350,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         else if(m.type==='reception'){got[m.demande]=r3((got[m.demande]||0)+(Number(m.delta)||0));(rcs[m.demande]=rcs[m.demande]||[]).push(m)}
       });
       return dem.map(function(m){
-        var r={id:m.id,code:m.code,qty:Number(m.saisie)||0,note:m.note,by:m.by,t:m.t,mods:0},g=got[m.id]||0;
+        var r={id:m.id,code:m.code,qty:Number(m.saisie)||0,note:m.note,by:m.by,t:m.t,lg:m.lg,mods:0},g=got[m.id]||0;
         /* quantité et commentaire en vigueur = ceux de la modification la plus récente */
         var ml=(md[m.id]||[]).sort(function(x,y){return x.t-y.t});
         if(ml.length){var lm=ml[ml.length-1];r.qty=Number(lm.saisie)||0;r.note=lm.note;r.mods=ml.length}
@@ -2343,6 +2366,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       var n=(auth&&can('decide'))?L.filter(function(x){return OPEN[x.st]}).length:0;
       $('rqBtn').textContent='Demandes'+(n?' ('+n+')':'');
       rqL=L;
+      document.querySelectorAll('#list [data-lo]').forEach(function(e){lowPaint(e.getAttribute('data-lo'))});
       if($('rdlg').hasAttribute('open'))rqRender(L);
       if($('rddlg').hasAttribute('open'))rqDetail();
       var code=$('ke').dataset.c;if(code&&$('kdlg').hasAttribute('open'))kreq(L,code);
@@ -2362,7 +2386,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     if(x){
       /* commentaire de la demande et motif de la décision, au-dessus des boutons */
       var add=function(lab,t){if(!t)return;var e=document.createElement('small');e.textContent=lab+' : '+t;$('krs').appendChild(e)};
-      add('Commentaire',x.r.note);add('Motif',x.dec&&x.dec.motif);
+      var xi=find(x.r.code),dt=lgTag(xi,x.r);
+      add('Destination',dt?dt.replace(/^ · /,' '):'');add('Commentaire',x.r.note);add('Motif',x.dec&&x.dec.motif);
     }
   }
   function rqCard(x,mode){
@@ -2375,7 +2400,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     }
     if(canEditRq(x))act+='<div class="row" style="flex:1 1 100%"><button class="btn" data-ch="'+esc(x.r.id)+'" type="button">Changer la quantité</button></div>';
     return '<div class="snap" data-id="'+esc(x.r.id)+'" style="flex-wrap:wrap"><div style="flex:1 1 100%"><b>'+esc(it?it.name:x.r.code)+'</b><small>'+esc(x.r.code)+'</small>'+
-      '<small>Demande de '+fmt(x.r.qty)+' pièce(s)'+(x.r.mods?' (modifiée)':'')+' · '+esc(nm(x.r.by))+' · '+dstr(x.r.t)+'</small>'+
+      '<small>Demande de '+fmt(x.r.qty)+' pièce(s)'+(x.r.mods?' (modifiée)':'')+' · '+esc(nm(x.r.by))+' · '+dstr(x.r.t)+'</small>'+(lgTag(it,x.r)?'<small>Destination :'+esc(lgTag(it,x.r).replace(/^ · /,' '))+'</small>':'')+
       '<small style="font-weight:600">'+RQL[x.st]+((x.st==='partielle'||x.st==='recue'||x.st==='cloturee')?' · '+fmt(x.got)+' reçues':'')+(x.dec?' · par '+esc(nm(x.dec.by)):'')+'</small>'+
       (x.r.note?'<small>Commentaire : '+esc(x.r.note)+'</small>':'')+(x.dec&&x.dec.motif?'<small>Motif : '+esc(x.dec.motif)+'</small>':'')+
       x.recs.map(function(m){return '<small>Réception +'+fmt(m.delta)+' · '+esc(nm(m.by))+' · '+dstr(m.t)+(m.note?' · « '+esc(m.note)+' »':'')+'</small>'}).join('')+'</div>'+act+'</div>';
@@ -2441,13 +2466,21 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       if(needAuth('receive'))return;
       var q=num((card.querySelector('.rrec')||{}).value);
       if(!(q>0)){toast('Indique la quantité reçue');return}
-      addMv(x.r.code,q,{type:'reception',saisie:q,demande:x.r.id,note:((card.querySelector('.rcom')||{}).value||'').trim()}).then(function(){fillStocks();rqRefresh();toast('Réception enregistrée : +'+fmt(q))});
+      addMv(x.r.code,q,{type:'reception',saisie:q,demande:x.r.id,lg:x.r.lg,note:((card.querySelector('.rcom')||{}).value||'').trim()}).then(function(){fillStocks();rqRefresh();toast('Réception enregistrée : +'+fmt(q))});
     }else if(cl){
       if(needAuth('decide'))return;
       ask('Clôturer cette demande ? Le reste éventuel ne sera plus attendu.','Clôturer',function(){decide(x,'cloture','').then(function(){toast('Demande clôturée')})});
     }
   };
   var rqCode=null,qEdit=null;
+  /* destination : liste des lignes de la pièce (pièce à plusieurs lignes seulement) ; en modification elle est figée */
+  function qDest(it,sel,fixed){
+    var w=$('qlgw'),s=$('qlg');
+    if(!it||!lgMulti(it)){w.style.display='none';s.innerHTML='';return}
+    var L=linesOf(it);
+    s.innerHTML=L.map(function(l,i){return '<option value="'+esc(l.id)+'"'+((sel?l.id===sel:i===0)?' selected':'')+'>'+esc(lgLabel(lgFull(l)))+(i===0?' (principale)':'')+'</option>'}).join('');
+    s.disabled=!!fixed;w.style.display='';
+  }
   /* formulaire de demande : création, ou modification de la quantité d'une demande En attente */
   function openEdit(x){
     if(needAuth('stock'))return;
@@ -2455,6 +2488,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('rddlg').close();$('kdlg').close();
     $('qt').textContent='Modifier la demande';$('qv').textContent='Modifier la demande';
     $('qn').textContent=(it?it.name:x.r.code)+' · '+x.r.code;$('qq').value=String(x.r.qty).replace('.',',');$('qc').value=x.r.note||'';
+    qDest(it,x.r.lg,true);
     $('qdlg').showModal();
   }
   $('kr').onclick=function(){
@@ -2471,12 +2505,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     if(needAuth('stock'))return;
     qEdit=null;rqCode=c;$('kdlg').close();
     $('qt').textContent='Demander des pièces';$('qv').textContent='Envoyer la demande';
-    $('qn').textContent=it.name+' · '+it.code;$('qq').value='';$('qc').value='';$('qdlg').showModal();
-    stockOf(c).then(function(v){if(rqCode===c&&!$('qq').value&&lowQ(it,v))$('qq').value=String(Math.max(1,r3(Number(it.mn)-v))).replace('.',',')});
+    $('qn').textContent=it.name+' · '+it.code;$('qq').value='';$('qc').value='';qDest(it,null,false);$('qdlg').showModal();
+    stockOf(c).then(function(v){return loadRq().then(function(L){var k=lowCalc(it,v,L);if(rqCode===c&&!$('qq').value&&k.order>0)$('qq').value=String(k.order).replace('.',',')})});
   };
   $('qx').onclick=function(){qEdit=null;$('qdlg').close()};
   $('qv').onclick=function(){
-    var q=num($('qq').value),code=rqCode,note=$('qc').value.trim(),ed=qEdit;
+    var q=num($('qq').value),code=rqCode,note=$('qc').value.trim(),ed=qEdit,dest=$('qlgw').style.display==='none'?undefined:($('qlg').value||undefined);
     if(!(q>0)){toast('Indique la quantité demandée');return}
     if(needAuth('stock'))return;
     $('qdlg').close();qEdit=null;
@@ -2488,7 +2522,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         return addMv(x.r.code,0,{type:'modification',demande:x.r.id,saisie:q,note:note}).then(function(ok){if(ok){rqRefresh();toast('Demande modifiée : '+fmt(x.r.qty)+' → '+fmt(q))}});
       }
       if(L.some(function(y){return y.r.code===code&&OPEN[y.st]})){toast('Une demande est déjà en cours pour cette pièce');rqRefresh();return}
-      return addMv(code,0,{type:'demande',saisie:q,note:note}).then(function(ok){if(ok){rqRefresh();toast('Demande envoyée')}});
+      return addMv(code,0,{type:'demande',saisie:q,note:note,lg:dest}).then(function(ok){if(ok){rqRefresh();toast('Demande envoyée')}});
     });
   };
   $('admUsers').onclick=function(){$('us').value='';$('ul').innerHTML='<li class="empty">Chargement…</li>';usersList();$('udlg').showModal()};

@@ -379,7 +379,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='3.4.0';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='3.4.1';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1072,7 +1072,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   var SCI=/^[0-9]+([.,][0-9]+)?e[+-]?[0-9]+$/i;
   /* regroupe les lignes par référence (ou par code-barres), rapproche chaque pièce de l'existant et calcule ce qui changerait */
   function impAnalyse(tb,m,opt){
-    var pl={lines:0,skip:0,sci:0,badQty:0,noQty:0,plan:[],grouped:0,nNew:0,nUpd:0,nSame:0,nCode:0,nRef:0,nConf:0,up:0,down:0,codeEx:[],confEx:[],badKey:0,keyEx:[],hasQty:tb.map.qty!==undefined,positional:tb.positional};
+    var pl={lines:0,skip:0,sci:0,badQty:0,noQty:0,plan:[],grouped:0,nNew:0,nUpd:0,nSame:0,nCode:0,nRef:0,nConf:0,up:0,down:0,codeEx:[],confEx:[],badKey:0,keyEx:[],why:{},whyEx:{},hasQty:tb.map.qty!==undefined,positional:tb.positional};
     var g=Object.create(null),order=[];
     var cell=function(r,f){var k=tb.map[f];return k===undefined?'':String(r[k]==null?'':r[k]).trim()};
     tb.body.forEach(function(r){
@@ -1120,14 +1120,31 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
           if(pl.codeEx.length<3)pl.codeEx.push((gr.ref||item.ref||item.name)+' : '+curOf(item)+' → '+gr.code);
         }
         if(gr.ref&&normRef(item.ref)!==normRef(gr.ref)){o.refSet=true;if(item.ref)pl.nRef++}
-        o.fiche=o.codeChange||o.refSet||(gr.name&&gr.name!==item.name)||(gr.loc&&gr.loc!==(item.loc||''))||(o.note&&o.note!==(item.note||''))||(gr.desc&&gr.desc!==(item.desc||''));
+        o.fl={};
+        var ct=function(t){t=String(t==null?'':t).replace(/\s+/g,' ');return t.length>34?t.slice(0,32)+'…':t};
+        if(o.codeChange)o.fl.code=ct(curOf(item))+' → '+ct(gr.code);
+        if(o.refSet)o.fl.ref=ct(item.ref||'(vide)')+' → '+ct(gr.ref);
+        if(gr.name&&gr.name!==item.name)o.fl.name=ct(item.name)+' → '+ct(gr.name);
+        if(gr.loc&&gr.loc!==(item.loc||''))o.fl.loc=ct(item.loc||'(vide)')+' → '+ct(gr.loc);
+        if(o.note&&o.note!==(item.note||''))o.fl.note=ct(item.note||'(vide)')+' → '+ct(o.note);
+        if(gr.desc&&gr.desc!==(item.desc||''))o.fl.desc='texte différent';
+        o.fiche=Object.keys(o.fl).length>0;
       }
       if(pl.hasQty){
         o.q=gr.hasQ?gr.q:0;
         o.d=(item&&opt.keepQty)?0:r3(o.q-(item?stockFrom(m,item):0));
         if(o.d>0)pl.up++;else if(o.d<0)pl.down++;
+        if(item&&o.d)o.fl.stock=fmt(stockFrom(m,item))+' → '+fmt(o.q);
       }
-      if(!item)pl.nNew++;else if(o.fiche||o.d)pl.nUpd++;else pl.nSame++;
+      if(item&&o.fl){
+        /* pourquoi cette pièce est « mise à jour » : on compte chaque raison et on garde deux exemples */
+        Object.keys(o.fl).forEach(function(k){
+          pl.why[k]=(pl.why[k]||0)+1;
+          (pl.whyEx[k]=pl.whyEx[k]||[]);
+          if(pl.whyEx[k].length<2)pl.whyEx[k].push((gr.ref||item.name)+' : '+o.fl[k]);
+        });
+      }
+      if(!item)pl.nNew++;else if(Object.keys(o.fl||{}).length)pl.nUpd++;else pl.nSame++;
       pl.plan.push(o);
     });
     return pl;
@@ -1139,6 +1156,13 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       var groups=pl.plan.length,L=[];
       L.push(pl.lines+' ligne(s) lue(s) → '+groups+' pièce(s)'+(pl.grouped?' ('+pl.grouped+' lignes regroupées par référence)':''));
       L.push(pl.nNew+' nouvelle(s), '+pl.nUpd+' mise(s) à jour, '+pl.nSame+' inchangée(s)');
+      if(pl.nUpd){
+        var LAB={stock:'stock',loc:'emplacement',name:'nom',ref:'référence',code:'code-barres',note:'note',desc:'description'};
+        L.push('Détail des mises à jour :');
+        ['stock','loc','name','ref','code','note','desc'].forEach(function(k){
+          if(pl.why[k])L.push('  • '+LAB[k]+' : '+pl.why[k]+' pièce(s)  (ex. '+pl.whyEx[k].join(' ; ')+')');
+        });
+      }
       if(pl.nCode)L.push(pl.nCode+' code(s)-barres modifié(s) (l\'ancien reste reconnu) : '+pl.codeEx.join(' ; ')+(pl.nCode>pl.codeEx.length?' …':''));
       if(pl.nRef)L.push(pl.nRef+' référence(s) modifiée(s)');
       if(pl.nConf)L.push('✗ '+pl.nConf+' conflit(s) non importé(s) (la référence et le code-barres désignent deux pièces différentes) : '+pl.confEx.join(' ; '));

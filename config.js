@@ -1,8 +1,8 @@
-/* Environnement TEST : meme base Firebase, espace de donnees separe de la production. */
+/* Environnement PRODUCTION : adresse de la base, espace de donnees et cle web (identifiants publics, sans secret). */
 window.APP_ENV = {
-  name: 'TEST',
-  title: 'Inventaire TEST',
+  name: 'PROD',
+  title: 'Inventaire pièces',
   url: 'https://inventaire-pieces-c5bf0-default-rtdb.europe-west1.firebasedatabase.app',
-  room: '6a5t0t363s5v3x',
+  room: 'mdbkjrlkxvod9l',
   apiKey: 'AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs'
 };

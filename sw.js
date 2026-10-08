@@ -1,6 +1,6 @@
 /* Service worker : mode hors ligne de l'inventaire.
    À placer dans le même dossier que inventaire.html (ou index.html). */
-var V = 'inventaire-v3';
+var V = 'inventaire-v4';
 /* seules les anciennes versions du cache de CET environnement sont supprimees (le test a son propre cache) */
 var FAM = /^inventaire-v\d+$/;
 var LIB = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
@@ -31,9 +31,10 @@ self.addEventListener('fetch', function (e) {
   if (/firebaseio\.com$|firebasedatabase\.app$/.test(u.hostname)) return;
 
   if (r.mode === 'navigate' || u.origin === location.origin) {
-    /* Page de l'app : réseau d'abord (pour recevoir les mises à jour), cache si hors ligne */
+    /* Page de l'app : réseau d'abord (pour recevoir les mises à jour), cache si hors ligne.
+       no-cache = on revalide toujours auprès du serveur (sinon le navigateur peut resservir une ancienne version pendant ~10 minutes) */
     e.respondWith(
-      fetch(r).then(function (res) {
+      fetch(r, { cache: 'no-cache' }).then(function (res) {
         var cp = res.clone();
         caches.open(V).then(function (c) { return c.put(r, cp); }).catch(function () {});
         return res;

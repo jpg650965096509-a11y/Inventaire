@@ -150,14 +150,15 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <div id="kq" contenteditable="false" inputmode="decimal" role="spinbutton" aria-label="Quantité en stock" style="font:700 64px/1 'Barlow Condensed',Barlow,system-ui,sans-serif;text-align:center;min-width:90px"></div>
     <button type="button" id="kplus" aria-label="Ajouter" style="width:56px;height:56px">+</button>
   </div>
+  <div id="kpl" style="text-align:center;margin:0 0 4px"></div>
   <p class="hint" id="kst" style="text-align:center;margin:0 0 10px">en stock</p>
   <p id="kl" style="margin:4px 0"></p>
   <p id="ko" style="margin:4px 0"></p>
   <div id="klg" style="margin:6px 0"></div>
-  <p id="kds" style="margin:4px 0;white-space:pre-line;color:var(--mute)"></p>
   <p class="hint" id="km" style="margin:8px 0 0;white-space:pre-line"></p>
   <p id="krs"></p>
   <div class="row"><button type="button" class="btn" id="kx">Annuler</button><button type="button" class="btn pri" id="kv">Valider</button></div>
+  <details id="kdd" style="margin:8px 0;display:none"><summary style="cursor:pointer;color:var(--mute)">Description</summary><p id="kds" style="margin:6px 0 0;white-space:pre-line;color:var(--mute)"></p></details>
   <div class="kgrid">
     <button type="button" class="kb" id="ke" title="Modifier la fiche"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg><span>Modifier</span></button>
     <button type="button" class="kb" id="kh" title="Historique de la pièce"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg><span>Historique</span></button>
@@ -171,13 +172,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <form id="f">
     <h2 id="dt">Fiche pièce</h2>
     <label>Code-barres (actuel)<input id="fc" required autocomplete="off"></label>
-    <div class="row" style="margin:-4px 0 8px"><button type="button" class="btn" id="fscC">Scanner le code actuel</button><button type="button" class="btn" id="fscA">Scanner un autre code</button></div>
-    <div id="freader" style="display:none;margin-bottom:8px"></div>
-    <div class="row" id="fsrow" style="display:none;margin-top:0"><button type="button" class="btn" id="fscX">Arrêter le scan</button></div>
-    <label>Autres codes-barres reconnus au scan (séparés par des virgules)<input id="fa" autocomplete="off"></label>
     <label>Référence<input id="fr" autocomplete="off"></label>
     <label>Nom<input id="fn" required autocomplete="off"></label>
-    <label>Description<textarea id="fds" rows="3"></textarea></label>
     <label>Quantité
       <div class="row" style="margin-top:4px;flex-wrap:nowrap">
         <button type="button" class="btn" id="fqm" aria-label="Retirer" style="flex:0 0 56px;font-size:22px">−</button>
@@ -187,6 +183,10 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     </label>
     <label>Emplacement<input id="fl" autocomplete="off"></label>
     <label>Note<input id="fo" autocomplete="off"></label>
+    <div class="row" style="margin:-4px 0 8px"><button type="button" class="btn" id="fscC">Scanner le code actuel</button><button type="button" class="btn" id="fscA">Scanner un autre code</button></div>
+    <div id="freader" style="display:none;margin-bottom:8px"></div>
+    <div class="row" id="fsrow" style="display:none;margin-top:0"><button type="button" class="btn" id="fscX">Arrêter le scan</button></div>
+    <label>Autres codes-barres reconnus au scan (séparés par des virgules)<input id="fa" autocomplete="off"></label>
     <div class="row">
       <button type="button" class="btn danger" id="fd">Supprimer</button>
       <button type="button" class="btn" id="fx">Annuler</button>
@@ -377,7 +377,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <dialog id="lgdlg">
   <h2>Lignes de stock</h2>
   <p class="hint" id="lgn" style="margin:0 0 8px"></p>
-  <p class="hint">Une ligne = un endroit où se trouve la pièce (magasin, emplacement, conditionnement, unité, péremption, lot). Le stock se modifie ligne par ligne depuis le détail de la pièce.</p>
+  <p class="hint">Une ligne = un endroit où est rangée la pièce. Le stock se modifie depuis le détail.</p>
   <div id="lgl" style="max-height:52vh;overflow:auto"></div>
   <div class="row"><button type="button" class="btn" id="lga">Ajouter une ligne</button></div>
   <div class="row"><button type="button" class="btn" id="lgx">Annuler</button><button type="button" class="btn pri" id="lgs">Enregistrer</button></div>
@@ -402,7 +402,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.0.0';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.0.2';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -968,7 +968,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     editing=it&&find(it.code)?it.code:null;
     $('dt').textContent=editing?'Modifier la pièce':'Nouvelle pièce';
     $('fc').value=it?curOf(it):'';$('fn').value=it&&it.name?it.name:'';
-    $('fc').readOnly=false;$('fa').value=it&&it.alts?it.alts.join(', '):'';$('fr').value=it&&it.ref?it.ref:'';$('fds').value=it&&it.desc?it.desc:'';
+    $('fc').readOnly=false;$('fa').value=it&&it.alts?it.alts.join(', '):'';$('fr').value=it&&it.ref?it.ref:'';
     $('fl').value=it&&it.loc?it.loc:'';$('fo').value=it&&it.note?it.note:'';
     $('fd').style.display=editing?'':'none';
     var mlt=!!(editing&&lgMulti(it));$('fq').readOnly=mlt;$('fqm').disabled=mlt;$('fqp').disabled=mlt;$('fq').title=mlt?'Total des lignes : le stock se modifie ligne par ligne depuis le détail de la pièce':'';
@@ -1001,7 +1001,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('ke').style.display=can('fiche')?'':'none';$('kx').textContent=s?'Annuler':'Fermer';
     $('kh').style.display=(auth&&can('hist'))?'':'none';
     $('ki').style.display=s?'':'none';$('kr').style.display=s?'':'none';$('krs').textContent='';$('krt').textContent='Demander';$('kr').dataset.open='';$('kr').dataset.edit='';
-    $('kn').textContent=it.name;$('kc').textContent=curOf(it)+(it.ref?' · réf. '+it.ref:'');$('kds').textContent=it.desc?(String(it.desc).slice(0,300)+(String(it.desc).length>300?'…':'')):'';
+    $('kn').textContent=it.name;$('kc').textContent=curOf(it)+(it.ref?' · réf. '+it.ref:'');$('kds').textContent=it.desc?String(it.desc):'';$('kdd').style.display=it.desc?'':'none';$('kdd').open=false;
     /* stock recalculé à l'affichage du détail : copie locale d'abord, puis après rafraîchissement des mouvements de la pièce */
     kready=false;kbase=0;kqty=0;$('kq').textContent='…';$('kst').textContent='calcul du stock…';
     var code=it.code;
@@ -1040,6 +1040,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   var paused=false,keep=false,lastSeen=0,kqty=0,kbase=0,kready=false;
   function kdraw(){
     if(document.activeElement!==$('kq'))$('kq').textContent=fmt(kqty);
+    var kl_=kmulti&&ksel?linesOf(find($('ke').dataset.c)||{}).filter(function(l){return l.id===ksel})[0]:null;
+    $('kpl').innerHTML=kl_?'<span class="lgb on" style="display:inline-flex;width:auto;padding:3px 12px;margin:0">'+esc(lgLabel(kl_))+'</span>':'';
     $('kst').textContent=(kmulti&&!ksel)?'total des lignes : choisis une ligne pour modifier son stock':(kqty!==kbase?'à valider (enregistré : '+fmt(kbase)+')':(kmulti?'stock de la ligne':'en stock'));
   }
   /* Rôles (cumulables) lus dans /allowed/<email> ; admin peut tout. stock = ajuster, fiche = créer/modifier/supprimer, danger = vider/restaurer */
@@ -1655,10 +1657,15 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('kminus').onclick=function(){bump(-1)};
   $('kplus').onclick=function(){bump(1)};
   $('kdlg').addEventListener('close',function(){if(keep){keep=false;return}resumeScan()});
-  $('dlg').addEventListener('close',resumeScan);
+  /* la fiche ouverte depuis le détail y revient, quel que soit le moyen de la fermer */
+  var fromK='';
+  $('dlg').addEventListener('close',function(){
+    var c=fromK,it=c&&find(c);fromK='';
+    if(it)showStock(it);else resumeScan();
+  });
   $('ke').onclick=function(){
     var it=find($('ke').dataset.c);
-    if(it)keep=true;
+    if(it){keep=true;fromK=it.code}
     $('kdlg').close();
     if(it)openForm(it);
   };
@@ -1687,7 +1694,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var ref=$('fr').value.trim(),newQty=num($('fq').value),delta=r3(newQty-fqBase);
     var save=function(){
       /* stock de départ inchangé : toute variation de quantité passe par un mouvement */
-      var rec=({code:ident,cur:cur!==ident?cur:undefined,alts:alts.length?alts:undefined,ref:ref||undefined,desc:$('fds').value.trim()||undefined,name:name,qty:prev?prev.qty:0,loc:$('fl').value.trim(),note:$('fo').value.trim()});
+      var rec=({code:ident,cur:cur!==ident?cur:undefined,alts:alts.length?alts:undefined,ref:ref||undefined,desc:(prev&&prev.desc)||undefined,name:name,qty:prev?prev.qty:0,loc:$('fl').value.trim(),note:$('fo').value.trim()});
       if(prev&&prev.lg){var la=lgArr(prev).map(function(l){var o={};for(var f in l)o[f]=l[f];return o});la[0].em=rec.loc;rec.lg=la}
       put(rec);
       commit();$('dlg').close();toast('Enregistré');
@@ -1732,20 +1739,25 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     return l.map(function(n){return '<option'+(n===sel?' selected':'')+'>'+esc(n)+'</option>'}).join('');
   }
   function lgEdDraw(){
+    var one=lgEd.lines.length===1;
     $('lgl').innerHTML=lgEd.lines.map(function(l,i){
-      return '<div class="snap" style="display:block" data-i="'+i+'"><div style="display:flex;justify-content:space-between;align-items:center"><b>Ligne '+(i+1)+(i===0?' (principale)':'')+'</b><small class="hint" style="margin:0">Stock : '+(l.st===undefined?'nouvelle ligne':fmt(l.st))+'</small></div>'+
+      var op=l._o!==undefined?l._o:one,st=l.st===undefined?undefined:l.st,hasSt=st!==undefined&&num(st)!==0;
+      var tit=(l.em||'(sans emplacement)')+' · '+(l.mg||DEFMAG);
+      var f2=function(a,b){return '<div class="row" style="margin:0;gap:8px;flex-wrap:nowrap"><div style="flex:1;min-width:0">'+a+'</div><div style="flex:1;min-width:0">'+b+'</div></div>'};
+      var inp=function(k,lab){return '<label>'+lab+'<input data-f="'+k+'" value="'+esc(l[k])+'" autocomplete="off"></label>'};
+      return '<details class="snap" style="display:block" data-i="'+i+'"'+(op?' open':'')+'><summary style="cursor:pointer;display:flex;justify-content:space-between;gap:8px"><b>'+esc(tit)+(i===0?' (principale)':'')+'</b><span>'+(st===undefined?'nouvelle':'<b>'+fmt(st)+'</b>')+'</span></summary>'+
+        (hasSt?'<p class="hint" style="margin:6px 0">'+fmt(st)+' en stock : changer le magasin ou l’emplacement déplace tout ce stock.</p>':'')+
         '<label>Magasin<select data-f="mg">'+lgSelOpts(l.mg)+'</select></label>'+
-        '<label>Emplacement<input data-f="em" value="'+esc(l.em)+'" autocomplete="off"></label>'+
-        '<label>Conditionnement<input data-f="cd" value="'+esc(l.cd)+'" autocomplete="off"></label>'+
-        '<label>Unité<input data-f="un" value="'+esc(l.un)+'" autocomplete="off"></label>'+
-        '<label>Péremption (AAAA-MM-JJ)<input data-f="pe" value="'+esc(l.pe)+'" autocomplete="off"></label>'+
-        '<label>N° de lot<input data-f="lt" value="'+esc(l.lt)+'" autocomplete="off"></label>'+
-        (lgEd.lines.length>1?'<button type="button" class="btn danger" data-del="'+i+'">Retirer cette ligne</button>':'')+'</div>';
+        inp('em','Emplacement')+
+        f2(inp('cd','Conditionnement'),inp('un','Unité'))+
+        '<details style="margin-top:6px"'+((l.pe||l.lt)?' open':'')+'><summary style="cursor:pointer;color:var(--mute)">Péremption et lot</summary>'+f2(inp('pe','Péremption (AAAA-MM-JJ)'),inp('lt','N° de lot'))+'</details>'+
+        (lgEd.lines.length>1?'<button type="button" class="btn danger" style="margin-top:8px" data-del="'+i+'">Retirer cette ligne</button>':'')+'</details>';
     }).join('');
   }
   function lgEdRead(){
     $('lgl').querySelectorAll('[data-i]').forEach(function(box){
       var l=lgEd.lines[Number(box.getAttribute('data-i'))];if(!l)return;
+      l._o=box.open;
       box.querySelectorAll('[data-f]').forEach(function(el){l[el.getAttribute('data-f')]=el.value.trim()});
     });
   }
@@ -1765,7 +1777,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('kg').onclick=function(){lgOpen($('ke').dataset.c)};
   $('lga').onclick=function(){
     lgEdRead();
-    lgEd.lines.push({id:newLgId(),mg:DEFMAG,em:'',cd:'',un:'',pe:'',lt:'',q:0,mv:0});
+    lgEd.lines.push({id:newLgId(),mg:DEFMAG,em:'',cd:'',un:'',pe:'',lt:'',q:0,mv:0,_o:true});
     lgEdDraw();
     $('lgl').scrollTop=$('lgl').scrollHeight;
   };

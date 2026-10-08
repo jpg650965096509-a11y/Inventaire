@@ -44,6 +44,7 @@ main{max-width:640px;margin:0 auto;padding:12px}
   background:var(--card);color:var(--ink);font:600 16px Barlow,system-ui,sans-serif;cursor:pointer}
 .btn.pri{background:var(--acc);border-color:var(--acc);color:var(--accink)}
 .btn.danger{color:var(--bad)}
+.btn.cancel{background:color-mix(in srgb,var(--line) 40%,var(--card))}
 .btn.big{width:100%;font-size:18px;min-height:52px}
 .kgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .kb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:64px;padding:8px 6px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:600 14px/1.2 Barlow,system-ui,sans-serif;text-align:center;cursor:pointer}
@@ -145,19 +146,19 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <dialog id="kdlg">
   <h2 id="kn"></h2>
   <p class="hint" id="kc" style="margin:0"></p>
-  <div class="qty" style="justify-content:center;gap:18px;margin:12px 0 2px">
+  <div id="kpl" style="text-align:center;margin:10px 0 0"></div>
+  <div class="qty" style="justify-content:center;gap:18px;margin:8px 0 2px">
     <button type="button" id="kminus" aria-label="Retirer" style="width:56px;height:56px">−</button>
     <div id="kq" contenteditable="false" inputmode="decimal" role="spinbutton" aria-label="Quantité en stock" style="font:700 64px/1 'Barlow Condensed',Barlow,system-ui,sans-serif;text-align:center;min-width:90px"></div>
     <button type="button" id="kplus" aria-label="Ajouter" style="width:56px;height:56px">+</button>
   </div>
-  <div id="kpl" style="text-align:center;margin:0 0 4px"></div>
   <p class="hint" id="kst" style="text-align:center;margin:0 0 10px">en stock</p>
   <p id="kl" style="margin:4px 0"></p>
   <p id="ko" style="margin:4px 0"></p>
   <div id="klg" style="margin:6px 0"></div>
   <p class="hint" id="km" style="margin:8px 0 0;white-space:pre-line"></p>
   <p id="krs"></p>
-  <div class="row"><button type="button" class="btn" id="kx">Annuler</button><button type="button" class="btn pri" id="kv">Valider</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="kx">Annuler</button><button type="button" class="btn pri" id="kv">Valider</button></div>
   <details id="kdd" style="margin:8px 0;display:none"><summary style="cursor:pointer;color:var(--mute)">Description</summary><p id="kds" style="margin:6px 0 0;white-space:pre-line;color:var(--mute)"></p></details>
   <div class="kgrid">
     <button type="button" class="kb" id="ke" title="Modifier la fiche"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg><span>Modifier</span></button>
@@ -189,7 +190,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <label>Autres codes-barres reconnus au scan (séparés par des virgules)<input id="fa" autocomplete="off"></label>
     <div class="row">
       <button type="button" class="btn danger" id="fd">Supprimer</button>
-      <button type="button" class="btn" id="fx">Annuler</button>
+      <button type="button" class="btn cancel" id="fx">Annuler</button>
       <button type="submit" class="btn pri">Enregistrer</button>
     </div>
   </form>
@@ -200,7 +201,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <div id="acc" style="white-space:pre-line;margin:0 0 12px;line-height:1.6"></div>
   <div class="row"><button class="btn pri" id="snow" type="button">Synchroniser maintenant</button></div>
   <div class="row"><button class="btn" id="rlj" type="button">Recharger la copie locale du journal</button></div>
-  <div class="row"><button class="btn danger" id="lo" type="button">Se déconnecter</button><button class="btn" id="sx" type="button">Fermer</button></div>
+  <div class="row"><button class="btn danger" id="lo" type="button">Se déconnecter</button><button class="btn cancel" id="sx" type="button">Fermer</button></div>
 </dialog>
 
 <dialog id="ldlg">
@@ -211,7 +212,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <label>Mot de passe<input id="lp" type="password" autocomplete="current-password" required></label>
     <div class="row">
       <button type="button" class="btn" id="lr">Mot de passe oublié</button>
-      <button type="button" class="btn" id="lx">Fermer</button>
+      <button type="button" class="btn cancel" id="lx">Fermer</button>
       <button type="submit" class="btn pri">Se connecter</button>
     </div>
     <div class="row"><button type="button" class="btn" id="lc">Première fois : créer mon compte</button></div>
@@ -227,7 +228,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <label style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="pvq" style="width:auto;min-height:0;margin:0"> Ne pas modifier le stock des pièces déjà présentes</label>
   <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:6px"><input type="checkbox" id="pvc" checked style="width:auto;min-height:0;margin:0"> Appliquer les changements de code-barres</label>
   <p class="hint" id="pvs" style="margin:8px 0 12px"></p>
-  <div class="row"><button type="button" class="btn" id="pvn">Annuler</button><button type="button" class="btn pri" id="pvo">Importer</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="pvn">Annuler</button><button type="button" class="btn pri" id="pvo">Importer</button></div>
 </dialog>
 
 <dialog id="ukdlg">
@@ -241,20 +242,20 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <input id="uksq" type="search" placeholder="Nom, référence ou ancien code" aria-label="Rechercher la pièce" style="margin-bottom:8px">
     <ul id="uksl" style="max-height:44vh;overflow:auto"></ul>
   </div>
-  <div class="row"><button type="button" class="btn" id="ukx">Annuler</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="ukx">Annuler</button></div>
 </dialog>
 
 <dialog id="tcdlg">
   <h2 id="tct">Confirmation</h2>
   <p id="tcm" style="margin:0 0 12px;white-space:pre-line"></p>
   <label><span id="tcl"></span><input id="tci" type="password" autocomplete="new-password" inputmode="text"></label>
-  <div class="row"><button type="button" class="btn" id="tcn">Annuler</button><button type="button" class="btn danger" id="tco">Confirmer</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="tcn">Annuler</button><button type="button" class="btn danger" id="tco">Confirmer</button></div>
 </dialog>
 
 <dialog id="cfdlg">
   <h2 id="cft">Confirmer</h2>
   <p id="cfm" style="margin:0 0 12px"></p>
-  <div class="row"><button type="button" class="btn" id="cfn">Annuler</button><button type="button" class="btn danger" id="cfo">Confirmer</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="cfn">Annuler</button><button type="button" class="btn danger" id="cfo">Confirmer</button></div>
 </dialog>
 
 <dialog id="admdlg">
@@ -286,7 +287,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <p class="hint">Réservé aux SuperAdmin. Supprime définitivement, sur le serveur et sur tous les appareils, toutes les pièces et tout le journal.</p>
     <button type="button" class="btn big danger" id="admPurge">Supprimer toutes les pièces et tout le journal</button>
   </div>
-  <div class="row"><button type="button" class="btn" id="admx">Fermer</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="admx">Fermer</button></div>
 </dialog>
 
 <dialog id="udlg">
@@ -296,7 +297,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <input id="us" type="search" placeholder="Rechercher une personne, un e-mail, un rôle" aria-label="Rechercher une personne" style="margin-bottom:8px">
   <p class="hint" id="uc" style="margin:0 0 6px"></p>
   <ul id="ul" style="max-height:48vh;overflow:auto"></ul>
-  <div class="row"><button type="button" class="btn" id="ux">Fermer</button><button type="button" class="btn pri" id="uadd">Ajouter une personne</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="ux">Fermer</button><button type="button" class="btn pri" id="uadd">Ajouter une personne</button></div>
 </dialog>
 
 <dialog id="uddlg">
@@ -306,7 +307,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p class="hint" id="udh" style="margin:0 0 6px"></p>
   <div id="udr" style="margin-bottom:10px"></div>
   <div class="row"><button type="button" class="btn danger" id="udrm">Retirer</button></div>
-  <div class="row"><button type="button" class="btn" id="udx">Fermer</button><button type="button" class="btn pri" id="udv">Enregistrer</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="udx">Fermer</button><button type="button" class="btn pri" id="udv">Enregistrer</button></div>
 </dialog>
 
 <dialog id="idlg">
@@ -314,7 +315,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p class="hint" id="in" style="margin:0 0 4px"></p>
   <p id="ia" style="margin:0 0 8px;font-weight:600"></p>
   <label>Quantité comptée<input id="ic" inputmode="decimal" autocomplete="off"></label>
-  <div class="row"><button type="button" class="btn" id="ix">Annuler</button><button type="button" class="btn pri" id="iv">Enregistrer</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="ix">Annuler</button><button type="button" class="btn pri" id="iv">Enregistrer</button></div>
 </dialog>
 
 <dialog id="qdlg">
@@ -322,7 +323,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p class="hint" id="qn" style="margin:0 0 8px"></p>
   <label>Quantité demandée<input id="qq" inputmode="decimal" autocomplete="off"></label>
   <label>Commentaire (facultatif)<input id="qc" autocomplete="off"></label>
-  <div class="row"><button type="button" class="btn" id="qx">Annuler</button><button type="button" class="btn pri" id="qv">Envoyer la demande</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="qx">Annuler</button><button type="button" class="btn pri" id="qv">Envoyer la demande</button></div>
 </dialog>
 
 <dialog id="rdlg">
@@ -330,20 +331,20 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <input id="rs" type="search" placeholder="Rechercher une pièce, une personne, un statut" aria-label="Rechercher une demande" style="margin-bottom:8px">
   <p class="hint" id="rc" style="margin:0 0 6px"></p>
   <ul id="rl" style="max-height:52vh;overflow:auto"></ul>
-  <div class="row"><button type="button" class="btn" id="rx">Fermer</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="rx">Fermer</button></div>
 </dialog>
 
 <dialog id="rddlg">
   <h2>Demande</h2>
   <div id="rdb"></div>
-  <div class="row"><button type="button" class="btn" id="rdx">Fermer</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="rdx">Fermer</button></div>
 </dialog>
 
 <dialog id="hdlg">
   <h2>Historique</h2>
   <p class="hint" id="hs" style="margin:0 0 8px"></p>
   <div id="hl" style="max-height:55vh;overflow:auto"></div>
-  <div class="row"><button type="button" class="btn" id="hx">Fermer</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="hx">Fermer</button></div>
 </dialog>
 
 <dialog id="jdlg">
@@ -358,20 +359,20 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p class="hint" id="jc" style="margin:0 0 6px"></p>
   <div id="jl" style="max-height:40vh;overflow:auto"></div>
   <div class="row"><button type="button" class="btn" id="jmore">Afficher plus</button><button type="button" class="btn" id="jcsv">Export CSV</button><button type="button" class="btn" id="jlot" title="Fichier texte : une ligne par code-barres, au format CODE-BARRES.QTE">Export lot</button></div>
-  <div class="row"><button type="button" class="btn" id="jx">Fermer</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="jx">Fermer</button></div>
 </dialog>
 
 <dialog id="tdlg">
   <h2>Corbeille</h2>
   <div id="trash"></div>
-  <div class="row"><button class="btn" id="tx" type="button">Fermer</button></div>
+  <div class="row"><button class="btn cancel" id="tx" type="button">Fermer</button></div>
 </dialog>
 
 <dialog id="bdlg">
   <h2>Sauvegardes</h2>
   <div id="snaps"></div>
   <div class="row"><button class="btn pri" id="bn" type="button">Sauvegarder maintenant</button><button class="btn" id="bj" type="button">Télécharger JSON</button></div>
-  <div class="row"><label class="btn" style="margin:0">Restaurer un JSON<input id="bi" type="file" accept=".json,application/json" style="display:none"></label><button class="btn" id="bx" type="button">Fermer</button></div>
+  <div class="row"><label class="btn" style="margin:0">Restaurer un JSON<input id="bi" type="file" accept=".json,application/json" style="display:none"></label><button class="btn cancel" id="bx" type="button">Fermer</button></div>
 </dialog>
 
 <dialog id="lgdlg">
@@ -380,7 +381,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p class="hint">Une ligne = un endroit où est rangée la pièce. Le stock se modifie depuis le détail.</p>
   <div id="lgl" style="max-height:52vh;overflow:auto"></div>
   <div class="row"><button type="button" class="btn" id="lga">Ajouter une ligne</button></div>
-  <div class="row"><button type="button" class="btn" id="lgx">Annuler</button><button type="button" class="btn pri" id="lgs">Enregistrer</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="lgx">Fermer</button><button type="button" class="btn pri" id="lgs">Enregistrer</button></div>
 </dialog>
 
 <dialog id="mgdlg">
@@ -388,7 +389,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p class="hint">Les lignes de stock choisissent leur magasin dans cette liste. « Principal » existe toujours.</p>
   <div id="mgl" style="max-height:44vh;overflow:auto"></div>
   <label>Nouveau magasin<input id="mgn" autocomplete="off"></label>
-  <div class="row"><button type="button" class="btn" id="mgx">Fermer</button><button type="button" class="btn pri" id="mga">Ajouter</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="mgx">Fermer</button><button type="button" class="btn pri" id="mga">Ajouter</button></div>
 </dialog>
 
 <div id="toast" popover="manual" role="status" aria-live="polite"></div>
@@ -402,7 +403,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.0.2';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.0.4';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1644,7 +1645,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     if(it&&kready&&kqty!==kbase){
       if(needAuth('stock'))return;
       var d=r3(kqty-kbase),code=it.code,shown=kqty,lg=kmulti?ksel:undefined;
-      addMv(code,d,{saisie:shown,lg:lg}).then(function(){fillStocks();toast((d>0?'Entrée ':'Sortie ')+fmt(Math.abs(d))+' · stock : '+fmt(shown))});
+      var multi=kmulti;
+      addMv(code,d,{saisie:shown,lg:lg}).then(function(){fillStocks();toast((d>0?'Entrée ':'Sortie ')+fmt(Math.abs(d))+' · stock : '+fmt(shown));if(multi){var u=find(code);if(u&&$('kdlg').open)showStock(u)}});
+      if(multi)return;
     }
     $('kdlg').close();
   };
@@ -1770,7 +1773,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       return lineStocks(code).then(function(st){
         lgEd={code:code,lines:L.map(function(l){l.st=st[l.id];l.mv=cnt[l.id]||0;return l})};
         $('lgn').textContent=it.name+' · '+curOf(it);
-        lgEdDraw();keep=true;$('kdlg').close();$('lgdlg').showModal();
+        lgEdDraw();keep=true;$('kdlg').close();if(!$('lgdlg').open)$('lgdlg').showModal();
       });
     });
   }
@@ -1790,7 +1793,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     lgEd.lines.splice(i,1);lgEdDraw();
   };
   $('lgx').onclick=function(){$('lgdlg').close()};
-  $('lgdlg').addEventListener('close',resumeScan);
+  $('lgdlg').addEventListener('close',function(){var c=lgEd&&lgEd.code,it=c&&find(c);if(it)showStock(it);else resumeScan()});
   $('lgs').onclick=function(){
     if(!lgEd)return;
     lgEdRead();
@@ -1807,7 +1810,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var ls=lgEd.lines.map(function(x){return {id:x.id,mg:x.mg,em:x.em,cd:x.cd,un:x.un,pe:x.pe,lt:x.lt,q:num(x.q)}});
     if(ls.length===1&&lgPlain(ls[0])){delete c.lg;c.loc=ls[0].em;c.qty=ls[0].q}
     else c.lg=ls;
-    put(c);commit();$('lgdlg').close();toast('Lignes de stock enregistrées');
+    put(c);commit();toast('Lignes de stock enregistrées');lgOpen(lgEd.code);
   };
 
   /* ===== Magasins (Admin) ===== */

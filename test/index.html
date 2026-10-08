@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#14213D">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-title" content="Inventaire">
+<title>Inventaire pièces</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F5;--card:#FFFFFF;--ink:#14213D;--mute:#5B6678;--line:#D5DBE5;
+  --head:#14213D;--headtxt:#FFFFFF;--acc:#FFC300;--accink:#14213D;--bad:#B3261E;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1426;--card:#18223B;--ink:#EEF1F8;--mute:#9AA6BF;--line:#2B3858;
+    --head:#0A1022;--headtxt:#FFFFFF;--bad:#FF8A80;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1426;--card:#18223B;--ink:#EEF1F8;--mute:#9AA6BF;--line:#2B3858;
+  --head:#0A1022;--headtxt:#FFFFFF;--bad:#FF8A80;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*{box-sizing:border-box}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font:16px/1.4 Barlow,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--head);color:var(--headtxt);padding:16px}
+header h1{margin:0;font:700 30px/1.1 "Barlow Condensed",Barlow,system-ui,sans-serif;letter-spacing:.2px}
+#count{margin:4px 0 0;color:var(--acc);font-weight:600}
+#hv{font:600 14px Barlow,system-ui,sans-serif;color:var(--acc);margin-left:6px;letter-spacing:0}
+main{max-width:640px;margin:0 auto;padding:12px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+.btn{min-height:44px;border:1px solid var(--line);border-radius:10px;padding:10px 14px;
+  background:var(--card);color:var(--ink);font:600 16px Barlow,system-ui,sans-serif;cursor:pointer}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:var(--accink)}
+.btn.danger{color:var(--bad)}
+.btn.big{width:100%;font-size:18px;min-height:52px}
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.kb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:64px;padding:8px 6px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:600 14px/1.2 Barlow,system-ui,sans-serif;text-align:center;cursor:pointer}
+.kb svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+button:focus-visible,input:focus-visible,a:focus-visible,label.btn:focus-within{outline:3px solid var(--acc);outline-offset:2px}
+input{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;
+  background:var(--bg);color:var(--ink);font:16px Barlow,system-ui,sans-serif}
+label{display:block;font-weight:600;margin-bottom:10px}
+label input,label select{margin-top:4px;font-weight:400}
+#krs{margin:10px 0 2px;padding:9px 12px;border:1px solid var(--acc);border-left-width:6px;border-radius:10px;background:#FFF3C4;color:#14213D;font-weight:700;text-align:center;white-space:pre-line}
+#krs small{display:block;font-weight:400;font-size:14px;overflow-wrap:anywhere}
+#krs:empty{display:none}
+#envbar{position:sticky;top:0;z-index:60;background:#F97316;color:#111;font:700 13px Barlow,system-ui,sans-serif;text-align:center;padding:4px 8px}
+select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;
+  background:var(--bg);color:var(--ink);font:16px Barlow,system-ui,sans-serif}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+#reader{margin-top:10px;border-radius:10px;overflow:hidden;min-height:1px}
+.opts{display:flex;gap:8px;margin-top:10px;align-items:flex-end}
+.opts .step{flex:0 0 110px}
+.opts label{margin:0}
+#list,#rl,#ul{list-style:none;margin:0;padding:0}
+.chip{display:inline-block;padding:4px 10px;border-radius:999px;font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap;background:#E7EAF1;color:#14213D}
+.chip.attente{background:#FFE08A}.chip.approuvee,.chip.partielle{background:#CFE3FF}.chip.recue{background:#CDEFD3}.chip.refusee{background:#F8CFCB}.chip.cloturee{background:#E0E0E0}
+#list li,#rl li,#ul li{display:flex;gap:10px;align-items:center;justify-content:space-between;
+  background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.info{min-width:0;flex:1}
+.info b{display:block;font-size:17px;overflow-wrap:anywhere}
+.info small{display:block;color:var(--mute);overflow-wrap:anywhere}
+.qty{display:flex;align-items:center;gap:6px}
+.qty span{min-width:48px;text-align:center;font:700 28px/1 "Barlow Condensed",Barlow,system-ui,sans-serif}
+.qty button{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--bg);
+  color:var(--ink);font:700 22px Barlow,system-ui,sans-serif;cursor:pointer}
+.sbar{display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 12px}
+.sb{min-height:36px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);font:600 14px Barlow,system-ui,sans-serif;cursor:pointer}
+.sb.on{background:var(--acc);border-color:var(--acc);color:var(--accink)}
+li.more{cursor:pointer;font-weight:600;color:var(--ink)}
+li.empty{display:block;text-align:center;color:var(--mute);cursor:default;border-style:dashed}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.tools>*{flex:1 1 140px;text-align:center}
+.tools input[type=file]{display:none}
+dialog{width:min(92vw,460px);border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--card);color:var(--ink)}
+dialog::backdrop{background:rgba(10,16,34,.6)}
+dialog h2{margin:0 0 12px;font:700 24px "Barlow Condensed",Barlow,system-ui,sans-serif}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:var(--head);color:var(--headtxt);padding:10px 16px;border-radius:999px;font-weight:600;
+  max-width:90vw;opacity:0;pointer-events:none;transition:opacity .2s;z-index:10;
+  top:auto;right:auto;margin:0;border:0;overflow:visible;width:max-content;height:auto}
+#toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+#sync{min-height:36px;border:1px solid var(--acc);background:transparent;color:var(--acc);border-radius:999px;padding:4px 12px;font:600 14px Barlow,system-ui,sans-serif;cursor:pointer;white-space:nowrap}
+#sync.off{color:#FFB4A9;border-color:#FFB4A9}
+.snap{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.snap small{display:block;color:var(--mute)}
+.hint{color:var(--mute);font-size:14px;margin:0 0 10px}
+dialog .row{margin-top:8px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Inventaire pièces <small id="hv"></small></h1><p id="count">0 référence</p></div>
+  <button id="sync" type="button">Synchro : non</button>
+</header>
+
+<main>
+  <section class="panel" aria-label="Scanner">
+    <button class="btn pri big" id="scanBtn" type="button">Scanner</button>
+    <div id="reader"></div>
+    <p class="hint" id="rd" style="margin:6px 0 0"></p>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 0">
+      <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="pm" style="width:auto;min-height:0;margin:0"> Mode précis (plus lent)</label>
+      <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="fl" style="width:auto;min-height:0;margin:0"> Flash</label>
+    </div>
+    <div class="opts">
+      <label class="step">Pas +/−<input id="step" type="text" inputmode="decimal" value="1"></label>
+      <label style="flex:1">Code saisi ou lecteur Bluetooth<input id="manual" type="text" autocomplete="off" enterkeyhint="done"></label>
+      <button class="btn" id="manualBtn" type="button">OK</button>
+    </div>
+  </section>
+
+  <input id="search" type="search" placeholder="Rechercher une pièce, un code, un emplacement" aria-label="Rechercher" style="margin-bottom:12px">
+  <div class="sbar" id="sbar" role="group" aria-label="Trier la liste"><button type="button" class="sb" data-s="name">Libellé</button><button type="button" class="sb" data-s="code">Code</button><button type="button" class="sb" data-s="t">Modifié</button><button type="button" class="sb" data-s="loc">Emplacement</button><button type="button" class="sb" data-s="stock">Stock</button><button type="button" class="sb" id="sbm" aria-pressed="false" title="Tri multiple : chaque appui ajoute un critère, un critère déjà choisi s'inverse puis se retire">+</button></div>
+  <ul id="list"></ul>
+
+  <section class="panel tools" aria-label="Données">
+    <button class="btn" id="rqBtn" type="button">Demandes</button>
+    <button class="btn" id="admBtn" type="button">Administration</button>
+  </section>
+  <p class="hint" id="ver" style="text-align:center"></p>
+</main>
+
+<dialog id="kdlg">
+  <h2 id="kn"></h2>
+  <p class="hint" id="kc" style="margin:0"></p>
+  <div class="qty" style="justify-content:center;gap:18px;margin:12px 0 2px">
+    <button type="button" id="kminus" aria-label="Retirer" style="width:56px;height:56px">−</button>
+    <div id="kq" style="font:700 64px/1 'Barlow Condensed',Barlow,system-ui,sans-serif;text-align:center;min-width:90px"></div>
+    <button type="button" id="kplus" aria-label="Ajouter" style="width:56px;height:56px">+</button>
+  </div>
+  <p class="hint" id="kst" style="text-align:center;margin:0 0 10px">en stock</p>
+  <p id="kl" style="margin:4px 0"></p>
+  <p id="ko" style="margin:4px 0"></p>
+  <p class="hint" id="km" style="margin:8px 0 0;white-space:pre-line"></p>
+  <p id="krs"></p>
+  <div class="row"><button type="button" class="btn" id="kx">Annuler</button><button type="button" class="btn pri" id="kv">Valider</button></div>
+  <div class="kgrid">
+    <button type="button" class="kb" id="ke" title="Modifier la fiche"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg><span>Modifier</span></button>
+    <button type="button" class="kb" id="kh" title="Historique de la pièce"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg><span>Historique</span></button>
+    <button type="button" class="kb" id="ki" title="Faire un inventaire"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M9 14l2 2 4-4"/></svg><span>Inventaire</span></button>
+    <button type="button" class="kb" id="kr" title="Demander des pièces"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M3 8v8l9 4 9-4V8"/><path d="M12 12v8"/></svg><span id="krt">Demander</span></button>
+  </div>
+</dialog>
+
+<dialog id="dlg">
+  <form id="f">
+    <h2 id="dt">Fiche pièce</h2>
+    <label>Code-barres<input id="fc" required autocomplete="off"></label>
+    <label>Nom<input id="fn" required autocomplete="off"></label>
+    <label>Quantité
+      <div class="row" style="margin-top:4px;flex-wrap:nowrap">
+        <button type="button" class="btn" id="fqm" aria-label="Retirer" style="flex:0 0 56px;font-size:22px">−</button>
+        <input id="fq" inputmode="decimal" value="0" style="margin-top:0;text-align:center;font-weight:600">
+        <button type="button" class="btn" id="fqp" aria-label="Ajouter" style="flex:0 0 56px;font-size:22px">+</button>
+      </div>
+    </label>
+    <label>Emplacement<input id="fl" autocomplete="off"></label>
+    <label>Note<input id="fo" autocomplete="off"></label>
+    <div class="row">
+      <button type="button" class="btn danger" id="fd">Supprimer</button>
+      <button type="button" class="btn" id="fx">Annuler</button>
+      <button type="submit" class="btn pri">Enregistrer</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="sdlg">
+  <h2>Mon compte</h2>
+  <div id="acc" style="white-space:pre-line;margin:0 0 12px;line-height:1.6"></div>
+  <div class="row"><button class="btn pri" id="snow" type="button">Synchroniser maintenant</button></div>
+  <div class="row"><button class="btn" id="rlj" type="button">Recharger la copie locale du journal</button></div>
+  <div class="row"><button class="btn danger" id="lo" type="button">Se déconnecter</button><button class="btn" id="sx" type="button">Fermer</button></div>
+</dialog>
+
+<dialog id="ldlg">
+  <form id="lf">
+    <h2>Connexion</h2>
+    <p class="hint"><b>Déjà un compte ?</b> Saisis ton e-mail et ton mot de passe, puis appuie sur <i>Se connecter</i>.<br><b>Première fois ?</b> Saisis l'e-mail que l'administrateur a ajouté, choisis un mot de passe (6 caractères minimum), puis appuie sur <i>Première fois : créer mon compte</i>.</p>
+    <label>E-mail<input id="le" type="email" autocomplete="username" required></label>
+    <label>Mot de passe<input id="lp" type="password" autocomplete="current-password" required></label>
+    <div class="row">
+      <button type="button" class="btn" id="lr">Mot de passe oublié</button>
+      <button type="button" class="btn" id="lx">Fermer</button>
+      <button type="submit" class="btn pri">Se connecter</button>
+    </div>
+    <div class="row"><button type="button" class="btn" id="lc">Première fois : créer mon compte</button></div>
+  </form>
+</dialog>
+
+<dialog id="pvdlg">
+  <h2>Import CSV</h2>
+  <p class="hint" id="pvf" style="margin:0 0 8px"></p>
+  <p id="pvm" style="margin:0 0 8px;font-weight:600"></p>
+  <label style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="pvq" style="width:auto;min-height:0;margin:0"> Ne pas modifier le stock des pièces déjà présentes</label>
+  <p class="hint" id="pvs" style="margin:8px 0 12px"></p>
+  <div class="row"><button type="button" class="btn" id="pvn">Annuler</button><button type="button" class="btn pri" id="pvo">Importer</button></div>
+</dialog>
+
+<dialog id="tcdlg">
+  <h2 id="tct">Confirmation</h2>
+  <p id="tcm" style="margin:0 0 12px;white-space:pre-line"></p>
+  <label><span id="tcl"></span><input id="tci" autocomplete="off" inputmode="text"></label>
+  <div class="row"><button type="button" class="btn" id="tcn">Annuler</button><button type="button" class="btn danger" id="tco">Confirmer</button></div>
+</dialog>
+
+<dialog id="cfdlg">
+  <h2 id="cft">Confirmer</h2>
+  <p id="cfm" style="margin:0 0 12px"></p>
+  <div class="row"><button type="button" class="btn" id="cfn">Annuler</button><button type="button" class="btn danger" id="cfo">Confirmer</button></div>
+</dialog>
+
+<dialog id="admdlg">
+  <h2>Centre d'administration</h2>
+  <p class="hint" id="admh"></p>
+  <h2 style="margin-top:0;font-size:20px">Pièces et données</h2>
+  <div class="tools" id="admData" style="margin-bottom:6px">
+    <button class="btn" id="addBtn" type="button">Ajouter à la main</button>
+    <button class="btn" id="expBtn" type="button">Export CSV</button>
+    <label class="btn" id="impL" style="margin:0">Import CSV<input id="imp" type="file" accept=".csv,text/csv,text/plain"></label>
+    <button class="btn" id="bakBtn" type="button">Sauvegardes</button>
+    <button class="btn" id="trBtn" type="button">Corbeille</button>
+    <button class="btn danger" id="clrBtn" type="button">Tout effacer</button>
+  </div>
+  <div id="admOnly">
+  <h2 style="margin-top:18px;font-size:20px">Gestion</h2>
+  <button type="button" class="btn big" id="admUsers">Utilisateurs et rôles</button>
+  <button type="button" class="btn big" id="admJournal" style="margin-top:8px">Journal des mouvements</button>
+  <h2 style="margin-top:18px;font-size:20px">Envoi d'e-mail (test)</h2>
+  <label>URL du service e-mail<input id="mailUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></label>
+  <button type="button" class="btn big" id="admMail">Envoyer un e-mail de test</button>
+  <p class="hint" id="mailst" style="margin:6px 0 0"></p>
+  <h2 style="margin-top:18px;font-size:20px">État du système</h2>
+  <div id="sysinfo" class="hint" style="white-space:pre-line;margin-bottom:10px"></div>
+  </div>
+  <div id="admDanger" style="display:none">
+    <h2 style="margin-top:18px;font-size:20px;color:var(--bad)">Zone dangereuse</h2>
+    <p class="hint">Réservé aux SuperAdmin. Supprime définitivement, sur le serveur et sur tous les appareils, toutes les pièces et tout le journal.</p>
+    <button type="button" class="btn big danger" id="admPurge">Supprimer toutes les pièces et tout le journal</button>
+  </div>
+  <div class="row"><button type="button" class="btn" id="admx">Fermer</button></div>
+</dialog>
+
+<dialog id="udlg">
+  <h2>Utilisateurs et rôles</h2>
+  <p class="hint">Un clic sur une personne ouvre sa fiche. Les rôles se cumulent. Admin peut tout faire. Un compte créé mais non listé n'accède à rien.</p>
+  <p class="hint" id="ustat" style="margin:0 0 8px;font-weight:600"></p>
+  <input id="us" type="search" placeholder="Rechercher une personne, un e-mail, un rôle" aria-label="Rechercher une personne" style="margin-bottom:8px">
+  <p class="hint" id="uc" style="margin:0 0 6px"></p>
+  <ul id="ul" style="max-height:48vh;overflow:auto"></ul>
+  <div class="row"><button type="button" class="btn" id="ux">Fermer</button><button type="button" class="btn pri" id="uadd">Ajouter une personne</button></div>
+</dialog>
+
+<dialog id="uddlg">
+  <h2 id="udt">Personne</h2>
+  <label>E-mail<input id="ude" type="email" autocomplete="off"></label>
+  <label>Nom<input id="udn" autocomplete="off"></label>
+  <p class="hint" id="udh" style="margin:0 0 6px"></p>
+  <div id="udr" style="margin-bottom:10px"></div>
+  <div class="row"><button type="button" class="btn danger" id="udrm">Retirer</button></div>
+  <div class="row"><button type="button" class="btn" id="udx">Fermer</button><button type="button" class="btn pri" id="udv">Enregistrer</button></div>
+</dialog>
+
+<dialog id="idlg">
+  <h2>Inventaire</h2>
+  <p class="hint" id="in" style="margin:0 0 4px"></p>
+  <p id="ia" style="margin:0 0 8px;font-weight:600"></p>
+  <label>Quantité comptée<input id="ic" inputmode="decimal" autocomplete="off"></label>
+  <div class="row"><button type="button" class="btn" id="ix">Annuler</button><button type="button" class="btn pri" id="iv">Enregistrer</button></div>
+</dialog>
+
+<dialog id="qdlg">
+  <h2 id="qt">Demander des pièces</h2>
+  <p class="hint" id="qn" style="margin:0 0 8px"></p>
+  <label>Quantité demandée<input id="qq" inputmode="decimal" autocomplete="off"></label>
+  <label>Commentaire (facultatif)<input id="qc" autocomplete="off"></label>
+  <div class="row"><button type="button" class="btn" id="qx">Annuler</button><button type="button" class="btn pri" id="qv">Envoyer la demande</button></div>
+</dialog>
+
+<dialog id="rdlg">
+  <h2>Demandes de pièces</h2>
+  <input id="rs" type="search" placeholder="Rechercher une pièce, une personne, un statut" aria-label="Rechercher une demande" style="margin-bottom:8px">
+  <p class="hint" id="rc" style="margin:0 0 6px"></p>
+  <ul id="rl" style="max-height:52vh;overflow:auto"></ul>
+  <div class="row"><button type="button" class="btn" id="rx">Fermer</button></div>
+</dialog>
+
+<dialog id="rddlg">
+  <h2>Demande</h2>
+  <div id="rdb"></div>
+  <div class="row"><button type="button" class="btn" id="rdx">Fermer</button></div>
+</dialog>
+
+<dialog id="hdlg">
+  <h2>Historique</h2>
+  <p class="hint" id="hs" style="margin:0 0 8px"></p>
+  <div id="hl" style="max-height:55vh;overflow:auto"></div>
+  <div class="row"><button type="button" class="btn" id="hx">Fermer</button></div>
+</dialog>
+
+<dialog id="jdlg">
+  <h2>Journal des mouvements</h2>
+  <div class="row" style="flex-wrap:wrap;align-items:flex-start">
+    <label style="flex:1 1 45%">Du<input id="jd1" type="date"></label>
+    <label style="flex:1 1 45%">Au<input id="jd2" type="date"></label>
+  </div>
+  <label>Pièce (code ou nom)<input id="jp" autocomplete="off"></label>
+  <label>Personne<input id="ju" autocomplete="off"></label>
+  <label>Type<select id="jt"><option value="">Tous</option><option value="entree">Entrées</option><option value="sortie">Sorties</option><option value="inventaire">Inventaires</option><option value="import">Imports</option><option value="demande">Demandes</option><option value="modification">Modifications</option><option value="approbation">Approbations</option><option value="refus">Refus</option><option value="reception">Réceptions</option><option value="cloture">Clôtures</option></select></label>
+  <p class="hint" id="jc" style="margin:0 0 6px"></p>
+  <div id="jl" style="max-height:40vh;overflow:auto"></div>
+  <div class="row"><button type="button" class="btn" id="jmore">Afficher plus</button><button type="button" class="btn" id="jcsv">Export CSV</button></div>
+  <div class="row"><button type="button" class="btn" id="jx">Fermer</button></div>
+</dialog>
+
+<dialog id="tdlg">
+  <h2>Corbeille</h2>
+  <div id="trash"></div>
+  <div class="row"><button class="btn" id="tx" type="button">Fermer</button></div>
+</dialog>
+
+<dialog id="bdlg">
+  <h2>Sauvegardes</h2>
+  <div id="snaps"></div>
+  <div class="row"><button class="btn pri" id="bn" type="button">Sauvegarder maintenant</button><button class="btn" id="bj" type="button">Télécharger JSON</button></div>
+  <div class="row"><label class="btn" style="margin:0">Restaurer un JSON<input id="bi" type="file" accept=".json,application/json" style="display:none"></label><button class="btn" id="bx" type="button">Fermer</button></div>
+</dialog>
+
+<div id="toast" popover="manual" role="status" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script>
+(function(){
+  /* Environnement (PROD / TEST) fourni par config.js : adresse de la base, espace de données, clé. Sans config, l'application ne démarre pas (jamais d'espace par défaut). */
+  var ENV=window.APP_ENV;
+  if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
+  /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
+  var SFX='_'+ENV.room;
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='3.2.0';
+  var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
+  var API_KEY=ENV.apiKey;
+  if(ENV.title){
+    document.title=ENV.title;
+    var am=document.querySelector('meta[name="apple-mobile-web-app-title"]');if(am)am.setAttribute('content',ENV.title);
+  }
+  if(ISTEST){
+    var eb=document.createElement('div');eb.id='envbar';eb.textContent='ENVIRONNEMENT DE '+ENVN+' — les données ne sont pas réelles';
+    document.body.insertBefore(eb,document.body.firstChild);
+    var tc=document.querySelector('meta[name="theme-color"]');if(tc)tc.setAttribute('content','#F97316');
+  }
+  /* anciennes versions : données non séparées par espace, nettoyées une fois */
+  ['inventaire_pieces_v1','inventaire_snaps_v1','inventaire_sync_v1','inventaire_dirty_v1'].forEach(function(k){try{localStorage.removeItem(k)}catch(e){}});
+  try{indexedDB.deleteDatabase('inventaire_mvt')}catch(e){}
+  var $=function(id){return document.getElementById(id)};
+  function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
+  function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){toast('Stockage local plein ou indisponible')}}
+  var items=ld(KEY,[]),snaps=ld(KS,[]),cfg=ld(KC,null),dirty=ld(KD,[]),auth=ld(KA,null);
+  if(!auth||!auth.refresh||!auth.email)auth=null;
+  var op=auth?auth.email:'';
+  var editing=null,scanner=null,lastCode='',lastTime=0,tt,st,syncing=false,lastOk=0,failed=false;
+  if(!Array.isArray(items))items=[];if(!Array.isArray(snaps))snaps=[];if(!Array.isArray(dirty))dirty=[];
+  items.forEach(function(i){if(!i.t)i.t=Date.now()});
+
+  /* Connexion fixe : renseigner room (code d'inventaire) APRES publication des règles Firebase. Vide = saisie manuelle. */
+  var CONFIG={url:ENV.url,room:ENV.room};
+  var HARD=!!(CONFIG.url&&CONFIG.room);
+  if(HARD&&(!cfg||String(cfg.url).replace(/\/+$/,'')!==CONFIG.url||cfg.room!==CONFIG.room)){
+    cfg={url:CONFIG.url,room:CONFIG.room};sv(KC,cfg);
+    dirty=items.map(function(i){return i.code});dset=null;sv(KD,dirty);
+  }
+
+  /* Le message est un "popover" : il passe au-dessus des fenêtres modales (sinon il restait caché derrière) */
+  var tt2;
+  function toast(m){
+    var t=$('toast');t.textContent=m;
+    try{if(!t.matches(':popover-open'))t.showPopover()}catch(e){}
+    t.classList.add('on');clearTimeout(tt);clearTimeout(tt2);
+    tt=setTimeout(function(){t.classList.remove('on');tt2=setTimeout(function(){try{t.hidePopover()}catch(e){}},250)},2400);
+  }
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+  function num(v){var n=parseFloat(String(v).replace(',','.'));return isNaN(n)?0:Math.round(n*1000)/1000}
+  function fmt(n){return n.toLocaleString('fr-BE',{maximumFractionDigits:3})}
+  function day(){return new Date().toISOString().slice(0,10)}
+  function download(txt,type,name){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:type+';charset=utf-8'}));a.download=name;document.body.appendChild(a);a.click();a.remove()}
+
+  /* Données : les suppressions restent en "pierre tombale" (del:true) pour se propager aux autres téléphones */
+  function live(){return items.filter(function(i){return !i.del})}
+  /* index code -> position (recalculé si la liste est remplacée) ; indispensable avec des dizaines de milliers de pièces */
+  var ixm=Object.create(null),ixOk=false,dset=null;
+  function ixBuild(){ixm=Object.create(null);for(var i=0;i<items.length;i++)ixm[items[i].code]=i;ixOk=true}
+  function ixAdd(c){if(ixOk)ixm[c]=items.length-1}
+  function idx(c){if(!ixOk)ixBuild();var k=ixm[c];return(k!==undefined&&items[k]&&items[k].code===c)?k:-1}
+  function markDirty(c){
+    if(!dset){dset=Object.create(null);dirty.forEach(function(d){dset[d]=1})}
+    if(!dset[c]){dset[c]=1;dirty.push(c)}
+  }
+  function find(c){var k=idx(c);return k>-1&&!items[k].del?items[k]:null}
+  function dstr(t){return new Date(t).toLocaleString('fr-BE',{dateStyle:'short',timeStyle:'short'})}
+  function nm(b){return String(b).split('@')[0]}
+  /* c/cb = création (date, utilisateur), t/by = dernière modification. À la création t=c. */
+  function put(it){
+    var k=idx(it.code),old=k>-1?items[k]:null;
+    it.t=Date.now();it.by=op;
+    if(old&&!old.del){if(old.c){it.c=old.c;it.cb=old.cb||''}}
+    else if(it.c===undefined){it.c=it.t;it.cb=op}
+    if(k>-1)items[k]=it;else{items.push(it);ixAdd(it.code)}
+    markDirty(it.code);touch(it.code);
+  }
+  /* Une suppression garde les données de la pièce (corbeille) ; t/by = date et auteur de la suppression */
+  function tomb(c){
+    var k=idx(c);if(k<0||items[k].del)return;
+    var o={};for(var f in items[k])o[f]=items[k][f];
+    o.del=true;o.t=Date.now();o.by=op;o.d=o.t;o.db=op;items[k]=o;
+    markDirty(c);touch(c);
+  }
+  /* Les pièces et les sauvegardes sont conservées dans IndexedDB (pas de limite de 5 Mo) ; sans IndexedDB on garde l'ancien stockage local */
+  var idbItems=false,touched={};
+  function touch(c){touched[c]=1}
+  function flushItems(){
+    var codes=Object.keys(touched);touched={};
+    if(!idbItems){sv(KEY,items);return Promise.resolve()}
+    if(!codes.length)return Promise.resolve();
+    var recs=[];codes.forEach(function(c){var k=idx(c);if(k>-1)recs.push(items[k])});
+    return mtx('readwrite',function(st){recs.forEach(function(r){st.put(r)})},'it')
+      .catch(function(){toast('Stockage local indisponible : modifications non conservées sur cet appareil')});
+  }
+  function saveSnaps(){
+    if(!idbItems){
+      while(snaps.length&&!svq(KS,snaps))snaps.pop();
+      if(!snaps.length)toast('Sauvegarde locale impossible : espace plein');
+      return Promise.resolve();
+    }
+    return mtx('readwrite',function(st){st.clear();snaps.forEach(function(r){st.put(r)})},'sn')
+      .catch(function(){toast('Sauvegarde locale impossible : espace plein')});
+  }
+  /* Chargement au démarrage ; première fois : reprise des pièces et sauvegardes de l'ancien stockage local, qu'on libère ensuite */
+  function loadItems(){
+    return mready.then(function(ok){
+      if(!ok)return;
+      idbItems=true;
+      return mtx('readonly',function(st){return st.getAll()},'it').then(function(a){
+        if(a&&a.length){items=a;return}
+        if(items.length)return mtx('readwrite',function(st){items.forEach(function(r){st.put(r)})},'it').then(function(){try{localStorage.removeItem(KEY)}catch(e){}});
+      }).then(function(){return mtx('readonly',function(st){return st.getAll()},'sn')}).then(function(a){
+        if(a&&a.length){snaps=a.sort(function(x,y){return y.t-x.t});return}
+        if(snaps.length)return mtx('readwrite',function(st){snaps.forEach(function(r){st.put(r)})},'sn').then(function(){try{localStorage.removeItem(KS)}catch(e){}});
+      }).catch(function(){idbItems=false});
+    }).then(function(){items.forEach(function(i){if(!i.t)i.t=Date.now()});ixOk=false});
+  }
+  function commit(){flushItems();sv(KD,dirty);render();status();later()}
+
+  /* ===== Mouvements (journal) : stock = stock de départ (ancien champ qty, figé) + somme des mouvements ===== */
+  var mdb=null,mpend=0,stk={},mreset=false,lastT={};
+  var mready=new Promise(function(res){
+    try{
+      var r=indexedDB.open('inventaire_mvt'+SFX,4);
+      r.onupgradeneeded=function(e){
+        var d=r.result,s;
+        if(!d.objectStoreNames.contains('mv')){s=d.createObjectStore('mv',{keyPath:'id'});s.createIndex('code','code');s.createIndex('d','d')}
+        if(!d.objectStoreNames.contains('it'))d.createObjectStore('it',{keyPath:'code'});
+        if(!d.objectStoreNames.contains('sn'))d.createObjectStore('sn',{keyPath:'t'});
+        /* v3 : demandes et décisions sont désormais des lignes du journal ; on garde seulement les envois en attente et on recharge le reste */
+        if(e.oldVersion>0&&e.oldVersion<3){
+          ['rq','dc'].forEach(function(n){if(d.objectStoreNames.contains(n))d.deleteObjectStore(n)});
+          var c=r.transaction.objectStore('mv').openCursor();
+          c.onsuccess=function(){var cu=c.result;if(!cu)return;if(cu.value.d!==1)cu.delete();cu.continue()};
+          mreset=true;
+        }
+      };
+      r.onsuccess=function(){mdb=r.result;res(true)};
+      r.onerror=function(){res(false)};
+    }catch(e){res(false)}
+  });
+  function mtx(mode,fn,store){
+    store=store||'mv';
+    return mready.then(function(ok){
+      if(!ok)throw new Error('noidb');
+      return new Promise(function(res,rej){
+        var tx=mdb.transaction(store,mode),out=fn(tx.objectStore(store));
+        tx.oncomplete=function(){res(out&&typeof out==='object'&&'result' in out?out.result:undefined)};
+        tx.onerror=function(){rej(tx.error)};
+        tx.onabort=function(){rej(tx.error||new Error('abort'))};
+      });
+    });
+  }
+  function mput(r){return mtx('readwrite',function(s){s.put(r)})}
+  function mall(){return mtx('readonly',function(s){return s.getAll()})}
+  function mbycode(c){return mtx('readonly',function(s){return s.index('code').getAll(IDBKeyRange.only(c))})}
+  function mdirty(){return mtx('readonly',function(s){return s.index('d').getAll(IDBKeyRange.only(1))})}
+  function mmerge(obj){
+    var ids=Object.keys(obj);if(!ids.length)return Promise.resolve();
+    return mtx('readwrite',function(st){
+      ids.forEach(function(id){
+        var r=obj[id];if(!r||!r.code)return;
+        var g=st.get(id);
+        g.onsuccess=function(){if(!g.result){var o={id:id};for(var f in r)o[f]=r[f];o.delta=Number(r.delta)||0;st.put(o)}};
+      });
+    });
+  }
+  function r3(n){return Math.round(n*1000)/1000}
+  /* lignes qui modifient le stock d'une pièce (les demandes, décisions… ne comptent pas comme mise à jour) */
+  var UPD_T={entree:1,sortie:1,inventaire:1,import:1,reception:1};
+  function isUpd(r){return !r.type||UPD_T[r.type]===1}
+  function upd(it){return Math.max(it.t||0,lastT[it.code]||0)}
+  function stockOf(code){
+    if(stk[code]!==undefined)return Promise.resolve(stk[code]);
+    return mbycode(code).then(function(a){
+      var s=0,lt=0;a.forEach(function(r){s+=Number(r.delta)||0;if(isUpd(r)&&r.t>lt)lt=r.t});
+      lastT[code]=lt;
+      var it=find(code);
+      return (stk[code]=r3((it?num(it.qty):0)+s));
+    }).catch(function(){var it=find(code);return it?num(it.qty):0});
+  }
+  function stockAll(){
+    return mall().then(function(a){var m={};a.forEach(function(r){m[r.code]=(m[r.code]||0)+(Number(r.delta)||0);if(isUpd(r)&&r.t>(lastT[r.code]||0))lastT[r.code]=r.t});return m}).catch(function(){return {}});
+  }
+  function stockFrom(m,it){return r3(num(it.qty)+(m[it.code]||0))}
+  function newId(){return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8)}
+  /* Date lisible (heure locale du téléphone) copiée dans le journal pour la console Firebase */
+  function dtxt(t){
+    var d=new Date(t),p=function(n){return (n<10?'0':'')+n};
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+  }
+  /* Types sans effet sur le stock : delta = 0 (la trace est gardée) */
+  var NOSTK={inventaire:1,demande:1,modification:1,approbation:1,refus:1,cloture:1};
+  /* Une ligne du journal. extra = {type, saisie (valeur tapée à l'écran), note, demande (id de la demande liée), id (identifiant imposé)} */
+  function mkRec(code,delta,extra){
+    extra=extra||{};delta=r3(delta);
+    var type=extra.type||(delta>0?'entree':'sortie');
+    if(!delta&&!NOSTK[type]&&type!=='import')return null;
+    var t=Date.now(),rec={id:extra.id||newId(),code:code,delta:NOSTK[type]&&type!=='inventaire'?0:delta,type:type,by:String(op||'').toLowerCase(),t:t,dateAction_t:dtxt(t),d:1};
+    if(extra.saisie!==undefined)rec.saisie=extra.saisie;
+    if(extra.note)rec.note=extra.note;
+    if(extra.demande)rec.demande=extra.demande;
+    return rec;
+  }
+  /* plusieurs lignes d'un coup (import, restauration) : une seule transaction. list = [[code,delta,extra],…] */
+  function addMvMany(list){
+    var recs=[];list.forEach(function(a){var r=mkRec(a[0],a[1],a[2]);if(r)recs.push(r)});
+    if(!recs.length)return Promise.resolve(0);
+    mpend+=recs.length;stk={};
+    return mtx('readwrite',function(st){recs.forEach(function(r){st.put(r)})}).then(function(){status();later();return recs.length})
+      .catch(function(){mpend-=recs.length;toast('Journal indisponible sur cet appareil : mouvements non enregistrés');return 0});
+  }
+  function addMv(code,delta,extra){
+    extra=extra||{};
+    var rec=mkRec(code,delta,extra);if(!rec)return Promise.resolve();
+    var go=function(){
+      delete stk[code];mpend++;
+      return mput(rec).then(function(){status();later();return true})
+        .catch(function(){mpend--;toast('Journal indisponible sur cet appareil : mouvement non enregistré')});
+    };
+    if(!extra.id)return go();
+    /* identifiant imposé (décision, clôture) : une seule ligne possible */
+    return mtx('readonly',function(st){return st.get(extra.id)}).then(function(old){return old?false:go()}).catch(go);
+  }
+  function fillStocks(){
+    var sp=document.querySelectorAll('#list [data-q]');
+    for(var i=0;i<sp.length;i++)(function(el){var c=el.getAttribute('data-q');stockOf(c).then(function(v){el.textContent=fmt(v);var it=find(c),d=document.querySelector('#list [data-u="'+c.replace(/"/g,'')+'"]');if(it&&d)d.textContent=dstr(upd(it))})})(sp[i]);
+  }
+  /* Envoi des mouvements en attente puis récupération des nouveaux (ajout seul, jamais de modification) */
+  function syncMv(t0){
+    if(mreset){cfg.mfull=0;cfg.msince=0;mreset=false}
+    var full=!cfg.mfull;
+    var q=full?'':'?orderBy=%22s%22&startAt='+Math.max(0,(cfg.msince||0)-3e5);
+    return mdirty().then(function(dl){
+      /* envoi par étapes : les règles serveur lisent l'état déjà enregistré (une décision exige que la demande existe, une réception exige l'approbation) */
+      var ST={modification:2,approbation:2,refus:2,reception:3,cloture:3},refused=0,pay=function(r){var o={};['code','delta','type','by','t','saisie','note','demande','dateAction_t','compte','attendu'].forEach(function(f){if(r[f]!==undefined)o[f]=r[f]});o.s=t0;o.envoiFirebase_s=dtxt(t0);return o};
+      var refus=function(e){return /^(400|401|403)$/.test(e&&e.message)};
+      var done=function(list){list.forEach(function(r){delete r.d});return mtx('readwrite',function(st){list.forEach(function(r){st.put(r)})})};
+      var CH=2000;
+      var stage=function(n){
+        var all=dl.filter(function(r){return (ST[r.type]||1)===n});
+        var chunks=[];for(var ci=0;ci<all.length;ci+=CH)chunks.push(all.slice(ci,ci+CH));
+        return chunks.reduce(function(pr,ch){return pr.then(function(){return sendChunk(ch)})},Promise.resolve());
+      };
+      var sendChunk=function(list){
+        var up={};list.forEach(function(r){up[r.id]=pay(r)});
+        return req('PATCH',up,'','mouvements').then(function(){return done(list)}).catch(function(e){
+          if(!refus(e))throw e;
+          /* une ligne refusée par le serveur ne doit pas bloquer les autres : envoi une par une */
+          return list.reduce(function(pr,r){
+            return pr.then(function(){var o={};o[r.id]=pay(r);return req('PATCH',o,'','mouvements').then(function(){return done([r])}).catch(function(e2){if(!refus(e2))throw e2;refused++})});
+          },Promise.resolve());
+        });
+      };
+      return stage(1).then(function(){return stage(2)}).then(function(){return stage(3)}).then(function(){return mdirty()}).then(function(a){
+        mpend=a.length;if(refused)toast(refused+' ligne(s) refusée(s) par le serveur (droits ?) : elles restent en attente');
+      });
+    }).then(function(){return req('GET',null,q,'mouvements')}).then(function(rm){
+      return mmerge(rm||{});
+    }).then(function(){
+      cfg.msince=t0;if(full)cfg.mfull=t0;sv(KC,cfg);stk={};fillStocks();if(typeof rqRefresh==='function')rqRefresh();
+    }).catch(function(e){throw new Error('mv:'+(e&&e.message))});
+  }
+  function refreshCode(code){
+    if(!auth||!cfg||!navigator.onLine)return Promise.resolve(false);
+    return req('GET',null,'?orderBy=%22code%22&equalTo=%22'+encodeURIComponent(code)+'%22','mouvements')
+      .then(function(rm){return mmerge(rm||{})}).then(function(){delete stk[code];return true}).catch(function(){return false});
+  }
+
+  /* Sauvegardes locales (le stock sauvegardé est le stock calculé à ce moment) */
+  function svq(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}
+  function snap(why,cb){
+    var l=live();if(!l.length){if(cb)cb();return}
+    stockAll().then(function(m){
+      snaps.unshift({t:Date.now(),why:why,items:l.map(function(i){return[i.code,i.name,stockFrom(m,i),i.loc,i.note]})});
+      snaps=snaps.slice(0,3);
+      saveSnaps().then(function(){if(cb)cb()});
+    });
+  }
+  /* Restauration / import : les quantités du fichier sont des stocks absolus, traduits en mouvements d'écart */
+  function restore(list){
+    snap('avant restauration',function(){
+      stockAll().then(function(m){
+        var keep={},mvs=[];
+        list.forEach(function(x){
+          if(!x||x.code==null||x.code==='')return;var c=String(x.code);keep[c]=1;
+          var old=find(c),cur=old?stockFrom(m,old):0,d=num(x.qty)-cur;
+          put({code:c,name:String(x.name||c),qty:old?old.qty:0,loc:String(x.loc||''),note:String(x.note||'')});
+          if(d)mvs.push([c,d,num(x.qty)]);
+        });
+        live().forEach(function(i){if(!keep[i.code])tomb(i.code)});
+        commit();
+        return addMvMany(mvs.map(function(a){return [a[0],a[1],{type:'import',saisie:a[2],note:'Restauration'}]})).then(function(){fillStocks();toast('Données restaurées')});
+      });
+    });
+  }
+  function snapList(){
+    $('snaps').innerHTML=snaps.length?snaps.map(function(s,n){
+      return '<div class="snap"><div><b>'+new Date(s.t).toLocaleString('fr-BE',{dateStyle:'short',timeStyle:'short'})+'</b><small>'+esc(s.why)+', '+s.items.length+' réf.</small></div><button class="btn" data-r="'+n+'" type="button">Restaurer</button></div>';
+    }).join(''):'<p class="hint">Aucune sauvegarde pour le moment.</p>';
+  }
+
+  /* Synchronisation (Firebase Realtime Database, API REST, la modification la plus récente gagne par pièce) */
+  function base(q,tok,p){var u=cfg.url.replace(/\/+$/,'')+'/inventaires/'+encodeURIComponent(cfg.room)+'/'+(p||'items')+'.json'+(q||'');return u+(q?'&':'?')+'auth='+encodeURIComponent(tok)}
+  function key(c){return encodeURIComponent(c).replace(/\./g,'%2E')}
+
+  /* Connexion e-mail + mot de passe (API REST Firebase Authentication, sans SDK) */
+  function idt(path,body){
+    return fetch('https://identitytoolkit.googleapis.com/v1/'+path+'?key='+API_KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j.error&&j.error.message)||r.status);return j})});
+  }
+  function saveAuth(j){
+    var email=j.email||(auth&&auth.email);
+    auth={email:email,refresh:j.refreshToken||j.refresh_token,token:j.idToken||j.id_token,exp:Date.now()+(parseInt(j.expiresIn||j.expires_in,10)||3600)*1000};
+    sv(KA,auth);op=email;
+  }
+  function logout(){auth=null;try{localStorage.removeItem(KA)}catch(e){}op=''}
+  function token(){
+    if(!auth)return Promise.reject(new Error('noauth'));
+    if(auth.exp-Date.now()>60000)return Promise.resolve(auth.token);
+    return fetch('https://securetoken.googleapis.com/v1/token?key='+API_KEY,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(auth.refresh)})
+      .then(function(r){return r.json().then(function(j){
+        if(!r.ok){
+          var m=(j.error&&j.error.message)||'';
+          if(/TOKEN_EXPIRED|USER_DISABLED|USER_NOT_FOUND|INVALID_REFRESH_TOKEN|CREDENTIAL_TOO_OLD/.test(m)){logout();toast('Session expirée : reconnecte-toi')}
+          throw new Error(auth?m||r.status:'noauth');
+        }
+        saveAuth(j);return auth.token;
+      })});
+  }
+  function req(m,b,q,p){
+    return token().then(function(tok){
+      var ac=new AbortController(),to=setTimeout(function(){ac.abort()},(m==='GET'&&!q)?120000:30000);
+      return fetch(base(q,tok,p),{method:m,body:b?JSON.stringify(b):undefined,signal:ac.signal}).then(function(r){
+        clearTimeout(to);if(!r.ok)throw new Error(r.status);return r.json();
+      });
+    });
+  }
+  /* Téléchargement complet à la connexion puis une fois par jour ; sinon seulement les changements récents (champ s = heure d'envoi) */
+  function sync(){
+    if(!cfg||syncing||!navigator.onLine)return;
+    if(!auth){status();return}
+    syncing=true;status();var t0=Date.now(),full,q;
+    purgeCheck().then(function(){
+      full=!cfg.full||t0-cfg.full>864e5;
+      q=full?'':'?orderBy=%22s%22&startAt='+Math.max(0,(cfg.since||0)-3e5);
+      return req('GET',null,q);
+    }).then(function(rm){
+      rm=rm||{};var changed=false;
+      Object.keys(rm).forEach(function(k){
+        var r=rm[k];if(!r||!r.code)return;var i=idx(r.code);
+        if(i<0){items.push(r);ixAdd(r.code);touch(r.code);changed=true}else if(r.t>items[i].t){items[i]=r;touch(r.code);changed=true}
+      });
+      var parts=[],up={},sent={},n=0;
+      dirty.forEach(function(c){
+        var i=idx(c);if(i<0)return;
+        var o={};for(var f in items[i])o[f]=items[i][f];o.s=t0;
+        up[key(c)]=o;sent[c]=items[i].t;n++;
+        if(n%2000===0){parts.push(up);up={}}
+      });
+      if(Object.keys(up).length)parts.push(up);
+      return parts.reduce(function(pr,pt){return pr.then(function(){return req('PATCH',pt)})},Promise.resolve()).then(function(){
+        dirty=dirty.filter(function(c){var i=idx(c);return i>-1&&(sent[c]===undefined||items[i].t!==sent[c])});dset=null;
+        cfg.since=t0;if(full)cfg.full=t0;sv(KC,cfg);
+        lastOk=Date.now();failed=false;flushItems();sv(KD,dirty);if(changed)render();
+        if(Date.now()-roleT>6e5)loadRole();
+      }).then(function(){return syncMv(t0)});
+    }).catch(function(e){
+      var m=e&&e.message;failed=true;
+      if(/^mv:/.test(m))toast('Journal des mouvements indisponible ('+m.slice(3)+') : règles Firebase à mettre à jour ?');
+      else if(m==='400')toast('Règles Firebase à mettre à jour (index sur s)');
+      else if(m==='401'||m==='403')toast('Accès refusé : compte non autorisé');
+      else if(m==='noauth')failed=false;
+    }).then(function(){syncing=false;status();if($('jdlg').hasAttribute('open'))jLoad()});
+  }
+  function later(){clearTimeout(st);st=setTimeout(sync,1200)}
+  function status(){
+    var b=$('sync'),n=dirty.length+mpend,off=!navigator.onLine;
+    b.className=(off||failed)?'off':'';
+    if(!cfg)b.textContent=off?'Hors ligne':'Synchro : non';
+    else if(!auth){b.className='off';b.textContent='Connexion requise'}
+    else if(off||failed)b.textContent='Hors ligne'+(n?', '+n+' en attente':'');
+    else if(syncing&&(n||!lastOk))b.textContent='Synchronisation…';
+    else if(!lastOk)b.textContent='En attente de synchro';
+    else b.textContent='Synchronisé '+new Date(lastOk).toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  /* Tri de la liste : critère et sens mémorisés sur l'appareil ; "Modifié" commence par le plus récent */
+  var KSORT='inventaire_sort_v1',LIMIT=10,lim=LIMIT,rtok=0;
+  var srt=ld(KSORT,null),multi=false;
+  if(srt&&srt.k)srt={c:[{k:srt.k,d:srt.d||1}]};  /* ancien format : un seul critère */
+  if(!srt||!srt.c||!srt.c.length)srt={c:[{k:'name',d:1}]};
+  var DEFD={name:1,code:1,loc:1,stock:1,t:-1},SLAB={name:'Libellé',code:'Code',t:'Modifié',loc:'Emplacement',stock:'Stock'};
+  function sortCmp(k,d,m){
+    var nat=function(a,b){a=String(a||'');b=String(b||'');if(!a!==!b)return a?-1:1;return a.localeCompare(b,'fr',{numeric:true})};
+    return function(a,b){
+      var r=0;
+      if(k==='code')r=nat(a.code,b.code);
+      else if(k==='t')r=upd(a)-upd(b);
+      else if(k==='loc')r=nat(a.loc,b.loc);
+      else if(k==='stock')r=stockFrom(m,a)-stockFrom(m,b);
+      else r=String(a.name).localeCompare(String(b.name),'fr',{numeric:true});
+      if(k==='loc'&&(!a.loc||!b.loc)&&!!a.loc!==!!b.loc)return r; /* sans emplacement : toujours en dernier */
+      return r*d;
+    };
+  }
+  /* critères appliqués dans l'ordre ; le libellé départage les égalités restantes */
+  function chainCmp(c,m){
+    var fs=c.map(function(x){return sortCmp(x.k,x.d,m)});
+    return function(a,b){
+      for(var i=0;i<fs.length;i++){var r=fs[i](a,b);if(r)return r}
+      return String(a.name).localeCompare(String(b.name),'fr');
+    };
+  }
+  function sortBar(){
+    var bs=document.querySelectorAll('#sbar .sb[data-s]'),c=srt.c,pm=$('sbm');
+    for(var i=0;i<bs.length;i++){
+      var k=bs[i].getAttribute('data-s'),ix=-1;
+      for(var j=0;j<c.length;j++)if(c[j].k===k)ix=j;
+      bs[i].className='sb'+(ix>-1?' on':'');bs[i].setAttribute('aria-pressed',ix>-1?'true':'false');
+      bs[i].textContent=(ix>-1&&c.length>1?(ix+1)+' ':'')+SLAB[k]+(ix>-1?(c[ix].d>0?' ▲':' ▼'):'');
+    }
+    if(pm){pm.className='sb'+(multi?' on':'');pm.setAttribute('aria-pressed',multi?'true':'false')}
+  }
+  function render(){
+    var tk=++rtok;
+    if(srt.c.some(function(x){return x.k==='stock'||x.k==='t'}))stockAll().then(function(m){if(tk===rtok)draw(m)});else draw(null);
+  }
+  function draw(m){
+    var q=$('search').value.trim().toLowerCase();
+    var all=live();
+    var list=all.filter(function(i){return !q||[i.code,i.name,i.loc,i.note].join(' ').toLowerCase().indexOf(q)>-1})
+      .sort(chainCmp(srt.c,m));
+    sortBar();
+    /* Seules lim pièces sont affichées ; leur stock n'est calculé que pour celles-ci */
+    $('list').innerHTML=list.length?list.slice(0,lim).map(function(i){
+      return '<li data-c="'+esc(i.code)+'"><div class="info"><b>'+esc(i.name)+'</b><small>'+esc(i.code)+'</small>'+
+        (i.loc?'<small>Emplacement : '+esc(i.loc)+'</small>':'')+
+        '<small>Mis à jour le <span data-u="'+esc(i.code)+'">'+dstr(upd(i))+'</span></small>'+
+        '<small class="rqb" data-rb="'+esc(i.code)+'" style="font-weight:600"></small>'+
+        '</div><div class="qty"><span data-q="'+esc(i.code)+'">…</span></div></li>';
+    }).join('')+(list.length>lim?'<li class="empty more" data-more="1">Afficher '+Math.min(LIMIT,list.length-lim)+' de plus ('+(list.length-lim)+' restantes)</li>':''):'<li class="empty">'+(all.length?'Aucune pièce ne correspond.':'Aucune pièce. Appuie sur Scanner pour commencer.')+'</li>';
+    $('count').textContent=all.length+(all.length>1?' références':' référence');
+    fillStocks();
+    if(typeof rqRefresh==='function')rqRefresh();
+  }
+
+  var fqBase=0,fqReady=true;
+  function openForm(it,pend){
+    editing=it&&find(it.code)?it.code:null;
+    $('dt').textContent=editing?'Modifier la pièce':'Nouvelle pièce';
+    $('fc').value=it?it.code:'';$('fn').value=it&&it.name?it.name:'';
+    $('fc').readOnly=!!editing;
+    $('fl').value=it&&it.loc?it.loc:'';$('fo').value=it&&it.note?it.note:'';
+    $('fd').style.display=editing?'':'none';
+    if(editing){
+      /* stock actuel = stock de départ + mouvements, calculé à l'ouverture ; modifier le champ crée un mouvement d'écart */
+      fqReady=false;fqBase=0;$('fq').value='…';var code=editing;
+      stockOf(code).then(function(s){
+        if(editing!==code)return;
+        fqBase=s;fqReady=true;$('fq').value=String(pend!==undefined?pend:s).replace('.',',');
+      });
+    }else{
+      fqReady=true;fqBase=0;
+      $('fq').value=it&&it.qty!==undefined?String(it.qty).replace('.',','):String($('step').value||'1');
+    }
+    if(!$('dlg').open)$('dlg').showModal();
+    setTimeout(function(){(it&&it.code?$('fn'):$('fc')).focus()},50);
+  }
+
+  function handleCode(code){
+    code=String(code).trim();if(!code)return;
+    var it=find(code);
+    if(it)showStock(it);
+    else if(!can('fiche'))toast('Pièce inconnue : '+code);
+    else{stopScan();openForm({code:code,qty:num($('step').value||1)})}
+  }
+  function showStock(it){
+    var s=can('stock');
+    $('kminus').style.display=s?'':'none';$('kplus').style.display=s?'':'none';$('kv').style.display=s?'':'none';
+    $('ke').style.display=can('fiche')?'':'none';$('kx').textContent=s?'Annuler':'Fermer';
+    $('kh').style.display=(auth&&can('hist'))?'':'none';
+    $('ki').style.display=s?'':'none';$('kr').style.display=s?'':'none';$('krs').textContent='';$('krt').textContent='Demander';$('kr').dataset.open='';$('kr').dataset.edit='';
+    $('kn').textContent=it.name;$('kc').textContent=it.code;
+    /* stock recalculé à l'affichage du détail : copie locale d'abord, puis après rafraîchissement des mouvements de la pièce */
+    kready=false;kbase=0;kqty=0;$('kq').textContent='…';$('kst').textContent='calcul du stock…';
+    var code=it.code;
+    loadRq().then(function(L){if($('ke').dataset.c===code)kreq(L,code)});
+    stockOf(code).then(function(v){
+      if($('ke').dataset.c!==code)return;
+      kbase=v;kqty=v;kready=true;kdraw();$('km').textContent='Mis à jour le '+dstr(upd(it));
+      return refreshCode(code).then(function(ok){
+        if(!ok||$('ke').dataset.c!==code)return;
+        return stockOf(code).then(function(v2){
+          if($('ke').dataset.c===code)$('km').textContent='Mis à jour le '+dstr(upd(it));
+          if($('ke').dataset.c!==code||v2===kbase)return;
+          var d=kqty-kbase;kbase=v2;kqty=r3(v2+d);kdraw();
+        });
+      });
+    });
+    $('kl').textContent=it.loc?'Emplacement : '+it.loc:'';
+    $('ko').textContent=it.note?'Note : '+it.note:'';
+    $('km').textContent='Mis à jour le '+dstr(upd(it));
+    $('ke').dataset.c=it.code;
+    stopScan();
+    if(!$('kdlg').open)$('kdlg').showModal();
+  }
+
+  /* Anti fausses lectures : clé de contrôle EAN/UPC + deux lectures identiques de suite */
+  var cand='',candN=0,candT=0,badT=0;
+  function eanOk(s){
+    var n=s.length,sum=0,i;
+    for(i=0;i<n-1;i++)sum+=((n-1-i)%2===1)?Number(s[i])*3:Number(s[i]);
+    return (10-sum%10)%10===Number(s[n-1]);
+  }
+  var precis=ld('inventaire_precis_v1',false)===true;
+  var paused=false,keep=false,lastSeen=0,kqty=0,kbase=0,kready=false;
+  function kdraw(){
+    $('kq').textContent=fmt(kqty);
+    $('kst').textContent=kqty!==kbase?'à valider (enregistré : '+fmt(kbase)+')':'en stock';
+  }
+  /* Rôles (cumulables) lus dans /allowed/<email> ; admin peut tout. stock = ajuster, fiche = créer/modifier/supprimer, danger = vider/restaurer */
+  var KR='inventaire_roles_v1',roleT=0,myRoles=null;
+  var PERMS={stock:['admin','superuser','operateur'],fiche:['admin','superuser'],danger:['admin'],users:['admin','securityofficer'],admin:['admin','securityofficer'],hist:['admin','securityofficer','superuser'],decide:['admin','superuser'],receive:['admin','superuser'],purge:['superadmin']};
+  var RLAB={superadmin:'SuperAdmin',admin:'Admin',securityofficer:'SecurityOfficer',superuser:'SuperUser',operateur:'Opérateur',lecteur:'Lecteur'};
+  function rl(r){return RLAB[r]||r}
+  (function(){var r=ld(KR,null);if(auth&&r&&r.email===auth.email&&Array.isArray(r.roles))myRoles=r.roles})();
+  function can(p){
+    if(!auth)return true;
+    if(!myRoles)return false;
+    for(var i=0;i<myRoles.length;i++){var r=myRoles[i];if(p!=='purge'&&(r==='admin'||r==='superadmin'))return true;if(PERMS[p].indexOf(r)>-1)return true}
+    return false;
+  }
+  function needAuth(p){
+    if(!auth){toast('Connecte-toi pour modifier');openLogin();return true}
+    if(!can(p)){toast('Droits insuffisants'+(myRoles&&myRoles.length?' ('+myRoles.map(rl).join(', ')+')':''));return true}
+    return false;
+  }
+  function applyPerms(){
+    var f=can('fiche');
+    $('addBtn').style.display=f?'':'none';
+    $('impL').style.display=f?'':'none';
+    $('trBtn').style.display=f?'':'none';
+    $('clrBtn').style.display=can('danger')?'':'none';
+    $('admBtn').style.display='';
+    $('admOnly').style.display=can('admin')?'':'none';
+    $('admDanger').style.display=(auth&&can('purge'))?'':'none';
+    $('admh').textContent=can('admin')?'Réservé aux administrateurs et aux responsables de la sécurité pour la gestion ; les outils sur les pièces dépendent de ton rôle.':'Outils sur les pièces et les données, selon ton rôle.';
+    $('rqBtn').style.display=(auth&&can('stock'))?'':'none';
+    $('hv').textContent='v'+VERSION+(ISTEST?' · '+ENVN:'')+(auth&&myRoles&&myRoles.length?' · '+myRoles.map(rl).join('+'):'');
+    render();
+  }
+  function loadRole(){
+    if(!auth||!navigator.onLine)return Promise.resolve('error');
+    var b=(HARD?CONFIG.url:(cfg&&cfg.url))||'';if(!b)return Promise.resolve('error');
+    return token().then(function(tok){
+      var k=encodeURIComponent(auth.email.toLowerCase().replace(/\./g,','));
+      return fetch(b.replace(/\/+$/,'')+'/allowed/'+k+'.json?auth='+encodeURIComponent(tok));
+    }).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()}).then(function(v){
+      var roles=(v&&typeof v==='object'&&v.roles)?String(v.roles).split(',').map(function(s){return s.trim().toLowerCase()}).filter(Boolean):[];
+      myRoles=roles;roleT=Date.now();sv(KR,{email:auth.email,roles:roles});applyPerms();
+      return v===null?'none':'ok';
+    }).catch(function(){return 'error'});
+  }
+  function pauseScan(){try{if(scanner&&!paused){scanner.pause(true);paused=true}}catch(e){}}
+  function resumeScan(){lastSeen=Date.now();try{if(scanner&&paused){scanner.resume();paused=false}}catch(e){paused=false}}
+  function onScan(text,res){
+    var now=Date.now();
+    if(document.querySelector('dialog[open]'))return;
+    if(text===lastCode){var cont=now-lastSeen<1500;lastSeen=now;if(cont||now-lastTime<2000)return}
+    var fmt=res&&res.result&&res.result.format&&res.result.format.formatName;
+    var ean=(fmt==='EAN_13'||fmt==='EAN_8'||fmt==='UPC_A');
+    if(ean&&(!/^\d+$/.test(text)||!eanOk(text))){$('rd').textContent='Rejeté (clé invalide) : '+text;return}
+    var need=precis?3:(ean?1:2);
+    if(text!==cand||now-candT>1500){cand=text;candN=0}
+    candN++;candT=now;
+    $('rd').textContent='Lu : '+text+' ('+(fmt||'?')+')'+(need>1?' '+candN+'/'+need:'');
+    if(candN<need)return;
+    cand='';candN=0;
+    lastCode=text;lastTime=now;
+    if(navigator.vibrate)navigator.vibrate(60);
+    handleCode(text);
+  }
+  /* Flash = lampe torche de la caméra arrière, quand elle existe ; le choix est mémorisé sur l'appareil */
+  var flash=ld('inventaire_flash_v1',false)===true;
+  function applyTorch(on){
+    if(!scanner||!scanner.applyVideoConstraints)return Promise.resolve(false);
+    try{return scanner.applyVideoConstraints({advanced:[{torch:on}]}).then(function(){return true}).catch(function(){return false})}
+    catch(e){return Promise.resolve(false)}
+  }
+  function flashOff(){flash=false;$('fl').checked=false;sv('inventaire_flash_v1',false)}
+  function flashSync(){
+    if(!flash)return;
+    applyTorch(true).then(function(ok){if(!ok){toast('Flash non disponible sur cet appareil');flashOff()}});
+  }
+  function startScan(){
+    if(!window.Html5Qrcode){toast('Scanner indisponible : bibliothèque non chargée');return}
+    if(scanner)return;
+    paused=false;
+    var F=window.Html5QrcodeSupportedFormats||{};
+    var fmts=['EAN_13','EAN_8','UPC_A','UPC_E','CODE_128','CODE_39','CODE_93','ITF','CODABAR','RSS_14'].map(function(n){return F[n]}).filter(function(v){return v!==undefined});
+    var conf={verbose:false};
+    if(precis)conf.experimentalFeatures={useBarCodeDetectorIfSupported:true};
+    if(fmts.length)conf.formatsToSupport=fmts;
+    scanner=new Html5Qrcode('reader',conf);
+    var sconf=precis?{
+      fps:10,
+      qrbox:function(w,h){return{width:Math.floor(w*0.9),height:Math.floor(Math.min(h*0.5,220))}},
+      videoConstraints:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080},advanced:[{focusMode:'continuous'}]}
+    }:{fps:10,qrbox:{width:260,height:150}};
+    scanner.start({facingMode:'environment'},sconf,onScan,function(){})
+      .then(function(){$('scanBtn').textContent='Arrêter le scan';flashSync()})
+      .catch(function(err){toast('Erreur caméra : '+err);scanner=null;$('reader').innerHTML=''});
+  }
+  function stopScan(){
+    var s=scanner;scanner=null;paused=false;$('scanBtn').textContent='Scanner';
+    if(!s)return;
+    s.stop().then(function(){s.clear()}).catch(function(){try{s.clear()}catch(e){}});
+  }
+
+  function csvQuote(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'}
+  function exportCSV(){
+    var l=live();if(!l.length){toast('Rien à exporter');return}
+    stockAll().then(function(m){
+    var rows=[['Code','Nom','Quantité','Emplacement','Note']].concat(l.map(function(i){
+      return [i.code,i.name,String(stockFrom(m,i)).replace('.',','),i.loc,i.note];
+    }));
+    download('﻿'+rows.map(function(r){return r.map(csvQuote).join(';')}).join('\r\n'),'text/csv','inventaire-'+day()+'.csv');
+    toast('CSV exporté');
+    });
+  }
+  function parseCSV(t){
+    t=t.replace(/^﻿/,'');
+    var first=t.split(/\r?\n/)[0]||'';
+    var d=first.split(';').length>=first.split(',').length?';':',';
+    var rows=[],r=[],f='',q=false,i,c;
+    for(i=0;i<t.length;i++){
+      c=t[i];
+      if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+      else if(c==='"')q=true;
+      else if(c===d){r.push(f);f=''}
+      else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;r.push(f);rows.push(r);r=[];f=''}
+      else f+=c;
+    }
+    if(f!==''||r.length){r.push(f);rows.push(r)}
+    return rows.filter(function(x){return x.some(function(v){return v.trim()})});
+  }
+  /* les quantités du CSV sont des stocks absolus : traduits en lignes "Import" (valeur saisie = stock du fichier, écart calculé) */
+  var impPlan=null;
+  function impAnalyse(rows,m,keepQty){
+    var last={},pl={rows:[],nNew:0,nUpd:0,nSame:0,nSkip:0,nDup:0,up:0,down:0};
+    rows.forEach(function(r){var c=(r[0]||'').trim();if(c)last[c]=r});
+    rows.forEach(function(r){
+      var code=(r[0]||'').trim();
+      if(!code){pl.nSkip++;return}
+      if(last[code]!==r){pl.nDup++;return} /* même code plusieurs fois : la dernière ligne gagne */
+      var old=find(code),name=(r[1]||'').trim()||code,loc=(r[3]||'').trim(),note=(r[4]||'').trim(),q=num(r[2]||0);
+      var cur=old?stockFrom(m,old):0,d=(old&&keepQty)?0:r3(q-cur);
+      var fiche=!old||old.name!==name||(old.loc||'')!==loc||(old.note||'')!==note;
+      if(!old)pl.nNew++;else if(fiche||d)pl.nUpd++;else pl.nSame++;
+      if(d>0)pl.up++;else if(d<0)pl.down++;
+      pl.rows.push({code:code,name:name,loc:loc,note:note,q:q,d:d,isNew:!old,fiche:fiche,old:old});
+    });
+    return pl;
+  }
+  function impPreview(){
+    stockAll().then(function(m){
+      impPlan.pl=impAnalyse(impPlan.rows,m,$('pvq').checked);
+      var pl=impPlan.pl;
+      $('pvm').textContent=pl.rows.length+' pièce(s) dans le fichier : '+pl.nNew+' nouvelle(s), '+pl.nUpd+' mise(s) à jour, '+pl.nSame+' inchangée(s)'+(pl.nSkip?', '+pl.nSkip+' ignorée(s) (code vide)':'')+(pl.nDup?', '+pl.nDup+' doublon(s) de code (dernière ligne retenue)':'')+'.';
+      $('pvs').textContent=(pl.up||pl.down)?'Stock : '+pl.up+' pièce(s) en hausse, '+pl.down+' en baisse (lignes « Import » dans le journal).':'Aucun changement de stock.';
+      $('pvo').disabled=!pl.rows.length;
+    });
+  }
+  function importCSV(file){
+    var rd=new FileReader();
+    rd.onload=function(){
+      var rows=parseCSV(String(rd.result));
+      if(rows.length&&/^code/i.test(rows[0][0].trim()))rows.shift();
+      impPlan={rows:rows,pl:null};
+      $('pvf').textContent=(file&&file.name)||'';$('pvq').checked=false;$('pvm').textContent='Analyse…';$('pvs').textContent='';$('pvo').disabled=true;
+      $('pvdlg').showModal();impPreview();
+    };
+    rd.readAsText(file,'utf-8');
+  }
+  $('pvq').onchange=impPreview;
+  $('pvn').onclick=function(){impPlan=null;$('pvdlg').close()};
+  $('pvo').onclick=function(){
+    if(!impPlan||!impPlan.pl)return;
+    var pl=impPlan.pl;impPlan=null;$('pvdlg').close();
+    snap('avant import CSV',function(){
+      var mvs=[];
+      pl.rows.forEach(function(x){
+        if(x.fiche||x.isNew)put({code:x.code,name:x.name,qty:x.old?x.old.qty:0,loc:x.loc,note:x.note});
+        if(x.isNew||x.d)mvs.push([x.code,x.d,x.q]);
+      });
+      commit();
+      addMvMany(mvs.map(function(a){return [a[0],a[1],{type:'import',saisie:a[2],note:'Import CSV'}]})).then(function(){
+        fillStocks();toast('Import : '+pl.nNew+' ajoutée(s), '+pl.nUpd+' mise(s) à jour, '+pl.nSame+' inchangée(s)');
+      });
+    });
+  };
+  /* Événements */
+  $('scanBtn').onclick=function(){scanner?stopScan():startScan()};
+  $('fl').checked=flash;
+  $('fl').onchange=function(){
+    flash=$('fl').checked;sv('inventaire_flash_v1',flash);
+    if(!scanner){toast(flash?"Le flash s'allumera au prochain scan":'Flash éteint');return}
+    applyTorch(flash).then(function(ok){if(!ok&&flash){toast('Flash non disponible sur cet appareil');flashOff()}});
+  };
+  $('pm').checked=precis;
+  $('pm').onchange=function(){
+    precis=$('pm').checked;sv('inventaire_precis_v1',precis);
+    if(scanner){var s=scanner;scanner=null;s.stop().then(function(){s.clear();startScan()}).catch(function(){})}
+    toast(precis?'Mode précis':'Mode rapide');
+  };
+  $('manualBtn').onclick=function(){handleCode($('manual').value);$('manual').value='';$('manual').focus()};
+  $('manual').onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();$('manualBtn').click()}};
+  $('search').oninput=function(){lim=LIMIT;render()};
+  /* « + » = tri multiple : un critère déjà choisi passe de son sens par défaut à l'inverse, puis est retiré ; sans « + », un clic remplace tout */
+  $('sbar').onclick=function(e){
+    if(e.target.closest('#sbm')){multi=!multi;sortBar();return}
+    var b=e.target.closest('button[data-s]');if(!b)return;
+    var k=b.getAttribute('data-s'),c=srt.c,ix=-1;
+    for(var j=0;j<c.length;j++)if(c[j].k===k)ix=j;
+    if(!multi){
+      if(c.length===1&&ix===0)c[0].d=-c[0].d;else srt={c:[{k:k,d:DEFD[k]}]};
+    }else if(ix<0){
+      if(c.length>=3){toast('Maximum 3 critères de tri');return}
+      c.push({k:k,d:DEFD[k]});
+    }else if(c[ix].d===DEFD[k])c[ix].d=-c[ix].d;
+    else{c.splice(ix,1);if(!c.length)srt={c:[{k:'name',d:1}]}}
+    sv(KSORT,srt);lim=LIMIT;sortBar();render();
+  };
+  $('addBtn').onclick=function(){openForm(null)};
+  $('expBtn').onclick=exportCSV;
+  $('imp').onchange=function(e){if(e.target.files[0]&&!needAuth('fiche'))importCSV(e.target.files[0]);e.target.value=''};
+  $('clrBtn').onclick=function(){
+    if(live().length&&!needAuth('danger'))ask('Effacer toutes les pièces, sur tous les téléphones synchronisés ? Une sauvegarde est créée avant et les pièces vont dans la corbeille.','Tout effacer',function(){
+      snap('avant effacement',function(){live().forEach(function(i){tomb(i.code)});commit();toast('Inventaire vidé')});
+    });
+  };
+  $('list').onclick=function(e){
+    if(e.target.closest('li[data-more]')){lim+=LIMIT;render();return}
+    var li=e.target.closest('li[data-c]');if(!li)return;
+    var it=find(li.getAttribute('data-c'));if(!it)return;
+    showStock(it);
+  };
+  $('kx').onclick=function(){$('kdlg').close()};
+  function bump(d){
+    if(!kready)return;
+    kqty=Math.max(0,r3(kqty+d*num($('step').value||1)));
+    kdraw();
+  }
+  /* Valider : l'écart entre le stock affiché et le stock saisi devient un mouvement (entrée ou sortie) */
+  $('kv').onclick=function(){
+    var it=find($('ke').dataset.c);
+    if(it&&kready&&kqty!==kbase){
+      if(needAuth('stock'))return;
+      var d=r3(kqty-kbase),code=it.code,shown=kqty;
+      addMv(code,d,{saisie:shown}).then(function(){fillStocks();toast((d>0?'Entrée ':'Sortie ')+fmt(Math.abs(d))+' · stock : '+fmt(shown))});
+    }
+    $('kdlg').close();
+  };
+  function fbump(d){
+    var v=Math.max(0,num(num($('fq').value)+d*num($('step').value||1)));
+    $('fq').value=String(v).replace('.',',');
+  }
+  $('fqm').onclick=function(){fbump(-1)};
+  $('fqp').onclick=function(){fbump(1)};
+  $('kminus').onclick=function(){bump(-1)};
+  $('kplus').onclick=function(){bump(1)};
+  $('kdlg').addEventListener('close',function(){if(keep){keep=false;return}resumeScan()});
+  $('dlg').addEventListener('close',resumeScan);
+  $('ke').onclick=function(){
+    var it=find($('ke').dataset.c);
+    if(it)keep=true;
+    $('kdlg').close();
+    if(it)openForm(it,kready?kqty:undefined);
+  };
+  $('fx').onclick=function(){$('dlg').close()};
+  $('fd').onclick=function(){
+    var ec=editing,ep=ec?find(ec):null;
+    if(ep&&!needAuth('fiche'))ask('Supprimer « '+ep.name+' » ? Elle ira dans la corbeille.','Supprimer',function(){tomb(ec);commit();$('dlg').close();toast('Pièce supprimée')});
+  };
+  $('f').onsubmit=function(e){
+    e.preventDefault();
+    var code=$('fc').value.trim(),name=$('fn').value.trim();
+    if(!code||!name)return;
+    if(needAuth('fiche'))return;
+    if(find(code)&&code!==editing){toast('Ce code existe déjà');return}
+    if(editing&&!fqReady){toast('Calcul du stock en cours, réessaie');return}
+    var prev=editing?find(editing):null,newQty=num($('fq').value),delta=r3(newQty-fqBase);
+    /* stock de départ inchangé : toute variation de quantité passe par un mouvement */
+    put({code:code,name:name,qty:prev?prev.qty:0,loc:$('fl').value.trim(),note:$('fo').value.trim()});
+    commit();$('dlg').close();toast('Enregistré');
+    if(delta)addMv(code,delta,{saisie:newQty}).then(function(){fillStocks()});
+  };
+
+  function openLogin(){$('le').value=auth?auth.email:($('le').value||'');$('lp').value='';if(!$('ldlg').open)$('ldlg').showModal()}
+  /* Mon compte : compte, rôles, version, état de la synchro */
+  function accInfo(){
+    if(!auth)return;
+    var hh=function(t){return new Date(t).toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit'})};
+    $('acc').textContent='Compte : '+auth.email+
+      '\nRôles : '+((myRoles&&myRoles.length)?myRoles.map(function(r){return RLAB[r]||r}).join(', '):'aucun')+
+      '\nVersion : '+VERSION+
+      '\nSynchro : '+(!navigator.onLine?'hors ligne':(failed?'en échec':(lastOk?'dernière réussie à '+hh(lastOk):'en attente')))+
+      '\nModifications en attente : '+(dirty.length+mpend);
+  }
+  $('sync').onclick=function(){
+    if(!auth){openLogin();return}
+    accInfo();$('sdlg').showModal();
+  };
+  $('snow').onclick=function(){
+    if(!navigator.onLine){toast('Hors ligne : synchro impossible');return}
+    failed=false;sync();loadRole();toast('Synchronisation lancée');
+    setTimeout(accInfo,1500);setTimeout(accInfo,4000);
+  };
+  /* la synchro n'efface jamais une ligne locale : après un nettoyage du serveur, on vide la copie de cet appareil (sauf les envois en attente) et on la recharge */
+  $('rlj').onclick=function(){
+    ask("Vider la copie locale du journal de cet appareil et la recharger depuis le serveur ? Les lignes pas encore envoyées sont conservées.",'Recharger',function(){
+      mtx('readwrite',function(st){
+        var c=st.openCursor();
+        c.onsuccess=function(){var cu=c.result;if(!cu)return;if(cu.value.d!==1)cu.delete();cu.continue()};
+      }).then(function(){
+        cfg.mfull=0;cfg.msince=0;sv(KC,cfg);stk={};lastT={};fillStocks();render();
+        toast('Copie locale du journal vidée : rechargement…');sync();
+      }).catch(function(){toast('Rechargement impossible sur cet appareil')});
+    });
+  };
+  $('lo').onclick=function(){
+    logout();myRoles=null;$('sdlg').close();status();applyPerms();openLogin();
+  };
+  $('lx').onclick=function(){$('ldlg').close()};
+  $('lf').onsubmit=function(e){
+    e.preventDefault();
+    var em=$('le').value.trim(),pw=$('lp').value;if(!em||!pw)return;
+    idt('accounts:signInWithPassword',{email:em,password:pw,returnSecureToken:true}).then(function(j){
+      saveAuth(j);myRoles=null;$('lp').value='';$('ldlg').close();failed=false;lastOk=0;status();applyPerms();sync();toast('Connecté : '+auth.email);
+      loadRole().then(function(st){if(st==='none')toast("Ton e-mail n'est pas encore autorisé. Contacte l'administrateur.")});
+    }).catch(function(err){
+      var m=(err&&err.message)||'';
+      toast(/INVALID|EMAIL_NOT_FOUND|PASSWORD/.test(m)?'E-mail ou mot de passe incorrect. Première fois ? Appuie sur « Première fois : créer mon compte ».':/TOO_MANY/.test(m)?'Trop d\'essais, réessaie plus tard':'Connexion impossible (réseau ?)');
+    });
+  };
+  $('lc').onclick=function(){
+    var em=$('le').value.trim(),pw=$('lp').value;
+    if(!em){toast('Saisis ton e-mail');return}
+    if(pw.length<6){toast('Mot de passe : 6 caractères minimum.');return}
+    idt('accounts:signUp',{email:em,password:pw,returnSecureToken:true}).then(function(j){
+      saveAuth(j);myRoles=null;$('lp').value='';$('ldlg').close();failed=false;lastOk=0;status();applyPerms();sync();
+      toast('Compte créé.');
+      loadRole().then(function(st){
+        toast(st==='none'?"Compte créé, mais ton e-mail n'est pas encore autorisé. Contacte l'administrateur.":'Compte créé. Bienvenue !');
+      });
+    }).catch(function(err){
+      var m=(err&&err.message)||'';
+      toast(/EMAIL_EXISTS/.test(m)?'Ce compte existe déjà : appuie sur « Se connecter ».':/WEAK/.test(m)?'Mot de passe trop faible':/OPERATION_NOT_ALLOWED|ADMIN_ONLY/.test(m)?'Inscription désactivée':'Création impossible');
+    });
+  };
+  $('lr').onclick=function(){
+    var em=$('le').value.trim();if(!em){toast("Saisis d'abord ton e-mail");return}
+    idt('accounts:sendOobCode',{requestType:'PASSWORD_RESET',email:em}).then(function(){toast('E-mail de réinitialisation envoyé')}).catch(function(){toast('Envoi impossible')});
+  };
+  $('sx').onclick=function(){$('sdlg').close()};
+
+  function trashList(){
+    var d=items.filter(function(i){return i.del}).sort(function(a,b){return b.t-a.t}).slice(0,100);
+    $('trash').innerHTML=d.length?d.map(function(i){
+      return '<div class="snap"><div><b>'+esc(i.name||i.code)+'</b><small>'+esc(i.code)+'</small>'+
+        '<small>Modifié le '+dstr(i.t)+'</small></div>'+
+        '<button class="btn" data-u="'+esc(i.code)+'" type="button">Restaurer</button></div>';
+    }).join(''):'<p class="hint">La corbeille est vide.</p>';
+  }
+  $('trBtn').onclick=function(){trashList();$('tdlg').showModal()};
+  $('tx').onclick=function(){$('tdlg').close()};
+  $('trash').onclick=function(e){
+    var b=e.target.closest('button[data-u]');if(!b)return;
+    var k=idx(b.getAttribute('data-u'));if(k<0||!items[k].del)return;
+    if(needAuth('fiche'))return;
+    var o={};for(var f in items[k])o[f]=items[k][f];
+    delete o.del;delete o.d;delete o.db;o.name=o.name||o.code;o.qty=num(o.qty);o.loc=o.loc||'';o.note=o.note||'';
+    o.t=Date.now();o.by=op;items[k]=o;
+    markDirty(o.code);touch(o.code);
+    commit();trashList();toast('Pièce restaurée');
+  };
+  $('bakBtn').onclick=function(){snapList();$('bdlg').showModal()};
+  $('snaps').onclick=function(e){
+    var b=e.target.closest('button[data-r]');
+    if(b&&!needAuth('danger')){
+      var sn=snaps[+b.getAttribute('data-r')];
+      ask("Remplacer l'inventaire actuel par cette sauvegarde ("+sn.items.length+' références) ?','Remplacer',function(){
+        restore(sn.items.map(function(r){return Array.isArray(r)?{code:r[0],name:r[1],qty:r[2],loc:r[3],note:r[4]}:r}));$('bdlg').close();
+      });
+    }
+  };
+  $('bn').onclick=function(){snap('manuelle',function(){snapList();toast('Sauvegarde créée')})};
+  $('bj').onclick=function(){
+    stockAll().then(function(m){
+      var l=live().map(function(i){return{code:i.code,name:i.name,qty:stockFrom(m,i),loc:i.loc,note:i.note}});
+      download(JSON.stringify({app:'inventaire-pieces',version:3,exported:new Date().toISOString(),items:l},null,1),'application/json','sauvegarde-inventaire-'+day()+'.json');
+    });
+  };
+  $('bi').onchange=function(e){
+    var f=e.target.files[0];e.target.value='';if(!f)return;
+    if(needAuth('danger'))return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      try{
+        var d=JSON.parse(rd.result),l=d.items||d;if(!Array.isArray(l))throw 0;
+        ask(l.length+" références dans ce fichier. Remplacer l'inventaire actuel ?",'Remplacer',function(){restore(l);$('bdlg').close()});
+      }catch(x){toast('Fichier de sauvegarde invalide')}
+    };
+    rd.readAsText(f);
+  };
+  $('bx').onclick=function(){$('bdlg').close()};
+
+  /* Boîte de confirmation de l'app */
+  var cfCb=null;
+  function ask(msg,label,cb){$('cfm').textContent=msg;$('cfo').textContent=label||'Confirmer';cfCb=cb;$('cfdlg').showModal()}
+  /* confirmation « forte » : il faut taper la valeur demandée pour activer le bouton */
+  var tcCb=null;
+  function cfCodes(){
+    var d=new Date(),o=[],i,t;
+    for(i=0;i<3;i++){
+      t=new Date(d.getTime()-i*6e4);
+      o.push(('0'+t.getHours()).slice(-2)+('0'+t.getMinutes()).slice(-2)+('0'+t.getDate()).slice(-2));
+    }
+    return o;
+  }
+  function askTyped(title,msg,cb){
+    $('tct').textContent=title;$('tcm').textContent=msg;$('tcl').textContent='Code de confirmation';$('tci').value='';
+    tcCb=cb;$('tcdlg').showModal();setTimeout(function(){$('tci').focus()},50);
+  }
+  $('tci').onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();$('tco').click()}};
+  $('tcn').onclick=function(){tcCb=null;$('tcdlg').close()};
+  $('tco').onclick=function(){if(cfCodes().indexOf($('tci').value.trim())<0){toast('Code incorrect');$('tci').select();return}var f=tcCb;tcCb=null;$('tcdlg').close();if(f)f()};
+  $('cfn').onclick=function(){cfCb=null;$('cfdlg').close()};
+  $('cfo').onclick=function(){var f=cfCb;cfCb=null;$('cfdlg').close();if(f)f()};
+
+  /* Écran Utilisateurs (admin) : gestion de /allowed (nom + rôles) */
+  var ROLES=['superadmin','admin','securityofficer','superuser','operateur','lecteur'];
+  function iAmAdmin(){return !!(myRoles&&(myRoles.indexOf('admin')>-1||myRoles.indexOf('superadmin')>-1))}
+  function dbUrl(){return ((HARD?CONFIG.url:(cfg&&cfg.url))||'').replace(/\/+$/,'')}
+  function fb(m,path,b){
+    return token().then(function(tok){
+      return fetch(dbUrl()+path+'.json?auth='+encodeURIComponent(tok),{method:m,body:b!==undefined?JSON.stringify(b):undefined}).then(function(r){
+        if(!r.ok)throw new Error(r.status);return r.json();
+      });
+    });
+  }
+  function ukey(e){return e.trim().toLowerCase().replace(/\./g,',')}
+  /* lock = on ne peut pas se retirer admin ; all = ligne entière verrouillée ; seul un admin peut accorder ou retirer admin */
+  function roleBoxes(sel,lock,all){
+    return ROLES.map(function(r){
+      var dis=all||(lock&&r==='admin'&&sel.indexOf(r)>-1)||((r==='admin'||r==='superadmin')&&!iAmAdmin());
+      return '<label style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 6px 0;font-weight:400"><input type="checkbox" value="'+r+'"'+(sel.indexOf(r)>-1?' checked':'')+(dis?' disabled':'')+' style="width:auto;min-height:0;margin:0"> '+(RLAB[r]||r)+'</label>';
+    }).join('');
+  }
+  function ustat(msg,k,bad){
+    $('ustat').textContent=(bad?'✗ ':'✓ ')+msg+(k?' — '+k.replace(/,/g,'.'):'')+' ('+new Date().toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+')';
+    toast(msg);
+  }
+  function checkedRoles(box){var o=[];box.querySelectorAll('input:checked').forEach(function(i){o.push(i.value)});return o}
+  var uData={},uOpen=null;
+  function uInfo(v){
+    return{name:(v&&typeof v==='object')?(v.name||''):String(v||''),
+      roles:(v&&typeof v==='object'&&v.roles)?String(v.roles).split(',').map(function(s){return s.trim().toLowerCase()}).filter(Boolean):[]};
+  }
+  function uRender(){
+    var me=auth?ukey(auth.email):'',q=$('us').value.trim().toLowerCase();
+    var rows=Object.keys(uData).map(function(k){var i=uInfo(uData[k]);return{k:k,name:i.name,roles:i.roles}})
+      .filter(function(x){return !q||[x.name,x.k.replace(/,/g,'.'),x.roles.map(function(r){return RLAB[r]||r}).join(' ')].join(' ').toLowerCase().indexOf(q)>-1})
+      .sort(function(a,b){return String(a.name||a.k).localeCompare(String(b.name||b.k),'fr')});
+    $('uc').textContent=rows.length+' personne'+(rows.length>1?'s':'')+(q?' trouvée'+(rows.length>1?'s':''):'');
+    $('ul').innerHTML=rows.length?rows.map(function(x){
+      return '<li data-u="'+esc(x.k)+'"><div class="info"><b>'+esc(x.name||x.k.replace(/,/g,'.'))+(x.k===me?' (toi)':'')+'</b><small>'+esc(x.k.replace(/,/g,'.'))+'</small></div>'+
+        '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:45%">'+(x.roles.length?x.roles.map(function(r){return '<span class="chip">'+esc(RLAB[r]||r)+'</span>'}).join(''):'<span class="chip">Aucun rôle</span>')+'</div></li>';
+    }).join(''):'<li class="empty">'+(q?'Aucune personne ne correspond.':'Aucune personne.')+'</li>';
+  }
+  function usersList(){
+    if(!dbUrl())return;
+    return fb('GET','/allowed').then(function(a){uData=a||{};uRender()})
+      .catch(function(){$('ul').innerHTML='<li class="empty">Chargement impossible (droits admin requis).</li>';$('uc').textContent=''});
+  }
+  /* fiche d'une personne (k) ou ajout (k vide) */
+  function uOpenDlg(k){
+    uOpen=k||null;
+    var me=auth?ukey(auth.email):'';
+    if(k){
+      var i=uInfo(uData[k]),self=(k===me),locked=(!iAmAdmin()&&(i.roles.indexOf('admin')>-1||i.roles.indexOf('superadmin')>-1));
+      $('udt').textContent=i.name||k.replace(/,/g,'.');
+      $('ude').value=k.replace(/,/g,'.');$('ude').readOnly=true;$('udn').value=i.name;$('udn').disabled=true;
+      $('udh').textContent=locked?'Réservé aux admins : tu ne peux pas modifier cette personne.':(self?'C\'est ton compte : tu ne peux pas te retirer ni retirer ton propre rôle Admin.':'');
+      $('udr').innerHTML=roleBoxes(i.roles,self,locked);
+      $('udv').textContent='Enregistrer';$('udv').style.display=locked?'none':'';$('udrm').style.display=(self||locked)?'none':'';
+    }else{
+      $('udt').textContent='Ajouter une personne';
+      $('ude').value='';$('ude').readOnly=false;$('udn').value='';$('udn').disabled=false;$('udh').textContent='';
+      $('udr').innerHTML=roleBoxes(['lecteur'],false);
+      $('udv').textContent='Ajouter';$('udv').style.display='';$('udrm').style.display='none';
+    }
+    $('uddlg').showModal();
+  }
+  function admInfo(){
+    var l=live(),b=dbUrl().replace('https://','').split('.')[0];
+    $('sysinfo').textContent='Version : '+VERSION+'\nEnvironnement : '+ENVN+'\nBase : '+(b||'—')+'\nInventaire : '+((HARD?CONFIG.room:(cfg&&cfg.room))||'—')+
+      '\nCompte : '+(auth?auth.email:'—')+'\nRôles : '+((myRoles&&myRoles.length)?myRoles.map(function(r){return RLAB[r]||r}).join(', '):'—')+
+      '\nPièces : '+l.length+'\nDernière synchro : '+(lastOk?dstr(lastOk):'—');
+  }
+  $('admBtn').onclick=function(){
+    admInfo();$('admdlg').showModal();
+    loadRole().then(function(){if($('admdlg').hasAttribute('open'))admInfo()});
+  };
+  $('admx').onclick=function(){$('admdlg').close()};
+
+  /* Remise à zéro de la copie locale (pièces et journal) ; les sauvegardes locales sont conservées */
+  function wipeLocal(){
+    items=[];ixOk=false;dirty=[];dset=null;touched={};stk={};lastT={};mpend=0;
+    sv(KD,dirty);cfg.since=0;cfg.full=0;cfg.mfull=0;cfg.msince=0;sv(KC,cfg);
+    try{localStorage.removeItem(KEY)}catch(e){}
+    if(!idbItems)return Promise.resolve();
+    return Promise.all([mtx('readwrite',function(st){st.clear()},'it'),mtx('readwrite',function(st){st.clear()},'mv')]);
+  }
+  /* Un SuperAdmin a vidé la base : le repère meta/purgeAt le dit aux autres appareils, qui vident leur copie */
+  function purgeCheck(){
+    return req('GET',null,'','meta/purgeAt').then(function(pa){
+      if(typeof pa!=='number')return;
+      var known=cfg.purge||cfg.since||0;
+      if(pa>known)return wipeLocal().then(function(){cfg.purge=pa;sv(KC,cfg);render();toast('Les données ont été réinitialisées par un SuperAdmin')});
+    });
+  }
+  function purgeAll(){
+    var t=Date.now();syncing=true;status();toast('Suppression en cours…');
+    req('DELETE',null,'','mouvements').then(function(){return req('DELETE')}).then(function(){return req('PUT',t,'','meta/purgeAt')})
+      .then(function(){cfg.purge=t;return wipeLocal()})
+      .then(function(){render();toast('Toutes les pièces et tout le journal ont été supprimés')})
+      .catch(function(e){toast('Suppression impossible ('+((e&&e.message)||e)+') : règles Firebase à jour ?')})
+      .then(function(){syncing=false;status()});
+  }
+  $('admPurge').onclick=function(){
+    if(needAuth('purge'))return;
+    mall().then(function(a){return a.length}).catch(function(){return 0}).then(function(nm){
+      var np=items.length,tot=np+nm;
+      ask('Supprimer DÉFINITIVEMENT sur le serveur toutes les pièces ('+fmt(np)+', corbeille comprise) et tout le journal ('+fmt(nm)+' lignes), pour tous les appareils ? Un fichier de sauvegarde des pièces va être téléchargé d\'abord. Cette opération ne peut pas être annulée.','Continuer',function(){
+        $('bj').click();
+        askTyped('Dernière confirmation',fmt(np)+' pièce(s) + '+fmt(nm)+' ligne(s) de journal = '+fmt(tot)+' élément(s) seront supprimés.',purgeAll);
+      });
+    });
+  };
+  $('admData').addEventListener('click',function(e){if(e.target.closest('button'))$('admdlg').close()});
+  $('imp').addEventListener('change',function(){$('admdlg').close()});
+
+  /* Envoi d'e-mail (test) via un service Google Apps Script : le script vérifie le jeton Firebase et le rôle admin */
+  var KM='inventaire_mailurl_v1',MAIL_TO='jean-pierre.gagliano@outlook.com';
+  var MAIL_URL='https://script.google.com/macros/s/AKfycbz9WXY1xkHPzxtnbBrAUccvcsCbutPH6PuXLlGMXhUXOxpKMe2IwWzsqP49uC0nNUbZ/exec';
+  $('mailUrl').value=ld(KM,'')||MAIL_URL;
+  $('mailUrl').onchange=function(){sv(KM,$('mailUrl').value.trim())};
+  $('admMail').onclick=function(){
+    var u=($('mailUrl').value||'').trim(),st=$('mailst'),hh=function(){return new Date().toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})};
+    if(!/^https:\/\/script\.google\.com\/macros\/s\/[^\s]+\/exec$/.test(u)){st.textContent="✗ Colle d'abord l'URL du service e-mail (elle se termine par /exec).";return}
+    sv(KM,u);st.textContent='Envoi en cours…';$('admMail').disabled=true;
+    token().then(function(tok){
+      return fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({
+        idToken:tok,to:MAIL_TO,subject:'Test e-mail - Inventaire pieces',
+        body:"Ceci est un e-mail de test envoyé depuis le Centre d'administration de l'application Inventaire (v"+VERSION+') le '+new Date().toLocaleString('fr-BE')+'.'
+      })});
+    }).then(function(r){return r.text().then(function(t){return{s:r.status,t:t}})}).then(function(x){
+      var j=null;try{j=JSON.parse(x.t)}catch(e){}
+      if(j&&j.ok)st.textContent='✓ E-mail envoyé à '+MAIL_TO+' ('+hh()+')';
+      else if(j)st.textContent='✗ Refusé : '+(j.error||'réponse inattendue');
+      else st.textContent='⚠ Réponse illisible du service (HTTP '+x.s+') : « '+x.t.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,160)+' » — vérifie ta boîte mail : la demande est peut-être partie.';
+    }).catch(function(e){
+      st.textContent='✗ Service non joignable ou refusé par le navigateur ('+((e&&e.message)||e)+')';
+    }).then(function(){$('admMail').disabled=false});
+  };
+
+  /* Historique d'une pièce : stock de départ puis chaque ligne du journal ; le stock après chaque mouvement */
+  var TL={entree:'Entrée',sortie:'Sortie',inventaire:'Inventaire',import:'Import',demande:'Demande',modification:'Modification',approbation:'Approbation',refus:'Refus',reception:'Réception',cloture:'Clôture'};
+  function mvLabel(d){return d>0?'Entrée +'+fmt(d):'Sortie −'+fmt(-d)}
+  /* libellés calculés à l'affichage : réception « partielle » ou « complète » (cumul reçu / quantité demandée), modification « ancienne → nouvelle » */
+  function recvLabels(all){
+    var q={},m={},cum={};
+    all.filter(function(r){return r.type==='demande'||r.type==='modification'||r.type==='reception'}).sort(function(a,b){return a.t-b.t}).forEach(function(r){
+      if(r.type==='demande')q[r.id]=Number(r.saisie)||0;
+      else if(r.type==='modification'){
+        var old=q[r.demande];q[r.demande]=Number(r.saisie)||0;
+        m[r.id]='Demande modifiée : '+(old===undefined?'?':fmt(old))+' → '+fmt(q[r.demande])+(r.note?' — '+r.note:'');
+      }else{
+        cum[r.demande]=r3((cum[r.demande]||0)+(Number(r.delta)||0));
+        m[r.id]=(q[r.demande]&&cum[r.demande]>=q[r.demande]?'Réception complète : ':'Réception partielle : ')+fmt(Number(r.delta)||0)+(q[r.demande]?' (cumul '+fmt(cum[r.demande])+' sur '+fmt(q[r.demande])+')':'');
+      }
+    });
+    return m;
+  }
+  function mvText(r,rl){
+    var sg=r.saisie!==undefined?r.saisie:r.compte,ec=(r.delta>0?'+':(r.delta<0?'−':''))+fmt(Math.abs(r.delta));
+    if(r.type==='inventaire')return 'Inventaire : compté '+fmt(Number(sg)||0)+' (écart '+ec+')';
+    if(r.type==='import')return 'Import : stock '+fmt(Number(sg)||0)+' (écart '+ec+')'+(r.note?' — '+r.note:'');
+    if(r.type==='demande')return 'Demande de '+fmt(Number(r.saisie)||0)+' pièce(s)'+(r.note?' : '+r.note:'');
+    if(r.type==='modification')return (rl&&rl[r.id])||('Demande modifiée : '+fmt(Number(r.saisie)||0));
+    if(r.type==='approbation')return 'Demande approuvée ('+fmt(Number(r.saisie)||0)+')'+(r.note?' — '+r.note:'');
+    if(r.type==='refus')return 'Demande refusée ('+fmt(Number(r.saisie)||0)+')'+(r.note?' — '+r.note:'');
+    if(r.type==='cloture')return 'Demande clôturée ('+fmt(Number(r.saisie)||0)+')';
+    if(r.type==='reception')return ((rl&&rl[r.id])||('Réception : '+fmt(Number(r.delta)||0)))+(r.note?' — '+r.note:'');
+    return mvLabel(r.delta)+(r.demande?' (réception d\'une demande)':'');
+  }
+  var STK_T={entree:1,sortie:1,inventaire:1,import:1,reception:1};
+  var bigNum='font:700 24px/1 "Barlow Condensed",Barlow,system-ui,sans-serif';
+  function openHistory(code){
+    var it=find(code)||items[idx(code)];if(!it)return;
+    $('hs').textContent=it.name+' · '+it.code;
+    $('hl').innerHTML='<p class="hint">Chargement…</p>';
+    if(!$('hdlg').open)$('hdlg').showModal();
+    refreshCode(code).then(function(){return mbycode(code)}).catch(function(){return []}).then(function(a){
+      a.sort(function(x,y){return x.t-y.t});
+      var rl=recvLabels(a),run=num(it.qty),rows=a.map(function(r){run=r3(run+(Number(r.delta)||0));return{r:r,after:run}}).reverse();
+      $('hl').innerHTML=rows.map(function(x){
+        return '<div class="snap"><div><b>'+esc(mvText(x.r,rl))+'</b><small>'+dstr(x.r.t)+' · '+esc(nm(x.r.by||''))+'</small></div>'+
+          (STK_T[x.r.type]||!x.r.type?'<div style=\''+bigNum+'\'>'+fmt(x.after)+'</div>':'<div class="hint">demande</div>')+'</div>';
+      }).join('')+'<div class="snap"><div><b>Stock de départ</b><small>reprise du stock initial</small></div><div style=\''+bigNum+'\'>'+fmt(num(it.qty))+'</div></div>';
+    });
+  }
+  $('kh').onclick=function(){var c=$('ke').dataset.c;$('kdlg').close();openHistory(c)};
+  $('hx').onclick=function(){$('hdlg').close()};
+
+  /* Journal complet (admin / SecurityOfficer) : filtres, pages de 50, export CSV */
+  var jrows=[],jshown=0,JPAGE=50,jrl={};
+  function jFilter(all){
+    var d1=$('jd1').value?new Date($('jd1').value+'T00:00:00').getTime():0,
+        d2=$('jd2').value?new Date($('jd2').value+'T23:59:59').getTime():Infinity,
+        p=$('jp').value.trim().toLowerCase(),u=$('ju').value.trim().toLowerCase(),t=$('jt').value;
+    return all.filter(function(r){
+      if(r.t<d1||r.t>d2)return false;
+      if(t&&r.type!==t)return false;
+      if(u&&String(r.by||'').toLowerCase().indexOf(u)<0)return false;
+      if(p){var it=items[idx(r.code)];if((r.code+' '+(it?it.name:'')).toLowerCase().indexOf(p)<0)return false}
+      return true;
+    }).sort(function(a,b){return b.t-a.t});
+  }
+  function jRender(){
+    $('jc').textContent=jrows.length+' mouvement'+(jrows.length>1?'s':'');
+    $('jl').innerHTML=jrows.slice(0,jshown).map(function(r){
+      var it=items[idx(r.code)];
+      return '<div class="snap"><div><b>'+esc(mvText(r,jrl))+'</b><small>'+esc(it?it.name:r.code)+' · '+esc(r.code)+'</small><small>'+dstr(r.t)+' · '+esc(nm(r.by||''))+'</small></div></div>';
+    }).join('')||'<p class="hint">Aucun mouvement.</p>';
+    $('jmore').style.display=jshown<jrows.length?'':'none';
+  }
+  function jLoad(){
+    mall().then(function(all){jrl=recvLabels(all);jrows=jFilter(all);jshown=Math.min(JPAGE,jrows.length);jRender()})
+      .catch(function(){$('jl').innerHTML='<p class="hint">Journal indisponible sur cet appareil.</p>'});
+  }
+  $('admJournal').onclick=function(){
+    ['jd1','jd2','jp','ju','jt'].forEach(function(id){$(id).value=''});
+    $('jdlg').showModal();jLoad();sync();
+  };
+  ['jd1','jd2','jp','ju'].forEach(function(id){$(id).oninput=jLoad});
+  $('jt').onchange=jLoad;
+  $('jmore').onclick=function(){jshown=Math.min(jshown+JPAGE,jrows.length);jRender()};
+  $('jx').onclick=function(){$('jdlg').close()};
+  $('jcsv').onclick=function(){
+    if(!jrows.length){toast('Rien à exporter');return}
+    var rows=[['Date','Heure','Code','Pièce','Type','Valeur saisie','Écart','Personne','Commentaire']].concat(jrows.map(function(r){
+      var it=items[idx(r.code)],d=new Date(r.t),sg=r.saisie!==undefined?r.saisie:r.compte;
+      return [d.toLocaleDateString('fr-BE'),d.toLocaleTimeString('fr-BE'),r.code,it?it.name:'',TL[r.type]||(r.delta>0?'Entrée':'Sortie'),sg===undefined?'':String(sg).replace('.',','),String(r.delta).replace('.',','),r.by||'',r.note||''];
+    }));
+    download('﻿'+rows.map(function(r){return r.map(csvQuote).join(';')}).join('\r\n'),'text/csv','journal-mouvements-'+day()+'.csv');
+    toast('Journal exporté');
+  };
+
+  /* ===== Inventaire (comptage) : ligne de type "inventaire" = quantité comptée (valeur saisie) et écart ===== */
+  var invCode=null;
+  $('ki').onclick=function(){
+    var c=$('ke').dataset.c,it=c?find(c):null;if(!it)return;
+    if(needAuth('stock'))return;
+    invCode=c;$('kdlg').close();
+    $('in').textContent=it.name+' · '+it.code;$('ia').textContent='Calcul du stock attendu…';$('ic').value='';
+    $('idlg').showModal();
+    stockOf(c).then(function(v){$('ia').textContent='Stock attendu : '+fmt(v);$('ic').value=String(v).replace('.',',')});
+  };
+  $('ix').onclick=function(){$('idlg').close()};
+  $('iv').onclick=function(){
+    var raw=$('ic').value.trim(),code=invCode;
+    if(code==null)return;
+    if(raw===''){toast('Saisis la quantité comptée');return}
+    if(needAuth('stock'))return;
+    var counted=num(raw);
+    delete stk[code];
+    stockOf(code).then(function(exp){
+      var d=r3(counted-exp);
+      return addMv(code,d,{type:'inventaire',saisie:counted}).then(function(){
+        fillStocks();toast('Inventaire : compté '+fmt(counted)+' (attendu '+fmt(exp)+', écart '+(d>0?'+':(d<0?'−':''))+fmt(Math.abs(d))+')');
+      });
+    });
+    $('idlg').close();
+  };
+
+  /* ===== Demandes de pièces : En attente -> Approuvée / Refusée -> Partiellement reçue -> Reçue (ou Clôturée) ===== */
+  var RQL={attente:'En attente',refusee:'Refusée',approuvee:'Approuvée',partielle:'Partiellement reçue',recue:'Reçue',cloturee:'Clôturée'};
+  var OPEN={attente:1,approuvee:1,partielle:1};
+  function rqStatus(r,dec,clo,got){
+    if(!dec)return 'attente';
+    if(dec.statut==='refusee')return 'refusee';
+    if(clo)return 'cloturee';
+    if(got>=r.qty)return 'recue';
+    if(got>0)return 'partielle';
+    return 'approuvee';
+  }
+  /* Les demandes sont des lignes du journal : demande (id), modification, approbation|refus (id~d), clôture (id~c), réceptions (champ demande) */
+  function loadRq(){
+    return mall().then(function(a){
+      var dem=[],dm={},cm={},got={},md={},rcs={},lastR={},lastMv={};
+      a.forEach(function(m){
+        if(m.demande&&(!lastR[m.demande]||m.t>lastR[m.demande]))lastR[m.demande]=m.t;
+        if((m.type==='entree'||m.type==='sortie'||m.type==='inventaire'||m.type==='import')&&(!lastMv[m.code]||m.t>lastMv[m.code]))lastMv[m.code]=m.t;
+        if(m.type==='demande')dem.push(m);
+        else if(m.type==='approbation'||m.type==='refus')dm[m.demande]={statut:m.type==='refus'?'refusee':'approuvee',motif:m.note,by:m.by,t:m.t};
+        else if(m.type==='cloture')cm[m.demande]={by:m.by,t:m.t};
+        else if(m.type==='modification'){(md[m.demande]=md[m.demande]||[]).push(m)}
+        else if(m.type==='reception'){got[m.demande]=r3((got[m.demande]||0)+(Number(m.delta)||0));(rcs[m.demande]=rcs[m.demande]||[]).push(m)}
+      });
+      return dem.map(function(m){
+        var r={id:m.id,code:m.code,qty:Number(m.saisie)||0,note:m.note,by:m.by,t:m.t,mods:0},g=got[m.id]||0;
+        /* quantité et commentaire en vigueur = ceux de la modification la plus récente */
+        var ml=(md[m.id]||[]).sort(function(x,y){return x.t-y.t});
+        if(ml.length){var lm=ml[ml.length-1];r.qty=Number(lm.saisie)||0;r.note=lm.note;r.mods=ml.length}
+        var lt=Math.max(m.t,lastR[m.id]||0);
+        /* over = un mouvement de stock (entrée, sortie, inventaire) a eu lieu sur la pièce après le dernier événement de la demande */
+        return{r:r,dec:dm[m.id],clo:cm[m.id],got:g,recs:(rcs[m.id]||[]).sort(function(p,q){return p.t-q.t}),st:rqStatus(r,dm[m.id],cm[m.id],g),over:(lastMv[m.code]||0)>lt};
+      }).sort(function(x,y){return y.r.t-x.r.t});
+    }).catch(function(){return []});
+  }
+  function me(){return String(op||'').toLowerCase()}
+  function rqRefresh(){
+    loadRq().then(function(L){
+      var n=(auth&&can('decide'))?L.filter(function(x){return OPEN[x.st]}).length:0;
+      $('rqBtn').textContent='Demandes'+(n?' ('+n+')':'');
+      rqL=L;
+      if($('rdlg').hasAttribute('open'))rqRender(L);
+      if($('rddlg').hasAttribute('open'))rqDetail();
+      var code=$('ke').dataset.c;if(code&&$('kdlg').hasAttribute('open'))kreq(L,code);
+      var open={};
+      L.forEach(function(x){if(OPEN[x.st]&&!open[x.r.code])open[x.r.code]=x});
+      var bs=document.querySelectorAll('#list [data-rb]');
+      for(var i=0;i<bs.length;i++){var o=open[bs[i].getAttribute('data-rb')];bs[i].textContent=o?'Demande '+(o.st==='attente'?'en attente':(o.st==='approuvee'?'approuvée':'partiellement reçue')):''}
+    });
+  }
+  /* modifiable tant qu'elle est En attente : par le demandeur, ou par Admin / SuperUser */
+  function canEditRq(x){return x.st==='attente'&&can('stock')&&(can('decide')||String(x.r.by).toLowerCase()===me())}
+  function kreq(L,code){
+    var x=L.filter(function(y){return y.r.code===code}).sort(function(a,b){return (OPEN[b.st]?1:0)-(OPEN[a.st]?1:0)})[0],o=L.filter(function(y){return y.r.code===code&&OPEN[y.st]})[0];
+    var ed=o&&canEditRq(o);$('krt').textContent=o?(ed?'Changer la demande':'Voir la demande'):'Demander';$('kr').dataset.open=o?o.r.id:'';$('kr').dataset.edit=ed?'1':'';
+    if(x&&!OPEN[x.st]&&x.over)x=null; /* demande terminée : le bandeau disparaît au premier mouvement suivant */
+    $('krs').textContent=x?'Demande de '+fmt(x.r.qty)+' pièce(s) : '+RQL[x.st]+((x.st==='partielle'||x.st==='recue')?' ('+fmt(x.got)+' reçues)':''):'';
+    if(x){
+      /* commentaire de la demande et motif de la décision, au-dessus des boutons */
+      var add=function(lab,t){if(!t)return;var e=document.createElement('small');e.textContent=lab+' : '+t;$('krs').appendChild(e)};
+      add('Commentaire',x.r.note);add('Motif',x.dec&&x.dec.motif);
+    }
+  }
+  function rqCard(x,mode){
+    var it=items[idx(x.r.code)],act='';
+    if(mode==='decide'){
+      act='<input class="rmot" placeholder="Motif (facultatif)" autocomplete="off" style="flex:1 1 100%;margin-top:6px"><div class="row" style="flex:1 1 100%"><button class="btn pri" data-ap="'+esc(x.r.id)+'" type="button">Approuver</button><button class="btn danger" data-rf="'+esc(x.r.id)+'" type="button">Refuser</button></div>';
+    }else if(mode==='receive'){
+      var rest=r3(x.r.qty-x.got);if(rest<0)rest=0;
+      act='<input class="rrec" inputmode="decimal" value="'+esc(String(rest).replace('.',','))+'" aria-label="Quantité reçue" style="flex:1 1 100%;margin-top:6px"><input class="rcom" placeholder="Commentaire (bon de livraison, date de livraison…)" autocomplete="off" style="flex:1 1 100%;margin-top:6px"><div class="row" style="flex:1 1 100%"><button class="btn pri" data-rc="'+esc(x.r.id)+'" type="button">Réceptionner</button><button class="btn" data-cl="'+esc(x.r.id)+'" type="button">Clôturer</button></div>';
+    }
+    if(canEditRq(x))act+='<div class="row" style="flex:1 1 100%"><button class="btn" data-ch="'+esc(x.r.id)+'" type="button">Changer la quantité</button></div>';
+    return '<div class="snap" data-id="'+esc(x.r.id)+'" style="flex-wrap:wrap"><div style="flex:1 1 100%"><b>'+esc(it?it.name:x.r.code)+'</b><small>'+esc(x.r.code)+'</small>'+
+      '<small>Demande de '+fmt(x.r.qty)+' pièce(s)'+(x.r.mods?' (modifiée)':'')+' · '+esc(nm(x.r.by))+' · '+dstr(x.r.t)+'</small>'+
+      '<small style="font-weight:600">'+RQL[x.st]+((x.st==='partielle'||x.st==='recue'||x.st==='cloturee')?' · '+fmt(x.got)+' reçues':'')+(x.dec?' · par '+esc(nm(x.dec.by)):'')+'</small>'+
+      (x.r.note?'<small>Commentaire : '+esc(x.r.note)+'</small>':'')+(x.dec&&x.dec.motif?'<small>Motif : '+esc(x.dec.motif)+'</small>':'')+
+      x.recs.map(function(m){return '<small>Réception +'+fmt(m.delta)+' · '+esc(nm(m.by))+' · '+dstr(m.t)+(m.note?' · « '+esc(m.note)+' »':'')+'</small>'}).join('')+'</div>'+act+'</div>';
+  }
+  /* Liste des demandes comme la liste des pièces : une ligne par demande, recherche, clic = écran de gestion */
+  var rqL=[],rqOpen=null,RQ_LIMIT=20;
+  function rqMode(x){
+    if(x.st==='attente'&&can('decide'))return 'decide';
+    if((x.st==='approuvee'||x.st==='partielle')&&can('receive'))return 'receive';
+    return '';
+  }
+  function rqRender(L){
+    rqL=L;
+    var appr=can('decide'),mine=appr?L:L.filter(function(x){return String(x.r.by).toLowerCase()===me()}),
+        q=$('rs').value.trim().toLowerCase(),order={attente:0,approuvee:1,partielle:1,recue:2,refusee:2,cloturee:2};
+    var list=mine.filter(function(x){
+      if(!q)return true;
+      var it=items[idx(x.r.code)];
+      return [it?it.name:'',x.r.code,nm(x.r.by),x.r.note||'',RQL[x.st],(x.dec&&x.dec.motif)||''].join(' ').toLowerCase().indexOf(q)>-1;
+    }).sort(function(a,b){return (order[a.st]-order[b.st])||(b.r.t-a.r.t)});
+    $('rc').textContent=list.length+' demande'+(list.length>1?'s':'')+(q?' trouvée'+(list.length>1?'s':''):'');
+    $('rl').innerHTML=list.length?list.slice(0,RQ_LIMIT).map(function(x){
+      var it=items[idx(x.r.code)];
+      return '<li data-r="'+esc(x.r.id)+'"><div class="info"><b>'+esc(it?it.name:x.r.code)+'</b><small>'+esc(x.r.code)+'</small>'+
+        '<small>'+fmt(x.r.qty)+' pièce(s) demandée(s) · '+esc(nm(x.r.by))+' · '+dstr(x.r.t)+'</small>'+(x.r.note?'<small>Commentaire : '+esc(x.r.note)+'</small>':'')+'</div>'+
+        '<div><span class="chip '+x.st+'">'+RQL[x.st]+'</span></div></li>';
+    }).join('')+(list.length>RQ_LIMIT?'<li class="empty">'+(list.length-RQ_LIMIT)+' autres demandes : affine la recherche.</li>':''):'<li class="empty">'+(q?'Aucune demande ne correspond.':'Aucune demande.')+'</li>';
+  }
+  /* redessiné à chaque synchro : on ne touche à rien si rien n'a changé, sinon on garde ce que la personne est en train de saisir (motif, quantité reçue) */
+  function rqDetail(){
+    var x=rqL.filter(function(y){return y.r.id===rqOpen})[0],box=$('rdb'),html=x?rqCard(x,rqMode(x)):'<p class="hint">Demande introuvable.</p>';
+    if(box.dataset.k===rqOpen+'|'+html)return;
+    var keep={},act=document.activeElement,focus='';
+    ['rmot','rrec','rcom'].forEach(function(c){var e=box.querySelector('.'+c);if(e&&e.value!==e.defaultValue)keep[c]=e.value;if(e&&e===act)focus=c});
+    box.innerHTML=html;box.dataset.k=rqOpen+'|'+html;
+    Object.keys(keep).forEach(function(c){var e=box.querySelector('.'+c);if(e)e.value=keep[c]});
+    if(focus){var f=box.querySelector('.'+focus);if(f)f.focus()}
+  }
+  $('rqBtn').onclick=function(){$('rs').value='';$('rl').innerHTML='<li class="empty">Chargement…</li>';$('rdlg').showModal();sync();loadRq().then(rqRender)};
+  $('rs').oninput=function(){rqRender(rqL)};
+  $('rx').onclick=function(){$('rdlg').close()};
+  $('rdx').onclick=function(){$('rddlg').close()};
+  $('rl').onclick=function(e){
+    var li=e.target.closest('li[data-r]');if(!li)return;
+    rqOpen=li.getAttribute('data-r');$('rdb').dataset.k='';rqDetail();if(!$('rddlg').open)$('rddlg').showModal();
+  };
+  /* approbation / refus / clôture : une ligne du journal à identifiant fixe (id~d, id~c) = une seule décision possible */
+  function decide(x,type,motif){
+    var sfx=type==='cloture'?'~c':'~d';
+    return addMv(x.r.code,0,{type:type,id:x.r.id+sfx,demande:x.r.id,saisie:x.r.qty,note:motif}).then(function(ok){rqRefresh();return ok});
+  }
+  $('rdb').onclick=function(e){
+    var ap=e.target.closest('button[data-ap]'),rf=e.target.closest('button[data-rf]'),rc=e.target.closest('button[data-rc]'),cl=e.target.closest('button[data-cl]'),ch=e.target.closest('button[data-ch]');
+    var card=e.target.closest('[data-id]');if(!card)return;
+    var bt=ap||rf||rc||cl||ch;if(!bt)return;
+    var x=rqL.filter(function(y){return y.r.id===card.getAttribute('data-id')})[0];if(!x)return;
+    if(ch){openEdit(x);return}
+    if(ap||rf){
+      if(needAuth('decide'))return;
+      var mot=((card.querySelector('.rmot')||{}).value||'').trim();
+      decide(x,ap?'approbation':'refus',mot).then(function(ok){toast(ok===false?'Décision déjà enregistrée':(ap?'Demande approuvée':'Demande refusée'))});
+    }else if(rc){
+      if(needAuth('receive'))return;
+      var q=num((card.querySelector('.rrec')||{}).value);
+      if(!(q>0)){toast('Indique la quantité reçue');return}
+      addMv(x.r.code,q,{type:'reception',saisie:q,demande:x.r.id,note:((card.querySelector('.rcom')||{}).value||'').trim()}).then(function(){fillStocks();rqRefresh();toast('Réception enregistrée : +'+fmt(q))});
+    }else if(cl){
+      if(needAuth('decide'))return;
+      ask('Clôturer cette demande ? Le reste éventuel ne sera plus attendu.','Clôturer',function(){decide(x,'cloture','').then(function(){toast('Demande clôturée')})});
+    }
+  };
+  var rqCode=null,qEdit=null;
+  /* formulaire de demande : création, ou modification de la quantité d'une demande En attente */
+  function openEdit(x){
+    if(needAuth('stock'))return;
+    qEdit=x;rqCode=x.r.code;var it=find(x.r.code);
+    $('rddlg').close();$('kdlg').close();
+    $('qt').textContent='Modifier la demande';$('qv').textContent='Modifier la demande';
+    $('qn').textContent=(it?it.name:x.r.code)+' · '+x.r.code;$('qq').value=String(x.r.qty).replace('.',',');$('qc').value=x.r.note||'';
+    $('qdlg').showModal();
+  }
+  $('kr').onclick=function(){
+    var c=$('ke').dataset.c,it=c?find(c):null;if(!it)return;
+    var opn=$('kr').dataset.open;
+    if(opn){
+      loadRq().then(function(L){
+        rqL=L;var x=L.filter(function(y){return y.r.id===opn})[0];if(!x)return;
+        if($('kr').dataset.edit&&canEditRq(x)){openEdit(x);return}
+        rqOpen=opn;$('rdb').dataset.k='';$('kdlg').close();rqDetail();$('rddlg').showModal();
+      });
+      return;
+    }
+    if(needAuth('stock'))return;
+    qEdit=null;rqCode=c;$('kdlg').close();
+    $('qt').textContent='Demander des pièces';$('qv').textContent='Envoyer la demande';
+    $('qn').textContent=it.name+' · '+it.code;$('qq').value='';$('qc').value='';$('qdlg').showModal();
+  };
+  $('qx').onclick=function(){qEdit=null;$('qdlg').close()};
+  $('qv').onclick=function(){
+    var q=num($('qq').value),code=rqCode,note=$('qc').value.trim(),ed=qEdit;
+    if(!(q>0)){toast('Indique la quantité demandée');return}
+    if(needAuth('stock'))return;
+    $('qdlg').close();qEdit=null;
+    loadRq().then(function(L){
+      if(ed){
+        var x=L.filter(function(y){return y.r.id===ed.r.id})[0];
+        if(!x||!canEditRq(x)){toast('Demande déjà traitée : modification impossible');rqRefresh();return}
+        if(q===x.r.qty&&note===(x.r.note||'')){toast('Aucun changement');return}
+        return addMv(x.r.code,0,{type:'modification',demande:x.r.id,saisie:q,note:note}).then(function(ok){if(ok){rqRefresh();toast('Demande modifiée : '+fmt(x.r.qty)+' → '+fmt(q))}});
+      }
+      if(L.some(function(y){return y.r.code===code&&OPEN[y.st]})){toast('Une demande est déjà en cours pour cette pièce');rqRefresh();return}
+      return addMv(code,0,{type:'demande',saisie:q,note:note}).then(function(ok){if(ok){rqRefresh();toast('Demande envoyée')}});
+    });
+  };
+  $('admUsers').onclick=function(){$('us').value='';$('ul').innerHTML='<li class="empty">Chargement…</li>';usersList();$('udlg').showModal()};
+  $('ux').onclick=function(){$('udlg').close()};
+  $('udx').onclick=function(){$('uddlg').close()};
+  $('us').oninput=uRender;
+  $('uadd').onclick=function(){uOpenDlg(null)};
+  $('ul').onclick=function(e){
+    var li=e.target.closest('li[data-u]');if(!li)return;
+    uOpenDlg(li.getAttribute('data-u'));
+  };
+  $('udv').onclick=function(){
+    var sel=checkedRoles($('udr')),roles=sel.join(','),name=$('udn').value.trim(),isNew=!uOpen,k,em;
+    if(isNew){
+      em=$('ude').value.trim();
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail invalide');return}
+      k=ukey(em);
+    }else{k=uOpen;em=k.replace(/,/g,'.')}
+    var was=isNew?false:uInfo(uData[k]).roles.indexOf('superadmin')>-1,now=sel.indexOf('superadmin')>-1;
+    var go=function(){
+      var body={name:isNew?(name||em.split('@')[0]):uInfo(uData[k]).name,roles:roles};
+      fb('PUT','/allowed/'+encodeURIComponent(k),body).then(function(){
+        ustat(isNew?'Personne ajoutée':'Enregistré',k);$('uddlg').close();usersList();
+        if(auth&&k===ukey(auth.email))loadRole();
+      }).catch(function(){ustat(isNew?'Ajout impossible (droits ?)':'Enregistrement impossible (droits ?)',k,true)});
+    };
+    if(was!==now)askTyped(now?'Donner le rôle SuperAdmin':'Retirer le rôle SuperAdmin',(now?'Un SuperAdmin peut supprimer toutes les pièces et tout le journal sur le serveur.\n':'')+'Personne concernée : '+em,go);
+    else go();
+  };
+  $('udrm').onclick=function(){
+    var kk=uOpen;if(!kk)return;
+    ask('Retirer '+kk.replace(/,/g,'.')+" ? Cette personne n'aura plus accès à l'inventaire.",'Retirer',function(){
+      fb('DELETE','/allowed/'+encodeURIComponent(kk)).then(function(){ustat('Personne retirée',kk);$('uddlg').close();usersList()}).catch(function(){ustat('Suppression impossible (droits ?)',kk,true)});
+    });
+  };
+
+  window.addEventListener('online',function(){status();sync()});
+  window.addEventListener('offline',status);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)sync()});
+  setInterval(function(){if(!document.hidden)sync()},15000);
+
+  $('ver').textContent='Version '+VERSION+(ISTEST?' ('+ENVN+')':'');$('hv').textContent='v'+VERSION+(ISTEST?' · '+ENVN:'');
+  mdirty().then(function(a){mpend=a.length;status()}).catch(function(){});
+  loadItems().then(function(){
+    if(!snaps.length||Date.now()-snaps[0].t>864e5)snap('auto');
+    applyPerms();status();sync();loadRole();
+    if(HARD&&!auth)setTimeout(openLogin,400);
+  });
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
+})();
+</script>
+</body>
+</html>

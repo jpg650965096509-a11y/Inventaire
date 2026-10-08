@@ -379,7 +379,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='3.4.1';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='3.4.2';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1045,6 +1045,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     note:['note','notes','commentaire','commentaires','remarque','remarques'],
     desc:['description','descriptif']
   };
+  function nlNorm(t){return String(t==null?'':t).replace(/\r\n?/g,'\n').trim()}
   var IMP_LAB={ref:'Référence',code:'Code-barres',name:'Nom',qty:'Quantité',loc:'Emplacement',note:'Note',desc:'Description'};
   function impMap(head){
     var nh=head.map(impNorm),map={},used={};
@@ -1088,7 +1089,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       if(!gr.ref&&ref)gr.ref=ref;
       if(!gr.code&&code)gr.code=code;
       var v=cell(r,'name');if(!gr.name&&v)gr.name=v;
-      v=cell(r,'desc');if(!gr.desc&&v)gr.desc=v;
+      v=cell(r,'desc');if(!gr.desc&&v)gr.desc=nlNorm(v); /* retours à la ligne unifiés : la fiche (zone de texte) les enregistre en LF */
       v=cell(r,'note');if(!gr.note&&v)gr.note=v;
       v=cell(r,'loc');if(v){if(!gr.loc)gr.loc=v;if(gr.locs.indexOf(v)<0)gr.locs.push(v)}
       if(pl.hasQty){
@@ -1127,7 +1128,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         if(gr.name&&gr.name!==item.name)o.fl.name=ct(item.name)+' → '+ct(gr.name);
         if(gr.loc&&gr.loc!==(item.loc||''))o.fl.loc=ct(item.loc||'(vide)')+' → '+ct(gr.loc);
         if(o.note&&o.note!==(item.note||''))o.fl.note=ct(item.note||'(vide)')+' → '+ct(o.note);
-        if(gr.desc&&gr.desc!==(item.desc||''))o.fl.desc='texte différent';
+        if(gr.desc&&gr.desc!==nlNorm(item.desc))o.fl.desc='texte différent';
         o.fiche=Object.keys(o.fl).length>0;
       }
       if(pl.hasQty){

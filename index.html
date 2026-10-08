@@ -56,6 +56,7 @@ label input,label select{margin-top:4px;font-weight:400}
 #krs{margin:10px 0 2px;padding:9px 12px;border:1px solid var(--acc);border-left-width:6px;border-radius:10px;background:#FFF3C4;color:#14213D;font-weight:700;text-align:center;white-space:pre-line}
 #krs small{display:block;font-weight:400;font-size:14px;overflow-wrap:anywhere}
 #krs:empty{display:none}
+#envbar{position:sticky;top:0;z-index:60;background:#F97316;color:#111;font:700 13px Barlow,system-ui,sans-serif;text-align:center;padding:4px 8px}
 select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;
   background:var(--bg);color:var(--ink);font:16px Barlow,system-ui,sans-serif}
 .row{display:flex;gap:8px;align-items:center}
@@ -342,11 +343,30 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
 <div id="toast" popover="manual" role="status" aria-live="polite"></div>
 
+<script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
-  var KEY='inventaire_pieces_v1',KS='inventaire_snaps_v1',KC='inventaire_sync_v1',KD='inventaire_dirty_v1',KA='inventaire_auth_v1',VERSION='3.1.4';
-  var API_KEY='AIzaSyCOWaxk1eDY0eAcNirZcIsKyOadhUVsfQs';
+  /* Environnement (PROD / TEST) fourni par config.js : adresse de la base, espace de données, clé. Sans config, l'application ne démarre pas (jamais d'espace par défaut). */
+  var ENV=window.APP_ENV;
+  if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
+  /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
+  var SFX='_'+ENV.room;
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='3.2.0';
+  var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
+  var API_KEY=ENV.apiKey;
+  if(ENV.title){
+    document.title=ENV.title;
+    var am=document.querySelector('meta[name="apple-mobile-web-app-title"]');if(am)am.setAttribute('content',ENV.title);
+  }
+  if(ISTEST){
+    var eb=document.createElement('div');eb.id='envbar';eb.textContent='ENVIRONNEMENT DE '+ENVN+' — les données ne sont pas réelles';
+    document.body.insertBefore(eb,document.body.firstChild);
+    var tc=document.querySelector('meta[name="theme-color"]');if(tc)tc.setAttribute('content','#F97316');
+  }
+  /* anciennes versions : données non séparées par espace, nettoyées une fois */
+  ['inventaire_pieces_v1','inventaire_snaps_v1','inventaire_sync_v1','inventaire_dirty_v1'].forEach(function(k){try{localStorage.removeItem(k)}catch(e){}});
+  try{indexedDB.deleteDatabase('inventaire_mvt')}catch(e){}
   var $=function(id){return document.getElementById(id)};
   function ld(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
   function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){toast('Stockage local plein ou indisponible')}}
@@ -358,7 +378,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   items.forEach(function(i){if(!i.t)i.t=Date.now()});
 
   /* Connexion fixe : renseigner room (code d'inventaire) APRES publication des règles Firebase. Vide = saisie manuelle. */
-  var CONFIG={url:'https://inventaire-pieces-c5bf0-default-rtdb.europe-west1.firebasedatabase.app',room:'6a5t0t363s5v3x'};
+  var CONFIG={url:ENV.url,room:ENV.room};
   var HARD=!!(CONFIG.url&&CONFIG.room);
   if(HARD&&(!cfg||String(cfg.url).replace(/\/+$/,'')!==CONFIG.url||cfg.room!==CONFIG.room)){
     cfg={url:CONFIG.url,room:CONFIG.room};sv(KC,cfg);
@@ -449,7 +469,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   var mdb=null,mpend=0,stk={},mreset=false,lastT={};
   var mready=new Promise(function(res){
     try{
-      var r=indexedDB.open('inventaire_mvt',4);
+      var r=indexedDB.open('inventaire_mvt'+SFX,4);
       r.onupgradeneeded=function(e){
         var d=r.result,s;
         if(!d.objectStoreNames.contains('mv')){s=d.createObjectStore('mv',{keyPath:'id'});s.createIndex('code','code');s.createIndex('d','d')}
@@ -875,7 +895,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('admDanger').style.display=(auth&&can('purge'))?'':'none';
     $('admh').textContent=can('admin')?'Réservé aux administrateurs et aux responsables de la sécurité pour la gestion ; les outils sur les pièces dépendent de ton rôle.':'Outils sur les pièces et les données, selon ton rôle.';
     $('rqBtn').style.display=(auth&&can('stock'))?'':'none';
-    $('hv').textContent='v'+VERSION+(auth&&myRoles&&myRoles.length?' · '+myRoles.map(rl).join('+'):'');
+    $('hv').textContent='v'+VERSION+(ISTEST?' · '+ENVN:'')+(auth&&myRoles&&myRoles.length?' · '+myRoles.map(rl).join('+'):'');
     render();
   }
   function loadRole(){
@@ -1333,7 +1353,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   }
   function admInfo(){
     var l=live(),b=dbUrl().replace('https://','').split('.')[0];
-    $('sysinfo').textContent='Version : '+VERSION+'\nBase : '+(b||'—')+'\nInventaire : '+((HARD?CONFIG.room:(cfg&&cfg.room))||'—')+
+    $('sysinfo').textContent='Version : '+VERSION+'\nEnvironnement : '+ENVN+'\nBase : '+(b||'—')+'\nInventaire : '+((HARD?CONFIG.room:(cfg&&cfg.room))||'—')+
       '\nCompte : '+(auth?auth.email:'—')+'\nRôles : '+((myRoles&&myRoles.length)?myRoles.map(function(r){return RLAB[r]||r}).join(', '):'—')+
       '\nPièces : '+l.length+'\nDernière synchro : '+(lastOk?dstr(lastOk):'—');
   }
@@ -1751,7 +1771,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   document.addEventListener('visibilitychange',function(){if(!document.hidden)sync()});
   setInterval(function(){if(!document.hidden)sync()},15000);
 
-  $('ver').textContent='Version '+VERSION;$('hv').textContent='v'+VERSION;
+  $('ver').textContent='Version '+VERSION+(ISTEST?' ('+ENVN+')':'');$('hv').textContent='v'+VERSION+(ISTEST?' · '+ENVN:'');
   mdirty().then(function(a){mpend=a.length;status()}).catch(function(){});
   loadItems().then(function(){
     if(!snaps.length||Date.now()-snaps[0].t>864e5)snap('auto');

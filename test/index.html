@@ -66,10 +66,10 @@ select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10p
 .opts{display:flex;gap:8px;margin-top:10px;align-items:flex-end}
 .opts .step{flex:0 0 110px}
 .opts label{margin:0}
-#list,#rl,#ul{list-style:none;margin:0;padding:0}
+#list,#rl,#ul,#uksl{list-style:none;margin:0;padding:0}
 .chip{display:inline-block;padding:4px 10px;border-radius:999px;font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap;background:#E7EAF1;color:#14213D}
 .chip.attente{background:#FFE08A}.chip.approuvee,.chip.partielle{background:#CFE3FF}.chip.recue{background:#CDEFD3}.chip.refusee{background:#F8CFCB}.chip.cloturee{background:#E0E0E0}
-#list li,#rl li,#ul li{display:flex;gap:10px;align-items:center;justify-content:space-between;
+#list li,#rl li,#ul li,#uksl li{display:flex;gap:10px;align-items:center;justify-content:space-between;
   background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
 .info{min-width:0;flex:1}
 .info b{display:block;font-size:17px;overflow-wrap:anywhere}
@@ -164,6 +164,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <form id="f">
     <h2 id="dt">Fiche pièce</h2>
     <label>Code-barres (actuel)<input id="fc" required autocomplete="off"></label>
+    <div class="row" style="margin:-4px 0 8px"><button type="button" class="btn" id="fscC">Scanner le code actuel</button><button type="button" class="btn" id="fscA">Scanner un autre code</button></div>
+    <div id="freader" style="display:none;margin-bottom:8px"></div>
+    <div class="row" id="fsrow" style="display:none;margin-top:0"><button type="button" class="btn" id="fscX">Arrêter le scan</button></div>
     <label>Autres codes-barres reconnus au scan (séparés par des virgules)<input id="fa" autocomplete="off"></label>
     <label>Référence<input id="fr" autocomplete="off"></label>
     <label>Nom<input id="fn" required autocomplete="off"></label>
@@ -218,6 +221,20 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:6px"><input type="checkbox" id="pvc" checked style="width:auto;min-height:0;margin:0"> Appliquer les changements de code-barres</label>
   <p class="hint" id="pvs" style="margin:8px 0 12px"></p>
   <div class="row"><button type="button" class="btn" id="pvn">Annuler</button><button type="button" class="btn pri" id="pvo">Importer</button></div>
+</dialog>
+
+<dialog id="ukdlg">
+  <h2>Code inconnu</h2>
+  <p id="ukc" style="font-weight:600;margin:0 0 10px;overflow-wrap:anywhere"></p>
+  <div id="ukm">
+    <div class="row"><button type="button" class="btn pri" id="ukn">Créer une nouvelle pièce</button></div>
+    <div class="row"><button type="button" class="btn" id="uke">Rattacher à une pièce existante</button></div>
+  </div>
+  <div id="uks" style="display:none">
+    <input id="uksq" type="search" placeholder="Nom, référence ou ancien code" aria-label="Rechercher la pièce" style="margin-bottom:8px">
+    <ul id="uksl" style="max-height:44vh;overflow:auto"></ul>
+  </div>
+  <div class="row"><button type="button" class="btn" id="ukx">Annuler</button></div>
 </dialog>
 
 <dialog id="tcdlg">
@@ -360,7 +377,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='3.3.0';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='3.3.1';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -840,7 +857,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var it=find(code);
     if(it)showStock(it);
     else if(!can('fiche'))toast('Pièce inconnue : '+code);
-    else{stopScan();openForm({code:code,qty:num($('step').value||1)})}
+    else{stopScan();unknownCode(code)}
   }
   function showStock(it){
     var s=can('stock');
@@ -1052,7 +1069,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   var SCI=/^[0-9]+([.,][0-9]+)?e[+-]?[0-9]+$/i;
   /* regroupe les lignes par référence (ou par code-barres), rapproche chaque pièce de l'existant et calcule ce qui changerait */
   function impAnalyse(tb,m,opt){
-    var pl={lines:0,skip:0,sci:0,badQty:0,noQty:0,plan:[],grouped:0,nNew:0,nUpd:0,nSame:0,nCode:0,nRef:0,nConf:0,up:0,down:0,codeEx:[],confEx:[],hasQty:tb.map.qty!==undefined,positional:tb.positional};
+    var pl={lines:0,skip:0,sci:0,badQty:0,noQty:0,plan:[],grouped:0,nNew:0,nUpd:0,nSame:0,nCode:0,nRef:0,nConf:0,up:0,down:0,codeEx:[],confEx:[],badKey:0,keyEx:[],hasQty:tb.map.qty!==undefined,positional:tb.positional};
     var g=Object.create(null),order=[];
     var cell=function(r,f){var k=tb.map[f];return k===undefined?'':String(r[k]==null?'':r[k]).trim()};
     tb.body.forEach(function(r){
@@ -1060,6 +1077,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       if(!ref&&!code){if(r.some(function(v){return String(v==null?'':v).trim()}))pl.skip++;return}
       pl.lines++;
       if(SCI.test(code)||SCI.test(ref))pl.sci++;
+      if(/^\d+$/.test(code)&&(code.length===8||code.length===12||code.length===13)&&!eanOk(code)){pl.badKey++;if(pl.keyEx.length<3)pl.keyEx.push(code)}
       var key=(tb.map.ref!==undefined&&ref)?'r:'+normRef(ref):'c:'+code;
       var gr=g[key];
       if(!gr){gr=g[key]={ref:'',code:'',name:'',desc:'',note:'',loc:'',locs:[],q:0,n:0,hasQ:false};order.push(key)}
@@ -1128,6 +1146,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       $('pvi').textContent=(tb.positional?'En-tête non reconnu : colonnes lues dans l\'ordre Code, Nom, Quantité, Emplacement, Note.\n':'Colonnes reconnues : '+rec.join(' · ')+'\n')+(ign.length?'Colonnes ignorées : '+ign.slice(0,30).join(', ')+(ign.length>30?' …':''):'');
       var W=[];
       if(pl.sci)W.push('⚠ '+pl.sci+' code(s) en notation scientifique (ex. 3,18E+18) : le fichier a été abîmé par Excel. Importe le fichier .xlsx d\'origine.');
+      if(pl.badKey)W.push('⚠ '+pl.badKey+' code(s)-barres à clé de contrôle invalide (ex. '+pl.keyEx.join(', ')+') : à vérifier, l\'import reste possible');
       if(pl.badQty)W.push('⚠ '+pl.badQty+' quantité(s) illisible(s) ignorée(s)');
       if(pl.hasQty&&pl.noQty)W.push(pl.noQty+' ligne(s) sans quantité (comptées pour 0)');
       if(!pl.hasQty)W.push('Aucune colonne de quantité : le stock n\'est pas modifié.');
@@ -1251,6 +1270,76 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       addMvMany(mvs).then(function(){fillStocks();toast('Import : '+pl.nNew+' ajoutée(s), '+pl.nUpd+' mise(s) à jour, '+pl.nSame+' inchangée(s)'+(pl.nConf?', '+pl.nConf+' conflit(s) non importé(s)':''))});
     });
   };
+  /* ===== Code scanné inconnu : créer une pièce, ou le rattacher à une pièce existante (sans rien retaper) ===== */
+  var ukCode=null;
+  function unknownCode(code){
+    ukCode=code;$('ukc').textContent=code;
+    $('ukm').style.display='';$('uks').style.display='none';$('uksq').value='';
+    $('ukdlg').showModal();
+  }
+  function ukList(){
+    var q=$('uksq').value.trim().toLowerCase();
+    var l=live().filter(function(i){return !q||[i.code,i.cur||'',(i.alts||[]).join(' '),i.ref||'',i.name,i.loc,i.note].join(' ').toLowerCase().indexOf(q)>-1})
+      .sort(function(a,b){return String(a.name).localeCompare(String(b.name),'fr')});
+    $('uksl').innerHTML=l.length?l.slice(0,8).map(function(i){
+      return '<li data-c="'+esc(i.code)+'"><div class="info"><b>'+esc(i.name)+'</b><small>'+esc(curOf(i))+(i.ref?' · '+esc(i.ref):'')+'</small></div></li>';
+    }).join('')+(l.length>8?'<li class="empty">'+(l.length-8)+' autres : précise la recherche.</li>':''):'<li class="empty">Aucune pièce ne correspond.</li>';
+  }
+  /* le code scanné devient le code actuel de la pièce ; l'ancien code actuel (et le code d'origine) restent reconnus */
+  function attachCode(it,code){
+    var c={};for(var f in it)c[f]=it[f];
+    var alts=(it.alts||[]).slice(),old=curOf(it);
+    if(old!==code&&alts.indexOf(old)<0)alts.push(old);
+    if(it.code!==code&&alts.indexOf(it.code)<0)alts.push(it.code);
+    alts=alts.filter(function(x){return x!==code});
+    c.cur=code===it.code?undefined:code;c.alts=alts.length?alts:undefined;
+    put(c);commit();
+  }
+  $('ukn').onclick=function(){var c=ukCode;$('ukdlg').close();openForm({code:c,qty:num($('step').value||1)})};
+  $('uke').onclick=function(){$('ukm').style.display='none';$('uks').style.display='';ukList();setTimeout(function(){$('uksq').focus()},50)};
+  $('uksq').oninput=ukList;
+  $('uksl').onclick=function(e){
+    var li=e.target.closest('li[data-c]');if(!li)return;
+    var it=find(li.getAttribute('data-c'));if(!it)return;
+    var code=ukCode;
+    ask('Le code '+code+' devient le code actuel de « '+it.name+' ». L\'ancien code ('+curOf(it)+') reste reconnu au scan.','Rattacher',function(){
+      if(find(code)){toast('Ce code est déjà utilisé');return}
+      attachCode(it,code);$('ukdlg').close();toast('Code rattaché à « '+it.name+' »');showStock(find(it.code));
+    });
+  };
+  $('ukx').onclick=function(){$('ukdlg').close()};
+
+  /* ===== Scan d'un code directement dans un champ de la fiche (évite de le retaper) ===== */
+  var fscan=null,fcand='',fcandN=0;
+  function fieldScanStop(){
+    var s=fscan;fscan=null;fcand='';fcandN=0;
+    $('freader').style.display='none';$('fsrow').style.display='none';
+    if(s)s.stop().then(function(){s.clear()}).catch(function(){try{s.clear()}catch(e){}});
+  }
+  function fieldScan(target){
+    if(!window.Html5Qrcode){toast('Scanner indisponible : bibliothèque non chargée');return}
+    if(fscan)return;
+    var F=window.Html5QrcodeSupportedFormats||{};
+    var fmts=['EAN_13','EAN_8','UPC_A','UPC_E','CODE_128','CODE_39','CODE_93','ITF','CODABAR','RSS_14'].map(function(n){return F[n]}).filter(function(v){return v!==undefined});
+    $('freader').style.display='';$('fsrow').style.display='';
+    var conf={verbose:false};if(fmts.length)conf.formatsToSupport=fmts;
+    fscan=new Html5Qrcode('freader',conf);
+    fscan.start({facingMode:'environment'},{fps:10,qrbox:{width:240,height:120}},function(text,res){
+      if(!fscan)return;
+      var fm=res&&res.result&&res.result.format&&res.result.format.formatName,ean=(fm==='EAN_13'||fm==='EAN_8'||fm==='UPC_A');
+      if(ean&&(!/^\d+$/.test(text)||!eanOk(text)))return; /* lecture douteuse : on continue */
+      if(!ean){if(text!==fcand){fcand=text;fcandN=1;return}fcandN++;if(fcandN<2)return}
+      fieldScanStop();
+      var el=$(target);
+      el.value=(target==='fa'&&el.value.trim())?el.value.trim().replace(/[,;\s]+$/,'')+', '+text:text;
+      toast('Code lu : '+text);
+    },function(){}).catch(function(err){toast('Erreur caméra : '+err);fieldScanStop()});
+  }
+  $('fscC').onclick=function(){fieldScan('fc')};
+  $('fscA').onclick=function(){fieldScan('fa')};
+  $('fscX').onclick=fieldScanStop;
+  $('dlg').addEventListener('close',fieldScanStop);
+
   /* Événements */
   $('scanBtn').onclick=function(){scanner?stopScan():startScan()};
   $('fl').checked=flash;
@@ -1360,8 +1449,14 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     };
     /* la référence n'est pas une clé : on prévient seulement si une autre pièce la porte déjà */
     var dup=ref?live().filter(function(x){return x.code!==ident&&normRef(x.ref)===normRef(ref)})[0]:null;
-    if(dup)ask('La référence « '+ref+' » existe déjà sur « '+dup.name+' ». Enregistrer quand même ?','Enregistrer',save);
-    else save();
+    var step2=function(){
+      if(dup)ask('La référence « '+ref+' » existe déjà sur « '+dup.name+' ». Enregistrer quand même ?','Enregistrer',save);
+      else save();
+    };
+    /* un code de 8, 12 ou 13 chiffres a une clé de contrôle : une clé fausse trahit presque toujours une faute de frappe (simple avertissement) */
+    var bad=all.filter(function(c){return /^\d+$/.test(c)&&(c.length===8||c.length===12||c.length===13)&&!eanOk(c)});
+    if(bad.length)ask('Le code '+bad.join(', ')+' ressemble à un code EAN / UPC mais sa clé de contrôle est incorrecte (faute de frappe probable). Enregistrer quand même ?','Enregistrer quand même',step2);
+    else step2();
   };
 
   function openLogin(){$('le').value=auth?auth.email:($('le').value||'');$('lp').value='';if(!$('ldlg').open)$('ldlg').showModal()}

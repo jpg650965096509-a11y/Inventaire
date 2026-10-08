@@ -160,7 +160,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <div id="klg" style="margin:6px 0"></div>
   <p class="hint" id="km" style="margin:8px 0 0;white-space:pre-line"></p>
   <p id="krs"></p>
-  <div class="row"><button type="button" class="btn cancel" id="kx">Annuler</button><button type="button" class="btn pri" id="kv">Valider</button></div>
+  <div class="row" id="kact"><button type="button" class="btn cancel" id="kx">Annuler</button><button type="button" class="btn pri" id="kv">Valider</button></div>
   <details id="kdd" style="margin:8px 0;display:none"><summary style="cursor:pointer;color:var(--mute)">Description</summary><p id="kds" style="margin:6px 0 0;white-space:pre-line;color:var(--mute)"></p></details>
   <div class="kgrid">
     <button type="button" class="kb" id="ke" title="Modifier la fiche"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg><span>Modifier</span></button>
@@ -324,7 +324,13 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <dialog id="qdlg">
   <h2 id="qt">Demander des pièces</h2>
   <p class="hint" id="qn" style="margin:0 0 8px"></p>
-  <label>Quantité demandée<input id="qq" inputmode="decimal" autocomplete="off"></label>
+  <label>Quantité demandée
+    <div class="row" style="margin-top:4px;flex-wrap:nowrap">
+      <button type="button" class="btn" id="qm" aria-label="Retirer" style="flex:0 0 56px;font-size:22px">−</button>
+      <input id="qq" inputmode="decimal" autocomplete="off" style="margin-top:0;text-align:center;font-weight:600">
+      <button type="button" class="btn" id="qp" aria-label="Ajouter" style="flex:0 0 56px;font-size:22px">+</button>
+    </div>
+  </label>
   <label id="qlgw" style="display:none">Destination<select id="qlg"></select></label>
   <label>Commentaire (facultatif)<input id="qc" autocomplete="off"></label>
   <div class="row"><button type="button" class="btn cancel" id="qx">Annuler</button><button type="button" class="btn pri" id="qv">Envoyer la demande</button></div>
@@ -407,7 +413,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.1.2';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.1.3';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1025,7 +1031,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function showStock(it){
     var s=can('stock');
     ksel=null;kmulti=lgMulti(it);kls={};kCtl();kTot=null;$('kprod').style.display='none';
-    if(kmulti)$('kdlg').insertBefore($('klg'),$('kpl'));else $('kdlg').insertBefore($('klg'),$('km'));
+    if(kmulti){$('kdlg').insertBefore($('klg'),$('kl'));$('kdlg').insertBefore($('kact'),$('klg'))}
+    else{$('kdlg').insertBefore($('klg'),$('km'));$('kdlg').insertBefore($('kact'),$('kdd'))}
+    kzero=false;
     $('kg').style.display=can('fiche')?'':'none';
     $('ke').style.display=can('fiche')?'':'none';$('kx').textContent=s?'Annuler':'Fermer';
     $('kh').style.display=(auth&&can('hist'))?'':'none';
@@ -1780,19 +1788,24 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   };
 
   /* ===== Détail d'une pièce à plusieurs lignes : on choisit la ligne avant de modifier son stock ===== */
-  var ksel=null,kmulti=false,kls={};
+  var ksel=null,kmulti=false,kls={},kzero=false;
   function kCtl(){
     var s=can('stock'),on=s&&(!kmulti||!!ksel);
     $('kminus').style.display=on?'':'none';$('kplus').style.display=on?'':'none';$('kv').style.display=on?'':'none';
     $('kq').setAttribute('contenteditable',on?'true':'false');$('kq').setAttribute('aria-readonly',on?'false':'true');
   }
   function klgDraw(it){
-    var L=kmulti?linesOf(it):[];
+    var L=kmulti?linesOf(it):[],hid=0;
+    /* on cache les lignes à 0 (sauf la ligne choisie) dès qu'au moins une ligne a du stock */
+    var any=L.some(function(l){return kls[l.id]!==undefined&&kls[l.id]!==0});
+    if(any&&!kzero)L=L.filter(function(l){var s=kls[l.id];var show=s===undefined||s!==0||l.id===ksel;if(!show)hid++;return show});
     $('klg').innerHTML=L.map(function(l){
       return '<button type="button" class="lgb'+(l.id===ksel?' on':'')+'" data-l="'+esc(l.id)+'"><span>'+esc(lgLabel(l))+'</span><b>'+(kls[l.id]===undefined?'…':fmt(kls[l.id]))+'</b></button>';
-    }).join('');
+    }).join('')+(hid?'<button type="button" class="btn" data-z="1" style="width:100%;margin-top:4px">Afficher les '+hid+' ligne(s) à 0</button>':(kzero&&any?'<button type="button" class="btn" data-z="0" style="width:100%;margin-top:4px">Masquer les lignes à 0</button>':''));
   }
   $('klg').onclick=function(e){
+    var z=e.target.closest('button[data-z]');
+    if(z&&kmulti){kzero=z.getAttribute('data-z')==='1';klgDraw(find($('ke').dataset.c));return}
     var b=e.target.closest('button[data-l]');if(!b||!kmulti)return;
     var id=b.getAttribute('data-l'),it=find($('ke').dataset.c);
     if(!it||kls[id]===undefined)return;
@@ -2514,9 +2527,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     if(needAuth('stock'))return;
     qEdit=null;rqCode=c;$('kdlg').close();
     $('qt').textContent='Demander des pièces';$('qv').textContent='Envoyer la demande';
-    $('qn').textContent=it.name+' · '+it.code;$('qq').value='';$('qc').value='';qDest(it,null,false);$('qdlg').showModal();
+    $('qn').textContent=it.name+' · '+it.code;$('qq').value='';$('qc').value='';qDest(it,(kmulti&&ksel)||null,false);$('qdlg').showModal();
     stockOf(c).then(function(v){return loadRq().then(function(L){var k=lowCalc(it,v,L);if(rqCode===c&&!$('qq').value&&k.order>0)$('qq').value=String(k.order).replace('.',',')})});
   };
+  function qbump(d){var v=Math.max(0,r3(num($('qq').value)+d));$('qq').value=v?String(v).replace('.',','):''}
+  $('qm').onclick=function(){qbump(-1)};
+  $('qp').onclick=function(){qbump(1)};
   $('qx').onclick=function(){qEdit=null;$('qdlg').close()};
   $('qv').onclick=function(){
     var q=num($('qq').value),code=rqCode,note=$('qc').value.trim(),ed=qEdit,dest=$('qlgw').style.display==='none'?undefined:($('qlg').value||undefined);

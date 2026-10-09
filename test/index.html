@@ -534,7 +534,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.7.0';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.7.1';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1038,7 +1038,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       else if(m==='400')toast('Règles Firebase à mettre à jour (index sur s)');
       else if(m==='401'||m==='403')toast('Accès refusé : compte non autorisé');
       else if(m==='noauth')failed=false;
-    }).then(function(){syncing=false;status();if($('jdlg').hasAttribute('open'))jLoad();mailFlush(true);return !failed});
+    }).then(function(){syncing=false;status();if($('jdlg').hasAttribute('open'))jLoad();mailFlush(true);tryDeep();return !failed});
     return syncP;
   }
   function later(){clearTimeout(st);st=setTimeout(sync,1200)}
@@ -3123,12 +3123,35 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('veic').onchange=veiRead;$('veis').onchange=veiRead;
   setInterval(function(){if(!document.hidden&&!asleep)sync()},15000);
 
+  /* ===== Liens directs (dans les e-mails) : ?piece=<code> ouvre la fiche, ?demande=<identifiant> ouvre la demande ===== */
+  var deep=(function(){try{var q=new URLSearchParams(location.search),a=q.get('piece'),b=q.get('demande');return a?{k:'piece',v:a}:(b?{k:'demande',v:b}:null)}catch(e){return null}})();
+  function deepDone(){deep=null;try{history.replaceState(null,'',location.pathname)}catch(e){}}
+  function tryDeep(){
+    if(!deep)return;
+    if(!auth){if(!$('ldlg').open)openLogin();return}
+    var d=deep;
+    if(d.k==='piece'){
+      var it=find(d.v);
+      if(it){deepDone();showStock(it);return}
+      if(lastOk){deepDone();toast('Pièce introuvable : '+d.v)}
+      return;
+    }
+    if(!lastOk)return; /* on attend une première synchronisation pour que la demande soit connue */
+    deepDone();
+    loadRq().then(function(L){
+      var x=L.filter(function(y){return y.r.id===d.v})[0];
+      if(x){rqL=L;rqOpen=x.r.id;$('rdb').dataset.k='';rqDetail();if(!$('rddlg').open)$('rddlg').showModal()}
+      else toast('Demande introuvable');
+    });
+  }
+
   $('ver').textContent='Version '+VERSION+(ISTEST?' ('+ENVN+')':'');$('hv').textContent='v'+VERSION+(ISTEST?' · '+ENVN:'');
   mdirty().then(function(a){mpend=a.length;status()}).catch(function(){});
   loadItems().then(function(){
     if(!snaps.length||Date.now()-snaps[0].t>864e5)snap('auto');
     applyPerms();status();sync();loadRole();
     if(HARD&&!auth)setTimeout(openLogin,400);
+    tryDeep();
   });
   if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
 })();

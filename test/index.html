@@ -429,6 +429,13 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <div id="mrr" style="display:flex;gap:12px;flex-wrap:wrap"></div>
   <p class="hint" style="margin:8px 0 2px">Des personnes précises</p>
   <div id="mrp" style="max-height:26vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 8px"></div>
+  <p class="hint" style="margin:12px 0 2px;font-weight:700">Texte du message</p>
+  <label>Objet<input id="mrsj" autocomplete="off"></label>
+  <label>Message<textarea id="mrmsg" rows="9" style="font-family:inherit"></textarea></label>
+  <p class="hint" id="mrtags" style="margin:2px 0 6px"></p>
+  <p class="hint" style="margin:0 0 6px">Mise en forme : <b>**gras**</b> · *italique* · [texte](https://…) · « - » en début de ligne = puce · ligne vide = nouveau paragraphe. Une ligne dont une valeur est vide disparaît. Un bouton « Ouvrir … » est ajouté en bas.</p>
+  <div class="row"><button type="button" class="btn" id="mrpv">Aperçu</button><button type="button" class="btn" id="mrrs">Texte d'origine</button></div>
+  <div id="mrpvb" style="display:none;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:6px 0;background:#fff;color:#14213d"></div>
   <div class="row"><button type="button" class="btn cancel" id="mrx">Annuler</button><button type="button" class="btn pri" id="mrs">Enregistrer</button></div>
 </dialog>
 
@@ -534,7 +541,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.7.1';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.7.2';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -2641,7 +2648,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var row=e.target.closest('[data-ev]');if(!row||!e.target.hasAttribute('data-on'))return;
     var ev=row.getAttribute('data-ev'),r=mRules[ev]||{roles:[],people:[]};
     r.on=e.target.checked;mRules[ev]=r;
-    var o={on:r.on,req:!!r.req};if((r.roles||[]).length)o.roles=r.roles;if((r.people||[]).length)o.people=r.people;
+    var o={on:r.on,req:!!r.req};if((r.roles||[]).length)o.roles=r.roles;if((r.people||[]).length)o.people=r.people;if(r.subject)o.subject=r.subject;if(r.msg)o.msg=r.msg;
     mPut(ev,o).then(function(){$('mls').textContent='Enregistré.';mDraw()}).catch(function(){$('mls').textContent='⚠ Enregistrement impossible (droits Admin et règles v254 requis).'});
   };
   $('mlrec').onclick=function(){
@@ -2653,6 +2660,52 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('mls').textContent='Envoi du test…';
     mailCall({action:'test',room:cfg.room}).then(function(j){$('mls').textContent=j.ok?'✓ E-mail de test envoyé à ton adresse de connexion.':'✗ '+(j.error||'refusé')}).catch(function(){$('mls').textContent='✗ Service non joignable ou URL absente.'});
   };
+  /* modèles de messages : mêmes textes d'origine que dans le script d'envoi */
+  var DEF_TPL={
+    demande:{s:'[Inventaire{env}] Nouvelle demande : {piece} ({quantite})',m:'Bonjour {nom},\n\nNouvelle demande de pièces de **{demandeur}** :\n\n- **{piece}** ({code})\n- Quantité : **{quantite}**\n- Destination : {destination}\n- Commentaire : {commentaire}'},
+    decision:{s:'[Inventaire{env}] Demande {decision} : {piece}',m:'Bonjour {nom},\n\nTa demande a été **{decision}** par {decideur} :\n\n- **{piece}** ({code})\n- Quantité : {quantite}\n- Destination : {destination}\n- Motif : {motif}'},
+    reception:{s:'[Inventaire{env}] Réception enregistrée : {piece} ({recu})',m:'Bonjour {nom},\n\nUne réception a été enregistrée par {decideur} :\n\n- **{piece}** ({code})\n- Reçu : **{recu}** sur {quantite} demandées\n- Destination : {destination}\n- Commentaire : {commentaire}'},
+    cloture:{s:'[Inventaire{env}] Demande clôturée : {piece}',m:'Bonjour {nom},\n\nLa demande suivante a été clôturée par {decideur} :\n\n- **{piece}** ({code})\n- Quantité : {quantite}\n- Destination : {destination}'},
+    seuil:{s:'[Inventaire{env}] À commander : {piece}',m:'Bonjour {nom},\n\n**{piece}** ({code}) est passée sous son seuil de commande.\n\n- Stock : **{stock}**\n- Seuil : {seuil}'}
+  };
+  var TPL_TAGS={
+    demande:['nom','piece','code','quantite','demandeur','destination','commentaire','env'],
+    decision:['nom','piece','code','quantite','demandeur','decideur','decision','destination','motif','env'],
+    reception:['nom','piece','code','quantite','recu','demandeur','decideur','destination','commentaire','env'],
+    cloture:['nom','piece','code','quantite','demandeur','decideur','destination','env'],
+    seuil:['nom','piece','code','stock','seuil','env']
+  };
+  var TPL_EX={nom:'Marie',piece:'Biseptine',code:'3181224191257371953',quantite:'6',recu:'4',demandeur:'Paul',decideur:'Jean-Pierre',decision:'approuvée',destination:'Pharmacie · Armoire',motif:'OK pour la commande',commentaire:'urgent',stock:'4',seuil:'10',env:ISTEST?' TEST':''};
+  function tplFill(t,v,drop){
+    return String(t).replace(/\r/g,'').split('\n').map(function(line){
+      var d=false,l=line.replace(/\{([a-z_]+)\}/g,function(all,k){if(!v.hasOwnProperty(k))return all;if(String(v[k]).trim()===''){d=true;return ''}return String(v[k])});
+      return (drop&&d)?null:l;
+    }).filter(function(x){return x!==null}).join('\n');
+  }
+  function mdIn(s){
+    s=esc(s);
+    s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2">$1</a>');
+    s=s.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+    return s.replace(/(^|[^*])\*([^*\s][^*]*)\*/g,'$1<i>$2</i>');
+  }
+  function mdHtml(t){
+    var out=[];
+    String(t).replace(/\r/g,'').split(/\n{2,}/).forEach(function(b){
+      var ls=b.split('\n').filter(function(l){return l.trim()!==''});
+      if(!ls.length)return;
+      if(ls.every(function(l){return /^\s*- /.test(l)}))out.push('<ul style="margin:6px 0 6px 18px;padding:0">'+ls.map(function(l){return '<li>'+mdIn(l.replace(/^\s*- /,''))+'</li>'}).join('')+'</ul>');
+      else out.push('<p style="margin:8px 0">'+ls.map(mdIn).join('<br>')+'</p>');
+    });
+    return out.join('');
+  }
+  function mPreview(){
+    var ev=mEdit,v=TPL_EX;
+    $('mrpvb').style.display='';
+    $('mrpvb').innerHTML='<p style="margin:0 0 6px;color:#555"><b>Objet :</b> '+esc(tplFill($('mrsj').value,v,false))+'</p>'+mdHtml(tplFill($('mrmsg').value,v,true))+'<p><span style="background:#ffc300;color:#14213d;font-weight:700;padding:8px 14px;border-radius:8px;display:inline-block">'+(ev==='seuil'?'Ouvrir la pièce':'Ouvrir la demande')+'</span></p>';
+  }
+  $('mrpv').onclick=mPreview;
+  $('mrrs').onclick=function(){var d=DEF_TPL[mEdit];if(!d)return;$('mrsj').value=d.s;$('mrmsg').value=d.m;$('mrpvb').style.display='none'};
+
   /* éditeur d'une règle */
   function mOpenEd(ev){
     mEdit=ev;var r=mRules[ev]||{},lab=MAILEV.filter(function(e){return e[0]===ev})[0][1];
@@ -2660,6 +2713,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('mrh').textContent=ev==='seuil'?'Il n\'y a pas de demandeur pour cet événement.':'';
     $('mrqw').style.display=ev==='seuil'?'none':'';
     $('mrq').checked=!!r.req;
+    var dt=DEF_TPL[ev]||{s:'',m:''};$('mrsj').value=r.subject||dt.s;$('mrmsg').value=r.msg||dt.m;$('mrpvb').style.display='none';
+    $('mrtags').textContent='Mots disponibles : '+(TPL_TAGS[ev]||[]).map(function(k){return '{'+k+'}'}).join(' ');
     $('mrr').innerHTML=RLB.map(function(x){return '<label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" data-r="'+x[0]+'"'+((r.roles||[]).indexOf(x[0])>-1?' checked':'')+' style="width:auto;min-height:0;margin:0"> '+x[1]+'</label>'}).join('');
     var ks=Object.keys(mUsers).sort();
     $('mrp').innerHTML=ks.length?ks.map(function(k){var i=uInfo(mUsers[k]),em=k.replace(/,/g,'.');
@@ -2672,8 +2727,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var people=[].map.call(document.querySelectorAll('#mrp input:checked'),function(e){return e.getAttribute('data-p')});
     var o={on:!!(mRules[mEdit]&&mRules[mEdit].on)||roles.length>0||people.length>0||$('mrq').checked,req:$('mrq').checked&&mEdit!=='seuil'};
     if(roles.length)o.roles=roles;if(people.length)o.people=people;
+    var dt=DEF_TPL[mEdit]||{s:'',m:''},sj=$('mrsj').value.trim(),mg=$('mrmsg').value.replace(/\s+$/,'');
+    if(sj.length>200||mg.length>3000){toast('Texte trop long (objet 200 caractères, message 3000)');return}
+    if(sj&&sj!==dt.s)o.subject=sj;if(mg&&mg!==dt.m)o.msg=mg;
     mPut(mEdit,o).then(function(){
-      mRules[mEdit]={on:o.on,req:o.req,roles:roles,people:people};
+      mRules[mEdit]={on:o.on,req:o.req,roles:roles,people:people,subject:o.subject,msg:o.msg};
       $('mrdlg').close();mDraw();$('mls').textContent='Règle enregistrée.';
     }).catch(function(){toast('Enregistrement impossible (droits Admin et règles v254 requis)')});
   };

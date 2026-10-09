@@ -485,10 +485,13 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <label>Repère de départ<select id="rpsel"></select></label>
   <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="rpall" style="width:auto;min-height:0;margin:0"> Afficher aussi les lignes sans écart</label>
   <button type="button" class="btn pri" id="rp1" style="margin-top:6px;width:100%">Afficher les écarts</button>
-  <h3 style="margin:14px 0 4px;font-size:16px">Mouvements par motif (pertes, casse…)</h3>
+  <h3 style="margin:14px 0 4px;font-size:16px">Rapports sur une période</h3>
+  <label>Rapport<select id="rprp"><option value="motifs">Mouvements par motif (pertes, casse…)</option><option value="transferts">Transferts entre magasins</option><option value="demandes">Demandes et réceptions</option><option value="activite">Activité par personne</option></select></label>
   <div class="row" style="flex-wrap:nowrap"><label>Du<input type="date" id="rpd1"></label><label>Au<input type="date" id="rpd2"></label></div>
-  <label>Motif<select id="rpmo"></select></label>
-  <button type="button" class="btn pri" id="rp2" style="margin-top:6px;width:100%">Afficher les mouvements</button>
+  <label id="rpmow">Motif<select id="rpmo"></select></label>
+  <button type="button" class="btn pri" id="rp2" style="margin-top:6px;width:100%">Afficher le rapport</button>
+  <h3 style="margin:14px 0 4px;font-size:16px">Pièces à commander</h3>
+  <button type="button" class="btn pri" id="rpc" style="width:100%">Afficher les pièces à commander (état actuel)</button>
   <div id="rpo" style="margin-top:10px;max-height:40vh;overflow:auto"></div>
   <div class="row" id="rpb" style="display:none"><button type="button" class="btn" id="rpe">Export CSV</button><button type="button" class="btn" id="rpp">Imprimer / PDF</button></div>
   <div class="row"><button type="button" class="btn cancel" id="rpx">Fermer</button></div>
@@ -580,7 +583,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.9.0';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.9.2';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -2051,6 +2054,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       if(needAuth('stock'))return;
       var d=r3(kqty-kbase),code=it.code,shown=kqty,lg=kmulti?ksel:undefined;
       mtPend={code:code,d:d,shown:shown,lg:lg,multi:kmulti};
+      if(!kmulti){var P0=mtPend;mtPend=null;stockApply(P0,undefined);return}
       mtOpen(it);
       return;
     }
@@ -2072,13 +2076,18 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('mtdlg').close();
     if(m==='Transféré'){kqty=kbase;kdraw();trOpen(P.code);return}
     var note=('Motif : '+m+(pre?' — '+pre:'')).slice(0,480);
-    addMv(P.code,P.d,{saisie:P.shown,lg:P.lg,note:note}).then(function(){
+    stockApply(P,note);
+  };
+  /* enregistre le changement de stock (avec ou sans motif), puis alerte de seuil par e-mail si une sortie le franchit */
+  function stockApply(P,note){
+    var ex={saisie:P.shown,lg:P.lg};if(note)ex.note=note;
+    addMv(P.code,P.d,ex).then(function(){
       fillStocks();toast((P.d>0?'Entrée ':'Sortie ')+fmt(Math.abs(P.d))+' · stock : '+fmt(P.shown));
       if(P.d<0){var pit=find(P.code);stockOf(P.code).then(function(t){if(pit&&lowQ(pit,t)&&!lowQ(pit,r3(t-P.d)))mailQueue('seuil','',{code:P.code,stock:t})})}
       if(P.multi){var u=find(P.code);if(u&&$('kdlg').open)showStock(u)}
     });
     if(!P.multi)$('kdlg').close();
-  };
+  }
   $('mtx').onclick=function(){mtPend=null;$('mtdlg').close()};
   function fbump(d){
     var v=Math.max(0,num(num($('fq').value)+d*num($('step').value||1)));
@@ -2629,6 +2638,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
   /* ===== Rapports ===== */
   var rpRef=[],rpOut=null;
+  function p2(n){return (n<10?'0':'')+n}
+  function dfr(t){var d=new Date(t);return p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear()+' '+p2(d.getHours())+':'+p2(d.getMinutes())}
+  function dfi(s){return s?s.split('-').reverse().join('/'):''}
   var EXTK={import:'Import du système externe',maj:'Système externe mis à jour'};
   var RPMO=['Consommé / utilisé','Perdu / cassé','Transféré','Autre','Retrouvé','Retour','Réception hors demande','Réception','Inventaire','Import','Entrée','Sortie','Transfert'];
   function extPath(p){return '/inventaires/'+encodeURIComponent(cfg.room)+'/ext'+(p?'/'+p:'')}
@@ -2638,11 +2650,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     if(note)o.note=note;if(file)o.file=file;if(n!==undefined)o.n=n;
     return fb('PUT',extPath(id),o).then(function(){var x={id:id};for(var k in o)x[k]=o[k];rpRef.unshift(x);return o});
   }
-  function rpLine(x,lab){return x?lab+' : <b>'+esc(dstr(x.t))+'</b>'+(x.file?' ('+esc(x.file)+(x.n?', '+x.n+' pièces':'')+')':'')+' · '+esc(nm(x.by))+(x.note?' · « '+esc(x.note)+' »':''):lab+' : <b>aucun</b>'}
+  function rpLine(x,lab){return x?lab+' : <b>'+esc(dfr(x.t))+'</b>'+(x.file?' ('+esc(x.file)+(x.n?', '+x.n+' pièces':'')+')':'')+' · '+esc(nm(x.by))+(x.note?' · « '+esc(x.note)+' »':''):lab+' : <b>aucun</b>'}
   function rpDrawRef(){
     var imp=rpRef.filter(function(x){return x.kind==='import'})[0],maj=rpRef.filter(function(x){return x.kind==='maj'})[0];
     $('rpi').innerHTML=rpLine(imp,'Dernier import du système externe')+'<br>'+rpLine(maj,'Dernière mise à jour du système externe');
-    $('rpsel').innerHTML=rpRef.length?rpRef.map(function(x,i){return '<option value="'+esc(x.id)+'"'+(i===0?' selected':'')+'>'+esc(dstr(x.t))+' — '+esc(EXTK[x.kind]||x.kind)+(x.file?' ('+esc(x.file)+')':'')+'</option>'}).join(''):'<option value="">(aucun repère : marque d\'abord le système externe)</option>';
+    $('rpsel').innerHTML=rpRef.length?rpRef.map(function(x,i){return '<option value="'+esc(x.id)+'"'+(i===0?' selected':'')+'>'+esc(dfr(x.t))+' — '+esc(EXTK[x.kind]||x.kind)+(x.file?' ('+esc(x.file)+')':'')+'</option>'}).join(''):'<option value="">(aucun repère : marque d\'abord le système externe)</option>';
   }
   function mvMotif(m){
     var n=String(m.note||'');
@@ -2691,12 +2703,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         T.at+=r.at;T.ent+=r.ent;T.sor+=r.sor;T.aut+=r.aut;T.now+=r.now;T.ecart+=r.ecart;
         return '<tr><td><b>'+esc(r.it.name)+'</b><br><small>'+esc(curOf(r.it))+(r.multi?' · '+esc(lgLabel(r.l)):'')+'</small></td><td>'+fmt(r.at)+'</td><td>'+(r.ent?sgn(r.ent):'')+'</td><td>'+(r.sor?fmt(r.sor):'')+'</td><td>'+(r.aut?sgn(r.aut):'')+'</td><td>'+fmt(r.now)+'</td><td><b>'+(r.ecart?sgn(r.ecart):'0')+'</b></td><td><small>'+esc(motifTxt(r.mo))+'</small></td></tr>';
       }).join('');
-      var html='<p class="hint" style="margin:0 0 6px">Depuis le repère du <b>'+esc(dstr(ref.t))+'</b> ('+esc(EXTK[ref.kind]||ref.kind)+') · '+rows.length+' ligne(s)'+($('rpall').checked?'':' avec écart')+'</p>'+
+      var html='<p class="hint" style="margin:0 0 6px">Depuis le repère du <b>'+esc(dfr(ref.t))+'</b> ('+esc(EXTK[ref.kind]||ref.kind)+') · '+rows.length+' ligne(s)'+($('rpall').checked?'':' avec écart')+'</p>'+
         (rows.length?'<table class="rpt"><tr><th>Pièce / ligne</th><th>Au repère</th><th>Entrées</th><th>Sorties</th><th>Autres</th><th>Actuel</th><th>Écart</th><th>Motifs</th></tr>'+tr+'<tr><th>Total</th><th>'+fmt(T.at)+'</th><th>'+sgn(r3(T.ent))+'</th><th>'+fmt(r3(T.sor))+'</th><th>'+sgn(r3(T.aut))+'</th><th>'+fmt(r3(T.now))+'</th><th>'+sgn(r3(T.ecart))+'</th><th></th></tr></table>':'<p>Aucun écart depuis ce repère.</p>');
       var head=['Référence','Code-barres','Nom','Magasin','Emplacement','Conditionnement','Unité','Péremption','Lot','Quantité','Stock au repère','Entrées','Sorties','Autres','Écart','Motifs'];
       var f=function(x){return String(x).replace('.',',')};
       var csv=rows.map(function(r){return [r.it.ref||'',curOf(r.it),r.it.name,r.l.mg,r.l.em,r.l.cd,r.l.un,r.l.pe,r.l.lt,f(r.now),f(r.at),f(r.ent),f(r.sor),f(r.aut),f(r.ecart),motifTxt(r.mo)]});
-      rpShow({title:'Écarts depuis le repère du '+dstr(ref.t),html:html,head:head,rows:csv,file:'rapport-ecarts-'+day()+'.csv'});
+      rpShow({title:'Écarts depuis le repère du '+dfr(ref.t),html:html,head:head,rows:csv,file:'rapport-ecarts-'+day()+'.csv'});
     });
   }
   function rpMotifsShow(){
@@ -2710,33 +2722,109 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       });
       var S={};L.forEach(function(x){var s=S[x.mo]=S[x.mo]||{n:0,p:0,q:0};s.n++;if(x.d>0)s.p=r3(s.p+x.d);else s.q=r3(s.q+x.d)});
       var sum=Object.keys(S).sort().map(function(k){return '<tr><td>'+esc(k)+'</td><td>'+S[k].n+'</td><td>'+(S[k].p?sgn(S[k].p):'')+'</td><td>'+(S[k].q?fmt(S[k].q):'')+'</td></tr>'}).join('');
-      var det=L.slice(0,300).map(function(x){return '<tr><td>'+esc(dstr(x.m.t))+'</td><td><b>'+esc(x.it.name)+'</b><br><small>'+esc(curOf(x.it))+(x.multi?' · '+esc(lgLabel(x.l)):'')+'</small></td><td><b>'+sgn(x.d)+'</b></td><td>'+esc(x.mo)+(String(x.m.note||'').indexOf(' — ')>-1?'<br><small>'+esc(String(x.m.note).split(' — ').slice(1).join(' — '))+'</small>':'')+'</td><td>'+esc(nm(x.m.by||''))+'</td></tr>'}).join('');
-      var html='<p class="hint" style="margin:0 0 6px">'+L.length+' mouvement(s)'+(d1||d2?' du '+(d1||'…')+' au '+(d2||'…'):'')+(mo?' · motif « '+esc(mo)+' »':'')+'</p>'+
+      var det=L.slice(0,300).map(function(x){return '<tr><td>'+esc(dfr(x.m.t))+'</td><td><b>'+esc(x.it.name)+'</b><br><small>'+esc(curOf(x.it))+(x.multi?' · '+esc(lgLabel(x.l)):'')+'</small></td><td><b>'+sgn(x.d)+'</b></td><td>'+esc(x.mo)+(String(x.m.note||'').indexOf(' — ')>-1?'<br><small>'+esc(String(x.m.note).split(' — ').slice(1).join(' — '))+'</small>':'')+'</td><td>'+esc(nm(x.m.by||''))+'</td></tr>'}).join('');
+      var html='<p class="hint" style="margin:0 0 6px">'+L.length+' mouvement(s)'+(d1||d2?' du '+(dfi(d1)||'…')+' au '+(dfi(d2)||'…'):'')+(mo?' · motif « '+esc(mo)+' »':'')+'</p>'+
         (L.length?'<table class="rpt"><tr><th>Motif</th><th>Mouvements</th><th>Entrées</th><th>Sorties</th></tr>'+sum+'</table><p></p><table class="rpt"><tr><th>Date</th><th>Pièce / ligne</th><th>Variation</th><th>Motif</th><th>Par</th></tr>'+det+'</table>'+(L.length>300?'<p class="hint">Les 300 plus récents sont affichés ; l\'export contient tout.</p>':''):'<p>Aucun mouvement.</p>');
       var head=['Date','Pièce','Code','Ligne','Mouvement','Variation','Motif','Précision','Par'];
-      var csv=L.map(function(x){var n=String(x.m.note||'');return [dstr(x.m.t),x.it.name,curOf(x.it),x.multi?lgLabel(x.l):'',x.m.type,String(x.d).replace('.',','),x.mo,n.indexOf(' — ')>-1?n.split(' — ').slice(1).join(' — '):'',nm(x.m.by||'')]});
+      var csv=L.map(function(x){var n=String(x.m.note||'');return [dfr(x.m.t),x.it.name,curOf(x.it),x.multi?lgLabel(x.l):'',x.m.type,String(x.d).replace('.',','),x.mo,n.indexOf(' — ')>-1?n.split(' — ').slice(1).join(' — '):'',nm(x.m.by||'')]});
       rpShow({title:'Mouvements par motif',html:html,head:head,rows:csv,file:'rapport-motifs-'+day()+'.csv'});
     });
   }
+  function rpPeriod(){
+    var d1=$('rpd1').value,d2=$('rpd2').value;
+    return{d1:d1,d2:d2,t1:d1?new Date(d1+'T00:00:00').getTime():0,t2:d2?new Date(d2+'T23:59:59').getTime():Infinity,txt:(d1||d2)?'du '+(dfi(d1)||'…')+' au '+(dfi(d2)||'…'):'toute la période'};
+  }
+  function rpTable(head,rows,total){
+    return '<table class="rpt"><tr>'+head.map(function(h){return '<th>'+esc(h)+'</th>'}).join('')+'</tr>'+rows.map(function(rw){return '<tr>'+rw.map(function(c){return '<td>'+c+'</td>'}).join('')+'</tr>'}).join('')+(total?'<tr>'+total.map(function(c){return '<th>'+c+'</th>'}).join('')+'</tr>':'')+'</table>';
+  }
+  /* transferts : une ligne par sortie « Transfert vers … » du journal */
+  function rpTransferts(){
+    var P=rpPeriod();
+    mall().then(function(A){
+      var by={};live().forEach(function(it){by[it.code]=it});
+      var L=A.filter(function(m){return m.type==='sortie'&&String(m.note||'').indexOf('Transfert vers ')===0&&m.t>=P.t1&&m.t<=P.t2&&by[m.code]}).sort(function(a,b){return b.t-a.t});
+      var csv=[],rows=L.map(function(m){
+        var it=by[m.code],ls=linesOf(it),ln=ls.filter(function(l){return l.id===m.lg})[0]||ls[0],n=String(m.note),rest=n.slice('Transfert vers '.length).split(' — '),to=rest[0],com=rest.slice(1).join(' — '),q=-Number(m.delta);
+        csv.push([dfr(m.t),it.name,curOf(it),lgLabel(ln),to,String(q).replace('.',','),com,nm(m.by||'')]);
+        return[esc(dfr(m.t)),'<b>'+esc(it.name)+'</b><br><small>'+esc(curOf(it))+'</small>',esc(lgLabel(ln)),esc(to),'<b>'+fmt(q)+'</b>',esc(com),esc(nm(m.by||''))];
+      });
+      var html='<p class="hint" style="margin:0 0 6px">'+L.length+' transfert(s) '+P.txt+'</p>'+(L.length?rpTable(['Date','Pièce','De','Vers','Quantité','Commentaire','Par'],rows.slice(0,300)):'<p>Aucun transfert.</p>');
+      rpShow({title:'Transferts entre magasins '+P.txt,html:html,head:['Date','Pièce','Code','De','Vers','Quantité','Commentaire','Par'],rows:csv,file:'rapport-transferts-'+day()+'.csv'});
+    });
+  }
+  /* demandes de la période : statut, reçu, délais */
+  function rpDemandes(){
+    var P=rpPeriod();
+    loadRq().then(function(L){
+      var by={};live().forEach(function(it){by[it.code]=it});
+      var days=function(a,b){return fmt(Math.round((b-a)/864e5*10)/10)};
+      var X=L.filter(function(x){return x.r.t>=P.t1&&x.r.t<=P.t2}).sort(function(a,b){return b.r.t-a.r.t});
+      var csv=[],rows=X.map(function(x){
+        var it=by[x.r.code],name=it?it.name:x.r.code,rest=Math.max(0,r3(x.r.qty-x.got));
+        var dd=x.dec?days(x.r.t,x.dec.t):'',dr=(x.recs&&x.recs.length)?days(x.r.t,x.recs[x.recs.length-1].t):'';
+        csv.push([dfr(x.r.t),name,x.r.code,nm(x.r.by||''),String(x.r.qty).replace('.',','),RQL[x.st],String(x.got).replace('.',','),String(rest).replace('.',','),String(dd).replace('.',','),String(dr).replace('.',',')]);
+        return[esc(dfr(x.r.t)),'<b>'+esc(name)+'</b>',esc(nm(x.r.by||'')),fmt(x.r.qty),esc(RQL[x.st]),fmt(x.got),fmt(rest),esc(dd),esc(dr)];
+      });
+      var S={};X.forEach(function(x){S[RQL[x.st]]=(S[RQL[x.st]]||0)+1});
+      var html='<p class="hint" style="margin:0 0 6px">'+X.length+' demande(s) '+P.txt+' · '+Object.keys(S).map(function(k){return esc(k)+' : '+S[k]}).join(' · ')+'</p>'+(X.length?rpTable(['Date','Pièce','Demandeur','Demandé','Statut','Reçu','Reste','Décision (j)','Réception (j)'],rows.slice(0,300)):'<p>Aucune demande.</p>');
+      rpShow({title:'Demandes et réceptions '+P.txt,html:html,head:['Date','Pièce','Code','Demandeur','Demandé','Statut','Reçu','Reste','Délai décision (jours)','Délai dernière réception (jours)'],rows:csv,file:'rapport-demandes-'+day()+'.csv'});
+    });
+  }
+  /* activite : nombre de mouvements par personne et par type */
+  function rpActivite(){
+    var P=rpPeriod();
+    mall().then(function(A){
+      var S={},T=['entree','sortie','inventaire','demande','decision','reception','import'];
+      A.forEach(function(m){
+        if(!(m.t>=P.t1&&m.t<=P.t2))return;
+        var k=nm(m.by||'?'),s=S[k]=S[k]||{n:0,entree:0,sortie:0,inventaire:0,demande:0,decision:0,reception:0,import:0};
+        s.n++;var ty=(m.type==='approbation'||m.type==='refus')?'decision':m.type;if(s.hasOwnProperty(ty))s[ty]++;
+      });
+      var ks=Object.keys(S).sort(function(a,b){return S[b].n-S[a].n});
+      var rows=ks.map(function(k){var s=S[k];return[esc(k),'<b>'+s.n+'</b>',s.entree,s.sortie,s.inventaire,s.demande,s.decision,s.reception,s.import]});
+      var csv=ks.map(function(k){var s=S[k];return[k,s.n,s.entree,s.sortie,s.inventaire,s.demande,s.decision,s.reception,s.import]});
+      var tot=ks.reduce(function(a,k){return a+S[k].n},0);
+      var html='<p class="hint" style="margin:0 0 6px">'+tot+' mouvement(s) '+P.txt+' · '+ks.length+' personne(s)</p>'+(ks.length?rpTable(['Personne','Mouvements','Entrées','Sorties','Inventaires','Demandes','Décisions','Réceptions','Imports'],rows):'<p>Aucune activité.</p>');
+      rpShow({title:'Activité par personne '+P.txt,html:html,head:['Personne','Mouvements','Entrées','Sorties','Inventaires','Demandes','Décisions','Réceptions','Imports'],rows:csv,file:'rapport-activite-'+day()+'.csv'});
+    });
+  }
+  /* pieces a commander : etat actuel, en tenant compte des demandes en cours */
+  function rpACommander(){
+    Promise.all([stockAll(),loadRq()]).then(function(a){
+      var m=a[0],Lq=a[1],rows=[],csv=[];
+      var X=live().filter(function(i){return i.mn!==undefined&&i.mn!==null&&i.mn!==''&&lowQ(i,stockFrom(m,i))}).map(function(i){var st=stockFrom(m,i);return{it:i,st:st,k:lowCalc(i,st,Lq)}}).sort(function(x,y){return y.k.order-x.k.order||y.k.need-x.k.need});
+      X.forEach(function(x){
+        csv.push([x.it.ref||'',curOf(x.it),x.it.name,String(x.st).replace('.',','),String(x.it.mn).replace('.',','),String(x.k.need).replace('.',','),String(x.k.pend).replace('.',','),String(x.k.order).replace('.',',')]);
+        rows.push(['<b>'+esc(x.it.name)+'</b><br><small>'+esc(curOf(x.it))+'</small>',fmt(x.st),fmt(Number(x.it.mn)),fmt(x.k.need),x.k.pend?fmt(x.k.pend):'','<b>'+fmt(x.k.order)+'</b>']);
+      });
+      var html='<p class="hint" style="margin:0 0 6px">'+X.length+' pièce(s) sous leur seuil au '+esc(dfr(Date.now()))+'</p>'+(X.length?rpTable(['Pièce','Stock','Seuil','Manque','Déjà demandé','À commander'],rows):'<p>Aucune pièce à commander.</p>');
+      rpShow({title:'Pièces à commander',html:html,head:['Référence','Code-barres','Nom','Stock','Seuil','Manque','Déjà demandé','À commander'],rows:csv,file:'rapport-a-commander-'+day()+'.csv'});
+    });
+  }
+  $('rprp').onchange=function(){$('rpmow').style.display=$('rprp').value==='motifs'?'':'none'};
+  $('rpc').onclick=rpACommander;
+  $('rp2').onclick=function(){
+    var v=$('rprp').value;
+    if(v==='transferts')rpTransferts();else if(v==='demandes')rpDemandes();else if(v==='activite')rpActivite();else rpMotifsShow();
+  };
   $('rpBtn').onclick=function(){
     rpOut=null;$('rpo').innerHTML='';$('rpb').style.display='none';
     $('rpmaj').style.display=can('fiche')?'':'none';
     $('rpmo').innerHTML='<option value="">Tous les motifs</option>'+RPMO.map(function(m){return '<option>'+esc(m)+'</option>'}).join('');
     var t=new Date(),f=function(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)};
-    $('rpd2').value=f(t);t.setDate(t.getDate()-30);$('rpd1').value=f(t);
+    $('rpd2').value=f(t);t.setDate(t.getDate()-30);$('rpd1').value=f(t);$('rprp').value='motifs';$('rpmow').style.display='';
     $('rpdlg').showModal();extLoad().then(rpDrawRef);
   };
   $('rpx').onclick=function(){$('rpdlg').close()};
   $('rp1').onclick=rpEcartsShow;
-  $('rp2').onclick=rpMotifsShow;
-  $('rpmaj').onclick=function(){
+    $('rpmaj').onclick=function(){
     ask('Marquer le système externe comme à jour maintenant ? Les prochains rapports d\'écarts partiront de cet instant.','Marquer',function(){
       extAdd('maj','').then(function(){rpDrawRef();toast('Repère enregistré')}).catch(function(){toast('Enregistrement impossible (SuperUser ou Admin, règles v254)')});
     });
   };
   $('rphist').onclick=function(){
     rpOut=null;$('rpb').style.display='none';
-    $('rpo').innerHTML=rpRef.length?'<table class="rpt"><tr><th>Date</th><th>Type</th><th>Fichier</th><th>Par</th><th>Note</th></tr>'+rpRef.map(function(x){return '<tr><td>'+esc(dstr(x.t))+'</td><td>'+esc(EXTK[x.kind]||x.kind)+'</td><td>'+esc(x.file||'')+(x.n?' ('+x.n+')':'')+'</td><td>'+esc(nm(x.by))+'</td><td>'+esc(x.note||'')+'</td></tr>'}).join('')+'</table>':'<p>Aucun repère enregistré.</p>';
+    $('rpo').innerHTML=rpRef.length?'<table class="rpt"><tr><th>Date</th><th>Type</th><th>Fichier</th><th>Par</th><th>Note</th></tr>'+rpRef.map(function(x){return '<tr><td>'+esc(dfr(x.t))+'</td><td>'+esc(EXTK[x.kind]||x.kind)+'</td><td>'+esc(x.file||'')+(x.n?' ('+x.n+')':'')+'</td><td>'+esc(nm(x.by))+'</td><td>'+esc(x.note||'')+'</td></tr>'}).join('')+'</table>':'<p>Aucun repère enregistré.</p>';
   };
   $('rpe').onclick=function(){
     if(!rpOut)return;
@@ -2744,7 +2832,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   };
   $('rpp').onclick=function(){
     if(!rpOut)return;
-    $('rpprint').innerHTML='<h2 style="margin:0 0 4px">'+esc(rpOut.title)+'</h2><p style="margin:0 0 8px;font-size:12px">Édité le '+esc(dstr(Date.now()))+' par '+esc(nm(op||''))+(ISTEST?' · TEST':'')+'</p>'+rpOut.html;
+    $('rpprint').innerHTML='<h2 style="margin:0 0 4px">'+esc(rpOut.title)+'</h2><p style="margin:0 0 8px;font-size:12px">Édité le '+esc(dfr(Date.now()))+' par '+esc(nm(op||''))+(ISTEST?' · TEST':'')+'</p>'+rpOut.html;
     document.body.classList.add('rpprint');$('rpdlg').close();
     var back=function(){window.removeEventListener('afterprint',back);document.body.classList.remove('rpprint');$('rpprint').innerHTML='';if(!$('rpdlg').open)$('rpdlg').showModal()};
     window.addEventListener('afterprint',back);

@@ -438,7 +438,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.2.1';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.3.0';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1314,8 +1314,20 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   /* regroupe les lignes du fichier par pièce (référence ou code-barres) ; chaque ligne du fichier est une ligne de stock
      (magasin, emplacement, conditionnement, unité, péremption, lot) ; deux lignes identiques s'additionnent.
      LS = somme des mouvements par pièce et par ligne (lineStockAll). */
+  /* cle de controle EAN-13 d'un corps de 12 chiffres */
+  function eanCle(c){var s=0,i;for(i=0;i<c.length;i++)s+=Number(c.charAt(i))*(i%2===0?1:3);return String((10-s%10)%10)}
   function impAnalyse(tb,LS,opt){
-    var pl={lines:0,skip:0,sci:0,badQty:0,noQty:0,plan:[],nLines:0,nNew:0,nUpd:0,nSame:0,lNew:0,lUpd:0,lSame:0,nCode:0,nRef:0,nConf:0,up:0,down:0,codeEx:[],confEx:[],badKey:0,keyEx:[],why:{},whyEx:{},newMags:[],hasQty:tb.map.qty!==undefined,positional:tb.positional};
+    /* dernier numéro 220 déjà attribué (code actuel, code d'origine ou codes reconnus de toutes les pièces) */
+    var seq220=0;
+    items.forEach(function(it){[it.code,it.cur].concat(it.alts||[]).forEach(function(c){if(c&&/^220\d{10}$/.test(c)){var n=parseInt(c.slice(3,12),10);if(n>seq220)seq220=n}})});
+    var impGen=function(ref){
+      var pfx,corps,code;
+      if(/^\d{1,9}$/.test(ref)){pfx='210';corps=pfx+('000000000'+ref).slice(-9);code=corps+eanCle(corps);return{pfx:pfx,code:code,conflict:!!find(code)}}
+      pfx='220';
+      do{seq220++;corps=pfx+('000000000'+seq220).slice(-9);code=corps+eanCle(corps)}while(find(code));
+      return{pfx:pfx,code:code,conflict:false};
+    };
+    var pl={lines:0,skip:0,sci:0,badQty:0,noQty:0,plan:[],nLines:0,nNew:0,nUpd:0,nSame:0,lNew:0,lUpd:0,lSame:0,nCode:0,nRef:0,nConf:0,up:0,down:0,codeEx:[],confEx:[],badKey:0,keyEx:[],gen:{},genEx:[],why:{},whyEx:{},newMags:[],hasQty:tb.map.qty!==undefined,positional:tb.positional};
     var g=Object.create(null),order=[],canon={};
     magList().forEach(function(n){canon[magSlug(n)]=n});
     var cell=function(r,f){var k=tb.map[f];return k===undefined?'':String(r[k]==null?'':r[k]).trim()};
@@ -1363,6 +1375,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         pl.plan.push(o);return;
       }
       o.ident=item?item.code:(gr.code||gr.ref);
+      if(!item&&!gr.code&&gr.ref){
+        var gn=impGen(gr.ref);
+        if(gn.conflict){o.conflict=true;pl.nConf++;if(pl.confEx.length<3)pl.confEx.push(gr.ref+' (code '+gn.code+' déjà utilisé)');pl.plan.push(o);return}
+        o.ident=gn.code;o.gen=gn.pfx;pl.gen[gn.pfx]=(pl.gen[gn.pfx]||0)+1;
+        if(pl.genEx.length<3)pl.genEx.push(gr.ref+' → '+gn.code);
+      }
       var EL=item?linesOf(item):[],defId=EL.length?EL[0].id:LG0,used={},one=EL.length===1&&gr.lines.length===1;
       if(item){
         matched[item.code]=1;
@@ -1440,6 +1458,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       if(pl.nCode)L.push(pl.nCode+' code(s)-barres modifié(s) (l\'ancien reste reconnu) : '+pl.codeEx.join(' ; ')+(pl.nCode>pl.codeEx.length?' …':''));
       if(pl.nRef)L.push(pl.nRef+' référence(s) modifiée(s)');
       if(pl.nConf)L.push('✗ '+pl.nConf+' conflit(s) non importé(s) (la référence et le code-barres désignent deux pièces différentes) : '+pl.confEx.join(' ; '));
+      if(pl.gen['210']||pl.gen['220'])L.push('Codes-barres générés (champ vide) : '+(pl.gen['210']?pl.gen['210']+' en 210 (référence numérique)':'')+(pl.gen['210']&&pl.gen['220']?', ':'')+(pl.gen['220']?pl.gen['220']+' en 220 (numéro suivant)':'')+' · ex. '+pl.genEx.join(' ; '));
       if(pl.skip)L.push(pl.skip+' ligne(s) sans référence ni code-barres ignorée(s) (totaux, lignes vides…)');
       if(pl.newMags.length&&iAmAdmin())L.push(pl.newMags.length+' magasin(s) seront créé(s) : '+pl.newMags.slice(0,6).join(', ')+(pl.newMags.length>6?' …':''));
       $('pvm').textContent=L.join('\n');
@@ -1663,7 +1682,10 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       var el=$(target);
       el.value=(target==='fa'&&el.value.trim())?el.value.trim().replace(/[,;\s]+$/,'')+', '+text:text;
       toast('Code lu : '+text);
-    },function(){}).catch(function(err){toast('Erreur caméra : '+err);fieldScanStop()});
+    },function(){}).then(function(){
+      /* même choix de Flash que sur l'écran principal ; si la lampe n'existe pas, on le dit sans toucher au réglage */
+      if(flash&&fscan&&fscan.applyVideoConstraints)fscan.applyVideoConstraints({advanced:[{torch:true}]}).catch(function(){toast('Flash non disponible sur cet appareil')});
+    }).catch(function(err){toast('Erreur caméra : '+err);fieldScanStop()});
   }
   $('fscC').onclick=function(){fieldScan('fc')};
   $('fscA').onclick=function(){fieldScan('fa')};

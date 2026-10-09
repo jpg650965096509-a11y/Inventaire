@@ -432,8 +432,25 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p class="hint" style="margin:12px 0 2px;font-weight:700">Texte du message</p>
   <label>Objet<input id="mrsj" autocomplete="off"></label>
   <label>Message<textarea id="mrmsg" rows="9" style="font-family:inherit"></textarea></label>
-  <p class="hint" id="mrtags" style="margin:2px 0 6px"></p>
-  <p class="hint" style="margin:0 0 6px">Mise en forme : <b>**gras**</b> · *italique* · [texte](https://…) · « - » en début de ligne = puce · ligne vide = nouveau paragraphe. Une ligne dont une valeur est vide disparaît. Un bouton « Ouvrir … » est ajouté en bas.</p>
+  <p class="hint" id="mrtags" style="margin:2px 0 4px"></p>
+  <details style="margin:0 0 6px"><summary style="cursor:pointer;color:var(--mute)">Que signifient ces mots ?</summary>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:4px">
+      <tr><td><b>{nom}</b></td><td>le prénom du destinataire</td></tr>
+      <tr><td><b>{piece}</b> <b>{code}</b></td><td>le nom et le code de la pièce</td></tr>
+      <tr><td><b>{quantite}</b></td><td>la quantité demandée</td></tr>
+      <tr><td><b>{recu}</b></td><td>la quantité reçue</td></tr>
+      <tr><td><b>{demandeur}</b></td><td>la personne qui a demandé</td></tr>
+      <tr><td><b>{decideur}</b></td><td>la personne qui a décidé ou réceptionné</td></tr>
+      <tr><td><b>{decision}</b></td><td>« approuvée » ou « refusée »</td></tr>
+      <tr><td><b>{destination}</b></td><td>le magasin et l'emplacement d'arrivée</td></tr>
+      <tr><td><b>{motif}</b></td><td>le motif de la décision</td></tr>
+      <tr><td><b>{commentaire}</b></td><td>le commentaire de la demande ou de la réception</td></tr>
+      <tr><td><b>{stock}</b> <b>{seuil}</b></td><td>le stock et le seuil de la pièce</td></tr>
+      <tr><td><b>{env}</b></td><td>« TEST » dans l'environnement d'essai, rien en production</td></tr>
+      <tr><td><b>{lien}</b></td><td>l'adresse qui ouvre directement la demande ou la pièce</td></tr>
+    </table>
+  </details>
+  <p class="hint" style="margin:0 0 6px">Mise en forme : <b>**gras**</b> · *italique* · [texte](https://…) · « - » en début de ligne = puce · ligne vide = nouveau paragraphe. Une ligne dont une valeur est vide disparaît. Un bouton « Ouvrir … » est ajouté en bas, sauf si tu places toi-même <b>{lien}</b> dans le message, par exemple [Ouvrir la demande]({lien}).</p>
   <div class="row"><button type="button" class="btn" id="mrpv">Aperçu</button><button type="button" class="btn" id="mrrs">Texte d'origine</button></div>
   <div id="mrpvb" style="display:none;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:6px 0;background:#fff;color:#14213d"></div>
   <div class="row"><button type="button" class="btn cancel" id="mrx">Annuler</button><button type="button" class="btn pri" id="mrs">Enregistrer</button></div>
@@ -541,7 +558,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.7.2';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.8.0';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1803,7 +1820,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       var tb=impTable(rows);
       $('pvm').textContent='Synchronisation avant l\'analyse…';
       return Promise.race([sync().catch(function(){return false}),new Promise(function(ok){setTimeout(function(){ok(false)},10000)})]).then(function(ok){
-      impPlan={tb:tb,synced:!!ok,pl:null,src:/\.xlsx$/i.test((file&&file.name)||'')?'Import Excel':'Import CSV'};
+      impPlan={tb:tb,synced:!!ok,pl:null,fname:(file&&file.name)||'',src:/\.xlsx$/i.test((file&&file.name)||'')?'Import Excel':'Import CSV'};
       impPreview();
       });
     }).catch(function(e){$('pvm').textContent='✗ '+((e&&e.message)||e);$('pvo').disabled=true});
@@ -1815,7 +1832,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('pvn').onclick=function(){impPlan=null;$('pvdlg').close()};
   $('pvo').onclick=function(){
     if(!impPlan||!impPlan.pl)return;
-    var pl=impPlan.pl,src=impPlan.src;impPlan=null;$('pvdlg').close();
+    var pl=impPlan.pl,src=impPlan.src,fname=impPlan.fname||'';impPlan=null;$('pvdlg').close();
     snap('avant import',function(){
       var mvs=[];
       if(pl.newMags.length&&iAmAdmin())pl.newMags.forEach(function(n){magAdd(n)});
@@ -1858,7 +1875,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         });
       });
       commit();
-      addMvMany(mvs).then(function(){fillStocks();toast('Import : '+pl.nNew+' ajoutée(s), '+pl.nUpd+' mise(s) à jour, '+pl.nSame+' inchangée(s)'+(pl.nConf?', '+pl.nConf+' conflit(s) non importé(s)':''))});
+      addMvMany(mvs).then(function(){fillStocks();toast('Import : '+pl.nNew+' ajoutée(s), '+pl.nUpd+' mise(s) à jour, '+pl.nSame+' inchangée(s)'+(pl.nConf?', '+pl.nConf+' conflit(s) non importé(s)':''));mailResume('l\'import'+(fname?' « '+fname+' »':''))});
     });
   };
   /* ===== Code scanné inconnu : créer une pièce, ou le rattacher à une pièce existante (sans rien retaper) ===== */
@@ -2550,7 +2567,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
   /* ===== E-mails : l'application signale l'événement au script Google, qui relit la base, lit les règles, envoie et tient le journal ===== */
   var KMQ='inventaire_mailq_v1'+SFX,mailBusy=false;
-  var MAILEV=[['demande','Nouvelle demande de pièces'],['decision','Demande approuvée ou refusée'],['reception','Réception enregistrée'],['cloture','Demande clôturée'],['seuil','Pièce sous son seuil de commande']];
+  var MAILEV=[['demande','Nouvelle demande de pièces'],['decision','Demande approuvée ou refusée'],['reception','Réception enregistrée'],['cloture','Demande clôturée'],['seuil','Pièce sous son seuil de commande'],['resume','Pièces à commander après un import (récapitulatif)']];
   function mailUrl(){var u=String(ld('inventaire_mailurl_v1','')||'https://script.google.com/macros/s/AKfycbz9WXY1xkHPzxtnbBrAUccvcsCbutPH6PuXLlGMXhUXOxpKMe2IwWzsqP49uC0nNUbZ/exec').trim();return /^https:\/\/script\.google\.com\/macros\/s\/[^\s]+\/exec$/.test(u)?u:''}
   function mailCall(body){
     var u=mailUrl();if(!u)return Promise.reject(new Error('url'));
@@ -2585,6 +2602,16 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     }).catch(function(){}).then(function(){mailBusy=false});
   }
 
+  /* récapitulatif : toutes les pièces actuellement sous leur seuil, en un seul e-mail (les plus manquantes d'abord) */
+  function mailResume(label){
+    stockAll().then(function(m){
+      var L=live().filter(function(i){return i.mn!==undefined&&i.mn!==null&&i.mn!==''&&lowQ(i,stockFrom(m,i))}).map(function(i){return{code:i.code,stock:stockFrom(m,i),gap:Number(i.mn)-stockFrom(m,i)}});
+      if(!L.length)return;
+      L.sort(function(a,b){return b.gap-a.gap});
+      mailQueue('resume',newId(),{source:label,items:L.slice(0,300).map(function(x){return{code:x.code,stock:x.stock}})});
+    }).catch(function(){});
+  }
+
   /* Envoi d'e-mail (test) via un service Google Apps Script : le script vérifie le jeton Firebase et le rôle admin */
   var KM='inventaire_mailurl_v1',MAIL_TO='jean-pierre.gagliano@outlook.com';
   var MAIL_URL='https://script.google.com/macros/s/AKfycbz9WXY1xkHPzxtnbBrAUccvcsCbutPH6PuXLlGMXhUXOxpKMe2IwWzsqP49uC0nNUbZ/exec';
@@ -2610,7 +2637,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
   /* ----- écran E-mails : règles par événement ----- */
   var mRules={},mUsers={},mEdit='',RLB=[['admin','Admin'],['superuser','SuperUser'],['operateur','Opérateur'],['lecteur','Lecteur'],['securityofficer','SecurityOfficer']];
-  var MREC={demande:{on:true,roles:['admin','superuser']},decision:{on:true,req:true},reception:{on:true,req:true},cloture:{on:false},seuil:{on:true,roles:['superuser']}};
+  var MREC={demande:{on:true,roles:['admin','superuser']},decision:{on:true,req:true},reception:{on:true,req:true},cloture:{on:false},seuil:{on:true,roles:['superuser']},resume:{on:true,roles:['superuser']}};
   function mPath(p){return '/inventaires/'+encodeURIComponent(cfg.room)+'/'+p}
   function mDescr(r){
     if(!r)return 'personne';
@@ -2666,16 +2693,18 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     decision:{s:'[Inventaire{env}] Demande {decision} : {piece}',m:'Bonjour {nom},\n\nTa demande a été **{decision}** par {decideur} :\n\n- **{piece}** ({code})\n- Quantité : {quantite}\n- Destination : {destination}\n- Motif : {motif}'},
     reception:{s:'[Inventaire{env}] Réception enregistrée : {piece} ({recu})',m:'Bonjour {nom},\n\nUne réception a été enregistrée par {decideur} :\n\n- **{piece}** ({code})\n- Reçu : **{recu}** sur {quantite} demandées\n- Destination : {destination}\n- Commentaire : {commentaire}'},
     cloture:{s:'[Inventaire{env}] Demande clôturée : {piece}',m:'Bonjour {nom},\n\nLa demande suivante a été clôturée par {decideur} :\n\n- **{piece}** ({code})\n- Quantité : {quantite}\n- Destination : {destination}'},
+    resume:{s:'[Inventaire{env}] {nb} pièce(s) à commander après {source}',m:'Bonjour {nom},\n\nAprès {source}, **{nb}** pièce(s) sont sous leur seuil de commande :\n\n{liste}'},
     seuil:{s:'[Inventaire{env}] À commander : {piece}',m:'Bonjour {nom},\n\n**{piece}** ({code}) est passée sous son seuil de commande.\n\n- Stock : **{stock}**\n- Seuil : {seuil}'}
   };
   var TPL_TAGS={
-    demande:['nom','piece','code','quantite','demandeur','destination','commentaire','env'],
-    decision:['nom','piece','code','quantite','demandeur','decideur','decision','destination','motif','env'],
-    reception:['nom','piece','code','quantite','recu','demandeur','decideur','destination','commentaire','env'],
-    cloture:['nom','piece','code','quantite','demandeur','decideur','destination','env'],
-    seuil:['nom','piece','code','stock','seuil','env']
+    demande:['nom','piece','code','quantite','demandeur','destination','commentaire','env','lien'],
+    decision:['nom','piece','code','quantite','demandeur','decideur','decision','destination','motif','env','lien'],
+    reception:['nom','piece','code','quantite','recu','demandeur','decideur','destination','commentaire','env','lien'],
+    cloture:['nom','piece','code','quantite','demandeur','decideur','destination','env','lien'],
+    resume:['nom','source','nb','liste','env','lien'],
+    seuil:['nom','piece','code','stock','seuil','env','lien']
   };
-  var TPL_EX={nom:'Marie',piece:'Biseptine',code:'3181224191257371953',quantite:'6',recu:'4',demandeur:'Paul',decideur:'Jean-Pierre',decision:'approuvée',destination:'Pharmacie · Armoire',motif:'OK pour la commande',commentaire:'urgent',stock:'4',seuil:'10',env:ISTEST?' TEST':''};
+  var TPL_EX={nom:'Marie',piece:'Biseptine',code:'3181224191257371953',quantite:'6',recu:'4',demandeur:'Paul',decideur:'Jean-Pierre',decision:'approuvée',destination:'Pharmacie · Armoire',motif:'OK pour la commande',commentaire:'urgent',stock:'4',seuil:'10',source:"l'import « stock.csv »",nb:'2',liste:'- **Biseptine** : 4 (seuil 10), manque 6\n- **Colludol** : 0 (seuil 10), manque 10',env:ISTEST?' TEST':'',lien:'https://jpg650965096509-a11y.github.io/Inventaire/…'};
   function tplFill(t,v,drop){
     return String(t).replace(/\r/g,'').split('\n').map(function(line){
       var d=false,l=line.replace(/\{([a-z_]+)\}/g,function(all,k){if(!v.hasOwnProperty(k))return all;if(String(v[k]).trim()===''){d=true;return ''}return String(v[k])});
@@ -2701,7 +2730,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function mPreview(){
     var ev=mEdit,v=TPL_EX;
     $('mrpvb').style.display='';
-    $('mrpvb').innerHTML='<p style="margin:0 0 6px;color:#555"><b>Objet :</b> '+esc(tplFill($('mrsj').value,v,false))+'</p>'+mdHtml(tplFill($('mrmsg').value,v,true))+'<p><span style="background:#ffc300;color:#14213d;font-weight:700;padding:8px 14px;border-radius:8px;display:inline-block">'+(ev==='seuil'?'Ouvrir la pièce':'Ouvrir la demande')+'</span></p>';
+    $('mrpvb').innerHTML='<p style="margin:0 0 6px;color:#555"><b>Objet :</b> '+esc(tplFill($('mrsj').value,v,false))+'</p>'+mdHtml(tplFill($('mrmsg').value,v,true))+(/\{lien\}/.test($('mrmsg').value)?'':'<p><span style="background:#ffc300;color:#14213d;font-weight:700;padding:8px 14px;border-radius:8px;display:inline-block">'+(ev==='seuil'?'Ouvrir la pièce':(ev==='resume'?'Voir les pièces à commander':'Ouvrir la demande'))+'</span></p>');
   }
   $('mrpv').onclick=mPreview;
   $('mrrs').onclick=function(){var d=DEF_TPL[mEdit];if(!d)return;$('mrsj').value=d.s;$('mrmsg').value=d.m;$('mrpvb').style.display='none'};
@@ -2710,8 +2739,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function mOpenEd(ev){
     mEdit=ev;var r=mRules[ev]||{},lab=MAILEV.filter(function(e){return e[0]===ev})[0][1];
     $('mrt').textContent=lab;
-    $('mrh').textContent=ev==='seuil'?'Il n\'y a pas de demandeur pour cet événement.':'';
-    $('mrqw').style.display=ev==='seuil'?'none':'';
+    $('mrh').textContent=(ev==='seuil'||ev==='resume')?'Il n\'y a pas de demandeur pour cet événement.':'';
+    $('mrqw').style.display=(ev==='seuil'||ev==='resume')?'none':'';
     $('mrq').checked=!!r.req;
     var dt=DEF_TPL[ev]||{s:'',m:''};$('mrsj').value=r.subject||dt.s;$('mrmsg').value=r.msg||dt.m;$('mrpvb').style.display='none';
     $('mrtags').textContent='Mots disponibles : '+(TPL_TAGS[ev]||[]).map(function(k){return '{'+k+'}'}).join(' ');
@@ -2725,7 +2754,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('mrs').onclick=function(){
     var roles=[].map.call(document.querySelectorAll('#mrr input:checked'),function(e){return e.getAttribute('data-r')});
     var people=[].map.call(document.querySelectorAll('#mrp input:checked'),function(e){return e.getAttribute('data-p')});
-    var o={on:!!(mRules[mEdit]&&mRules[mEdit].on)||roles.length>0||people.length>0||$('mrq').checked,req:$('mrq').checked&&mEdit!=='seuil'};
+    var o={on:!!(mRules[mEdit]&&mRules[mEdit].on)||roles.length>0||people.length>0||$('mrq').checked,req:$('mrq').checked&&mEdit!=='seuil'&&mEdit!=='resume'};
     if(roles.length)o.roles=roles;if(people.length)o.people=people;
     var dt=DEF_TPL[mEdit]||{s:'',m:''},sj=$('mrsj').value.trim(),mg=$('mrmsg').value.replace(/\s+$/,'');
     if(sj.length>200||mg.length>3000){toast('Texte trop long (objet 200 caractères, message 3000)');return}
@@ -3182,12 +3211,13 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   setInterval(function(){if(!document.hidden&&!asleep)sync()},15000);
 
   /* ===== Liens directs (dans les e-mails) : ?piece=<code> ouvre la fiche, ?demande=<identifiant> ouvre la demande ===== */
-  var deep=(function(){try{var q=new URLSearchParams(location.search),a=q.get('piece'),b=q.get('demande');return a?{k:'piece',v:a}:(b?{k:'demande',v:b}:null)}catch(e){return null}})();
+  var deep=(function(){try{var q=new URLSearchParams(location.search),a=q.get('piece'),b=q.get('demande');return a?{k:'piece',v:a}:(b?{k:'demande',v:b}:(q.get('filtre')==='commander'?{k:'filtre',v:''}:null))}catch(e){return null}})();
   function deepDone(){deep=null;try{history.replaceState(null,'',location.pathname)}catch(e){}}
   function tryDeep(){
     if(!deep)return;
     if(!auth){if(!$('ldlg').open)openLogin();return}
     var d=deep;
+    if(d.k==='filtre'){deepDone();lowOnly=true;lim=LIMIT;render();return}
     if(d.k==='piece'){
       var it=find(d.v);
       if(it){deepDone();showStock(it);return}

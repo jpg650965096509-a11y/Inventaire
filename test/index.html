@@ -476,7 +476,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.4.0';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.4.1';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1284,8 +1284,16 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     return b+'101';
   }
   function bcC128(text){
-    var v=[104],s=104,i,c;
-    for(i=0;i<text.length;i++){c=text.charCodeAt(i);if(c<32||c>126)return null;v.push(c-32);s+=(c-32)*(i+1)}
+    var v,s,i,c,pos=1,n=text.length;
+    if(/^[0-9]{4,}$/.test(text)){
+      /* sous-jeu C : deux chiffres par symbole ; si le nombre de chiffres est impair, le dernier passe en sous-jeu B */
+      v=[105];s=105;
+      for(i=0;i+1<n;i+=2){c=parseInt(text.substr(i,2),10);v.push(c);s+=c*pos;pos++}
+      if(n%2){v.push(100);s+=100*pos;pos++;c=text.charCodeAt(n-1)-32;v.push(c);s+=c*pos;pos++}
+    }else{
+      v=[104];s=104;
+      for(i=0;i<n;i++){c=text.charCodeAt(i);if(c<32||c>126)return null;v.push(c-32);s+=(c-32)*pos;pos++}
+    }
     v.push(s%103);v.push(106);
     return v.map(function(x){return C128[x]}).join('');
   }

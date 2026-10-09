@@ -418,6 +418,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <label>Hauteur (mm)<input id="labh" inputmode="numeric" value="30"></label>
     <label>Colonnes<input id="labcol" inputmode="numeric" value="3"></label>
   </div>
+  <label>Trait autour de l'étiquette<select id="labbd"><option value="dash">Pointillé</option><option value="gray">Gris clair</option><option value="none">Aucun</option></select></label>
   <p class="hint" id="labt" style="margin:4px 0;color:var(--bad);font-weight:600"></p>
   <button type="button" class="btn" id="labfix" style="display:none;margin-bottom:6px">Ajuster la largeur</button>
   <p class="hint" style="margin:8px 0 2px">Aperçu</p>
@@ -478,7 +479,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.4.4';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.4.5';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1310,7 +1311,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     return '<svg viewBox="0 0 '+W+' 1" preserveAspectRatio="none" style="width:100%;height:100%;display:block" shape-rendering="geometricPrecision"><path d="'+p+'" fill="#000"/></svg>';
   }
   function labHtml(it,cfg){
-    var b=bcOf(curOf(it)),h='<div class="lab" style="width:'+cfg.w+'mm;height:'+cfg.h+'mm">',s=[];
+    var b=bcOf(curOf(it)),bd=cfg.bd==='none'?'border:.2mm solid transparent;':(cfg.bd==='gray'?'border:.2mm solid #ddd;':''),h='<div class="lab" style="'+bd+'width:'+cfg.w+'mm;height:'+cfg.h+'mm">',s=[];
     if(cfg.nom)h+='<div class="lt">'+esc(it.name)+'</div>';
     if(cfg.ref&&it.ref)s.push('réf. '+esc(it.ref));
     if(cfg.emp&&it.loc)s.push(esc(it.loc));
@@ -1321,7 +1322,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   var KLAB='inventaire_lab_v1',labSel={},labN={};
   function labCfg(){
     var num=function(id,d,lo,hi){var v=parseInt($(id).value,10);if(!isFinite(v))v=d;return Math.max(lo,Math.min(hi,v))};
-    return{nom:$('labnom').checked,ref:$('labref').checked,emp:$('labemp').checked,w:num('labw',60,20,200),h:num('labh',30,10,150),cols:num('labcol',3,1,8),n:num('labn',1,1,99)};
+    return{nom:$('labnom').checked,ref:$('labref').checked,emp:$('labemp').checked,w:num('labw',60,20,200),h:num('labh',30,10,150),cols:num('labcol',3,1,8),n:num('labn',1,1,99),bd:$('labbd').value||'dash'};
   }
   function labList(){
     var q=fold($('labs').value.trim());
@@ -1344,7 +1345,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var need=Math.ceil(mod*0.45+3);
     $('labt').textContent=(mod&&cfg.w<need)?'⚠ Code long ('+mod+' modules) : pour un scan fiable, largeur conseillée ≥ '+need+' mm (colonnes : '+Math.max(1,Math.floor(194/need))+' au plus)':'';
     $('labfix').style.display=(mod&&cfg.w<need)?'':'none';$('labfix').dataset.w=String(need);
-    sv(KLAB,{nom:cfg.nom,ref:cfg.ref,emp:cfg.emp,w:cfg.w,h:cfg.h,cols:cfg.cols,n:cfg.n});
+    sv(KLAB,{nom:cfg.nom,ref:cfg.ref,emp:cfg.emp,w:cfg.w,h:cfg.h,cols:cfg.cols,n:cfg.n,bd:cfg.bd});
     var first=codes.length?find(codes[0]):(live()[0]||null);
     $('labv').innerHTML=first?labHtml(first,cfg):'';
   }
@@ -1361,7 +1362,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('labBtn').onclick=function(){
     var c=ld(KLAB,{});
     $('labnom').checked=c.nom!==false;$('labref').checked=c.ref!==false;$('labemp').checked=!!c.emp;
-    $('labw').value=c.w||60;$('labh').value=c.h||30;$('labcol').value=c.cols||3;$('labn').value=c.n||1;
+    $('labw').value=c.w||60;$('labh').value=c.h||30;$('labcol').value=c.cols||3;$('labn').value=c.n||1;$('labbd').value=c.bd||'dash';
     labSel={};labN={};$('labs').value='';
     var rd=document.querySelectorAll('#labm input');for(var i=0;i<rd.length;i++)rd[i].checked=rd[i].value==='man';
     labDraw();$('ladlg').showModal();
@@ -1375,7 +1376,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     labUpdate();
   };
   ['labn','labw','labh','labcol'].forEach(function(id){$(id).oninput=labUpdate});
-  ['labnom','labref','labemp'].forEach(function(id){$(id).onchange=labUpdate});
+  ['labnom','labref','labemp','labbd'].forEach(function(id){$(id).onchange=labUpdate});
   $('labfix').onclick=function(){var w=parseInt($('labfix').dataset.w,10)||60;$('labw').value=w;$('labcol').value=Math.max(1,Math.floor(194/w));labUpdate()};
   $('labx').onclick=function(){$('ladlg').close()};
   $('labp').onclick=function(){

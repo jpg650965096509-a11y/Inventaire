@@ -307,10 +307,6 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <button type="button" class="btn big" id="admJournal" style="margin-top:8px">Journal des mouvements</button>
   <button type="button" class="btn big" id="admMag" style="margin-top:8px">Magasins</button>
   <button type="button" class="btn big" id="admMails" style="margin-top:8px">E-mails (règles et journal)</button>
-  <h2 style="margin-top:18px;font-size:20px">Envoi d'e-mail (test)</h2>
-  <label>URL du service e-mail<input id="mailUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></label>
-  <button type="button" class="btn big" id="admMail">Envoyer un e-mail de test</button>
-  <p class="hint" id="mailst" style="margin:6px 0 0"></p>
   <h2 style="margin-top:18px;font-size:20px">État du système</h2>
   <div id="sysinfo" class="hint" style="white-space:pre-line;margin-bottom:10px"></div>
   </div>
@@ -427,6 +423,10 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <button type="button" class="btn" id="mlrec" style="margin:8px 0;width:100%">Appliquer les réglages conseillés</button>
   <label>Garder le journal des e-mails pendant<select id="mlk"><option value="30">1 mois</option><option value="90">3 mois</option><option value="180">6 mois</option><option value="365">12 mois</option><option value="0">Toujours</option></select></label>
   <div class="row"><button type="button" class="btn" id="mljb">Journal des e-mails</button><button type="button" class="btn" id="mlt">Envoyer un test</button></div>
+  <details style="margin:8px 0"><summary style="cursor:pointer;color:var(--mute)">Adresse du service d'envoi</summary>
+    <label>URL du service e-mail<input id="mailUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></label>
+    <p class="hint" style="margin:2px 0 0">Elle ne change que si le script Google est redéployé comme « nouveau déploiement ». Laisse vide pour garder l'adresse d'origine.</p>
+  </details>
   <p class="hint" id="mls" style="margin:6px 0 0"></p>
   <div class="row"><button type="button" class="btn cancel" id="mlx">Fermer</button></div>
 </dialog>
@@ -599,7 +599,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='5.0.0';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='5.0.1';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -2869,24 +2869,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   var KM='inventaire_mailurl_v1',MAIL_TO='jean-pierre.gagliano@outlook.com';
   var MAIL_URL='https://script.google.com/macros/s/AKfycbz9WXY1xkHPzxtnbBrAUccvcsCbutPH6PuXLlGMXhUXOxpKMe2IwWzsqP49uC0nNUbZ/exec';
   $('mailUrl').value=ld(KM,'')||MAIL_URL;
-  $('mailUrl').onchange=function(){sv(KM,$('mailUrl').value.trim())};
-  $('admMail').onclick=function(){
-    var u=($('mailUrl').value||'').trim(),st=$('mailst'),hh=function(){return new Date().toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})};
-    if(!/^https:\/\/script\.google\.com\/macros\/s\/[^\s]+\/exec$/.test(u)){st.textContent="✗ Colle d'abord l'URL du service e-mail (elle se termine par /exec).";return}
-    sv(KM,u);st.textContent='Envoi en cours…';$('admMail').disabled=true;
-    token().then(function(tok){
-      return fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({
-        idToken:tok,action:'test',room:cfg.room
-      })});
-    }).then(function(r){return r.text().then(function(t){return{s:r.status,t:t}})}).then(function(x){
-      var j=null;try{j=JSON.parse(x.t)}catch(e){}
-      if(j&&j.ok)st.textContent='✓ E-mail de test envoyé à ton adresse de connexion ('+hh()+')';
-      else if(j)st.textContent='✗ Refusé : '+(j.error||'réponse inattendue');
-      else st.textContent='⚠ Réponse illisible du service (HTTP '+x.s+') : « '+x.t.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,160)+' » — vérifie ta boîte mail : la demande est peut-être partie.';
-    }).catch(function(e){
-      st.textContent='✗ Service non joignable ou refusé par le navigateur ('+((e&&e.message)||e)+')';
-    }).then(function(){$('admMail').disabled=false});
-  };
+  $('mailUrl').onchange=function(){sv(KM,$('mailUrl').value.trim());if(!$('mailUrl').value.trim())$('mailUrl').value=MAIL_URL};
 
   /* ----- écran E-mails : règles par événement ----- */
   var mSched={},mTk='',mRules={},mUsers={},mEdit='',RLB=[['admin','Admin'],['superuser','SuperUser'],['operateur','Opérateur'],['lecteur','Lecteur'],['securityofficer','SecurityOfficer']];

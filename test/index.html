@@ -386,6 +386,14 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <div class="row"><label class="btn" style="margin:0">Restaurer un JSON<input id="bi" type="file" accept=".json,application/json" style="display:none"></label><button class="btn cancel" id="bx" type="button">Fermer</button></div>
 </dialog>
 
+<dialog id="mtdlg">
+  <h2 id="mtt">Motif</h2>
+  <p class="hint" id="mtn" style="margin:0 0 8px"></p>
+  <div id="mtl"></div>
+  <label>Précision (facultatif)<input id="mtc" autocomplete="off"></label>
+  <div class="row"><button type="button" class="btn cancel" id="mtx">Annuler</button></div>
+</dialog>
+
 <dialog id="trdlg">
   <h2>Transférer du stock</h2>
   <p class="hint" id="trn" style="margin:0 0 8px"></p>
@@ -430,7 +438,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.2.0';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.2.1';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1736,12 +1744,35 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     if(it&&kready&&kqty!==kbase){
       if(needAuth('stock'))return;
       var d=r3(kqty-kbase),code=it.code,shown=kqty,lg=kmulti?ksel:undefined;
-      var multi=kmulti;
-      addMv(code,d,{saisie:shown,lg:lg}).then(function(){fillStocks();toast((d>0?'Entrée ':'Sortie ')+fmt(Math.abs(d))+' · stock : '+fmt(shown));if(multi){var u=find(code);if(u&&$('kdlg').open)showStock(u)}});
-      if(multi)return;
+      mtPend={code:code,d:d,shown:shown,lg:lg,multi:kmulti};
+      mtOpen(it);
+      return;
     }
     $('kdlg').close();
   };
+  /* motif d'un changement de stock fait depuis le détail : baisse = consommé / perdu / transféré, hausse = retrouvé / retour */
+  var mtPend=null;
+  var MT_DOWN=['Consommé / utilisé','Perdu / cassé','Transféré','Autre'],MT_UP=['Retrouvé','Retour','Réception hors demande','Autre'];
+  function mtOpen(it){
+    var down=mtPend.d<0;
+    $('mtt').textContent=down?'Pourquoi ce stock baisse-t-il ?':'Pourquoi ce stock augmente-t-il ?';
+    $('mtn').textContent=it.name+' : '+(down?'sortie de ':'entrée de ')+fmt(Math.abs(mtPend.d))+' · stock '+fmt(mtPend.shown);
+    $('mtl').innerHTML=(down?MT_DOWN.filter(function(m){return mtPend.multi||m!=='Transféré'}):MT_UP).map(function(m){return '<button type="button" class="btn" data-m="'+esc(m)+'" style="width:100%;margin-bottom:6px">'+esc(m)+'</button>'}).join('');
+    $('mtc').value='';$('mtdlg').showModal();
+  }
+  $('mtl').onclick=function(e){
+    var b=e.target.closest('button[data-m]');if(!b||!mtPend)return;
+    var m=b.getAttribute('data-m'),P=mtPend,pre=$('mtc').value.trim();mtPend=null;
+    $('mtdlg').close();
+    if(m==='Transféré'){kqty=kbase;kdraw();trOpen(P.code);return}
+    var note=('Motif : '+m+(pre?' — '+pre:'')).slice(0,480);
+    addMv(P.code,P.d,{saisie:P.shown,lg:P.lg,note:note}).then(function(){
+      fillStocks();toast((P.d>0?'Entrée ':'Sortie ')+fmt(Math.abs(P.d))+' · stock : '+fmt(P.shown));
+      if(P.multi){var u=find(P.code);if(u&&$('kdlg').open)showStock(u)}
+    });
+    if(!P.multi)$('kdlg').close();
+  };
+  $('mtx').onclick=function(){mtPend=null;$('mtdlg').close()};
   function fbump(d){
     var v=Math.max(0,num(num($('fq').value)+d*num($('step').value||1)));
     $('fq').value=String(v).replace('.',',');

@@ -273,6 +273,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <dialog id="admdlg">
   <h2>Centre d'administration</h2>
   <p class="hint" id="admh"></p>
+  <h2 style="margin-top:0;font-size:20px">Mise en veille (cet appareil)</h2>
+  <div class="row" style="flex-wrap:nowrap">
+    <label>Caméra coupée après (secondes)<input id="veic" inputmode="decimal"></label>
+    <label>Synchro arrêtée après (minutes)<input id="veis" inputmode="decimal"></label>
+  </div>
+  <p class="hint" style="margin:0 0 10px">0 = jamais. L'application ne se ferme pas et ne perd rien : les mouvements restent enregistrés sur l'appareil.</p>
   <h2 style="margin-top:0;font-size:20px">Pièces et données</h2>
   <div class="tools" id="admData" style="margin-bottom:6px">
     <button class="btn" id="addBtn" type="button">Ajouter à la main</button>
@@ -395,6 +401,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <div class="row"><label class="btn" style="margin:0">Restaurer un JSON<input id="bi" type="file" accept=".json,application/json" style="display:none"></label><button class="btn cancel" id="bx" type="button">Fermer</button></div>
 </dialog>
 
+<dialog id="vdlg" style="text-align:center">
+  <h2>En veille</h2>
+  <p class="hint">La caméra et la synchronisation automatique sont arrêtées pour économiser la batterie.</p>
+  <p><b>Touche l'écran pour reprendre.</b></p>
+</dialog>
+
 <dialog id="ladlg">
   <h2>Étiquettes</h2>
   <p class="hint" style="margin:0 0 4px">Quelles pièces imprimer ?</p>
@@ -419,7 +431,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <label>Hauteur (mm)<input id="labh" inputmode="numeric" value="30"></label>
     <label>Colonnes<input id="labcol" inputmode="numeric" value="3"></label>
   </div>
-  <label>Trait autour de l'étiquette<select id="labbd"><option value="none">Aucun (recommandé)</option><option value="crop">Repères de coupe aux coins</option><option value="dash">Pointillé (gêne le scan)</option><option value="gray">Gris clair (gêne le scan)</option></select></label>
+  <label>Trait autour de l'étiquette<select id="labbd"><option value="none">Aucun (le plus sûr)</option><option value="crop">Repères de coupe aux coins</option><option value="dash">Pointillé (à tester au scan)</option><option value="gray">Gris clair (à tester au scan)</option></select></label>
   <p class="hint" id="labt" style="margin:4px 0;color:var(--bad);font-weight:600"></p>
   <button type="button" class="btn" id="labfix" style="display:none;margin-bottom:6px">Ajuster la largeur</button>
   <p class="hint" style="margin:8px 0 2px">Aperçu</p>
@@ -480,7 +492,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.4.6';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.5.1';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1222,6 +1234,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function resumeScan(){lastSeen=Date.now();try{if(scanner&&paused){scanner.resume();paused=false}}catch(e){paused=false}}
   function onScan(text,res){
     var now=Date.now();
+    if(typeof veiAct==='function')lastAct=now;
     if(document.querySelector('dialog[open]'))return;
     if(text===lastCode){var cont=now-lastSeen<1500;lastSeen=now;if(cont||now-lastTime<2000)return}
     var fmt=res&&res.result&&res.result.format&&res.result.format.formatName;
@@ -1311,9 +1324,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     while(i<n){if(o.bits.charAt(i)==='1'){j=i;while(j<n&&o.bits.charAt(j)==='1')j++;p+='M'+(q+i)+' 0h'+(j-i)+'v1h-'+(j-i)+'z';i=j}else i++}
     return '<svg viewBox="0 0 '+W+' 1" preserveAspectRatio="none" style="width:100%;height:100%;display:block" shape-rendering="geometricPrecision"><path d="'+p+'" fill="#000"/></svg>';
   }
-  function labHtml(it,cfg){
+  function labHtml(it,cfg,pos){
+    /* pos = coins dessinés par cette étiquette (tous par défaut, pour l'aperçu) */
+    pos=pos||{tl:1,tr:1,bl:1,br:1};
     var b=bcOf(curOf(it)),bd=(cfg.bd==='none'||cfg.bd==='crop')?'border:.2mm solid transparent;':(cfg.bd==='gray'?'border:.2mm solid #ddd;':''),h='<div class="lab" style="'+bd+'width:'+cfg.w+'mm;height:'+cfg.h+'mm">',s=[];
-    if(cfg.bd==='crop')h+='<svg class="lcm" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0 0h4M0 0v10M100 0h-4M100 0v10M0 100h4M0 100v-10M100 100h-4M100 100v-10" stroke="#000" stroke-width="0.8" vector-effect="non-scaling-stroke" fill="none"/></svg>';
+    if(cfg.bd==='crop')h+='<svg class="lcm" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="'+(pos.tl?'M0 0h4M0 0v10':'')+(pos.tr?'M100 0h-4M100 0v10':'')+(pos.bl?'M0 100h4M0 100v-10':'')+(pos.br?'M100 100h-4M100 100v-10':'')+'" stroke="#000" stroke-width="0.8" vector-effect="non-scaling-stroke" fill="none"/></svg>';
     if(cfg.nom)h+='<div class="lt">'+esc(it.name)+'</div>';
     if(cfg.ref&&it.ref)s.push('réf. '+esc(it.ref));
     if(cfg.emp&&it.loc)s.push(esc(it.loc));
@@ -1384,11 +1399,17 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('labp').onclick=function(){
     var cfg=labCfg();
     if(cfg.cols*cfg.w>194){toast('Trop large pour une page A4 : réduis la largeur ou le nombre de colonnes');return}
-    var html='';
+    var html='',seq=[];
     live().slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name),'fr')}).forEach(function(i){
       if(!labSel[i.code])return;
-      var k=labCopies(i.code),lab=labHtml(i,cfg);
-      for(var n=0;n<k;n++)html+=lab;
+      var k=labCopies(i.code);
+      for(var n=0;n<k;n++)seq.push(i);
+    });
+    var N=seq.length,C=cfg.cols;
+    seq.forEach(function(i,k){
+      var noRight=(k%C===C-1)||k+1>=N,noBelow=k+C>=N;
+      /* haut-gauche : toujours ; haut-droite : si pas de voisine à droite ; bas : si pas de voisine dessous ; bas-droite : si ni l'une ni l'autre */
+      html+=labHtml(i,cfg,{tl:1,tr:noRight,bl:noBelow,br:noRight&&noBelow});
     });
     if(!html){toast('Aucune étiquette à imprimer');return}
     $('labprint').innerHTML=html;$('labprint').style.setProperty('--cols',String(cfg.cols));
@@ -2872,7 +2893,34 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   window.addEventListener('online',function(){status();sync()});
   window.addEventListener('offline',status);
   document.addEventListener('visibilitychange',function(){if(!document.hidden)sync()});
-  setInterval(function(){if(!document.hidden)sync()},15000);
+  /* ===== Mise en veille : caméra coupée après une inactivité, puis synchro automatique arrêtée (économie de batterie) ===== */
+  var KVEI='inventaire_veille_v1',vei=ld(KVEI,{cam:60,syn:5}),lastAct=Date.now(),asleep=false;
+  if(typeof vei.cam!=='number')vei.cam=60;if(typeof vei.syn!=='number')vei.syn=5;
+  function veiAct(){if(!asleep)lastAct=Date.now()}
+  ['pointerdown','keydown','touchstart','click','input'].forEach(function(e){document.addEventListener(e,veiAct,true)});
+  function veiWake(){if(!asleep)return;asleep=false;lastAct=Date.now();if($('vdlg').open)$('vdlg').close();sync()}
+  $('vdlg').addEventListener('click',veiWake);
+  $('vdlg').addEventListener('keydown',veiWake);
+  $('vdlg').addEventListener('close',veiWake);
+  function veiTick(){
+    if(asleep)return;
+    var idle=(Date.now()-lastAct)/1000;
+    if(vei.cam>0&&idle>=vei.cam&&(scanner||fscan)){
+      if(scanner)stopScan();
+      if(fscan)fieldScanStop();
+      toast('Caméra coupée (inactivité)');
+    }
+    if(vei.syn>0&&idle>=vei.syn*60){asleep=true;if(!$('vdlg').open)$('vdlg').showModal()}
+  }
+  setInterval(veiTick,2000);
+  $('veic').value=String(vei.cam);$('veis').value=String(vei.syn);
+  function veiRead(){
+    var c=parseFloat(String($('veic').value).replace(',','.')),s=parseFloat(String($('veis').value).replace(',','.'));
+    vei.cam=isFinite(c)?Math.max(0,Math.min(3600,c)):60;vei.syn=isFinite(s)?Math.max(0,Math.min(600,s)):5;
+    sv(KVEI,vei);
+  }
+  $('veic').onchange=veiRead;$('veis').onchange=veiRead;
+  setInterval(function(){if(!document.hidden&&!asleep)sync()},15000);
 
   $('ver').textContent='Version '+VERSION+(ISTEST?' ('+ENVN+')':'');$('hv').textContent='v'+VERSION+(ISTEST?' · '+ENVN:'');
   mdirty().then(function(a){mpend=a.length;status()}).catch(function(){});

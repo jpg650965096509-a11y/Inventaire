@@ -71,6 +71,13 @@ select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10p
 .opts label{margin:0}
 #list,#rl,#ul,#uksl{list-style:none;margin:0;padding:0}
 .chip{display:inline-block;padding:4px 10px;border-radius:999px;font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap;background:#E7EAF1;color:#14213D}
+#labprint{display:none}
+.lab{box-sizing:border-box;border:.2mm dashed #888;padding:1.5mm;display:flex;flex-direction:column;overflow:hidden;background:#fff;color:#000;break-inside:avoid;page-break-inside:avoid}
+.lab .lt{font:700 3.2mm/1.15 Arial,sans-serif;max-height:7.4mm;overflow:hidden}
+.lab .ls{font:2.6mm/1.2 Arial,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lab .lb{flex:1;min-height:6mm;margin:1mm 0 .5mm}
+.lab .ld{font:2.8mm/1 monospace;text-align:center;letter-spacing:.3mm}
+@media print{body.labprint>*:not(#labprint){display:none!important}body.labprint #labprint{display:grid;grid-template-columns:repeat(var(--cols),max-content);justify-content:start}@page{margin:8mm}}
 .chip.low{background:#F8CFCB;color:#8A1C12}.chip.ord{background:#CFE3FF;color:#14213D}.chip.attente{background:#FFE08A}.chip.approuvee,.chip.partielle{background:#CFE3FF}.chip.recue{background:#CDEFD3}.chip.refusee{background:#F8CFCB}.chip.cloturee{background:#E0E0E0}
 #list li,#rl li,#ul li,#uksl li{display:flex;gap:10px;align-items:center;justify-content:space-between;
   background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
@@ -269,6 +276,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <div class="tools" id="admData" style="margin-bottom:6px">
     <button class="btn" id="addBtn" type="button">Ajouter à la main</button>
     <button class="btn" id="expBtn" type="button">Export CSV</button>
+    <button class="btn" id="labBtn" type="button">Étiquettes</button>
     <label class="btn" id="impL" style="margin:0">Import Excel / CSV<input id="imp" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain"></label>
     <button class="btn" id="bakBtn" type="button">Sauvegardes</button>
     <button class="btn" id="trBtn" type="button">Corbeille</button>
@@ -386,6 +394,35 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <div class="row"><label class="btn" style="margin:0">Restaurer un JSON<input id="bi" type="file" accept=".json,application/json" style="display:none"></label><button class="btn cancel" id="bx" type="button">Fermer</button></div>
 </dialog>
 
+<dialog id="ladlg">
+  <h2>Étiquettes</h2>
+  <p class="hint" style="margin:0 0 4px">Quelles pièces imprimer ?</p>
+  <div id="labm" style="display:grid;gap:4px;margin-bottom:6px">
+    <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="radio" name="labm" value="all" style="width:auto;min-height:0;margin:0"> Toutes les pièces</label>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="radio" name="labm" value="flt" style="width:auto;min-height:0;margin:0"> Celles de ma recherche actuelle</label>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="radio" name="labm" value="made" style="width:auto;min-height:0;margin:0"> Seulement les codes fabriqués (200 / 210 / 220)</label>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="radio" name="labm" value="man" checked style="width:auto;min-height:0;margin:0"> Une sélection que je coche moi-même</label>
+  </div>
+  <input id="labs" type="search" placeholder="Filtrer la liste" aria-label="Filtrer la liste">
+  <div id="labl" style="max-height:30vh;overflow:auto;border:1px solid var(--line);border-radius:10px;margin:6px 0"></div>
+  <p class="hint" id="labc" style="margin:0 0 6px"></p>
+  <label>Exemplaires par pièce (sauf si tu le précises dans la liste)<input id="labn" inputmode="numeric" value="1"></label>
+  <p class="hint" style="margin:8px 0 2px">Sur l'étiquette (le code-barres est toujours imprimé)</p>
+  <div style="display:flex;gap:14px;flex-wrap:wrap">
+    <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="labnom" checked style="width:auto;min-height:0;margin:0"> Nom</label>
+    <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="labref" checked style="width:auto;min-height:0;margin:0"> Référence</label>
+    <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="labemp" style="width:auto;min-height:0;margin:0"> Emplacement</label>
+  </div>
+  <div class="row" style="flex-wrap:nowrap">
+    <label>Largeur (mm)<input id="labw" inputmode="numeric" value="60"></label>
+    <label>Hauteur (mm)<input id="labh" inputmode="numeric" value="30"></label>
+    <label>Colonnes<input id="labcol" inputmode="numeric" value="3"></label>
+  </div>
+  <p class="hint" style="margin:8px 0 2px">Aperçu</p>
+  <div id="labv" style="overflow:auto;padding:4px 0"></div>
+  <div class="row"><button type="button" class="btn cancel" id="labx">Fermer</button><button type="button" class="btn pri" id="labp">Imprimer</button></div>
+</dialog>
+
 <dialog id="mtdlg">
   <h2 id="mtt">Motif</h2>
   <p class="hint" id="mtn" style="margin:0 0 8px"></p>
@@ -429,6 +466,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
 <div id="toast" popover="manual" role="status" aria-live="polite"></div>
 
+<div id="labprint"></div>
 <script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
@@ -438,7 +476,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.3.0';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.4.0';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1231,6 +1269,116 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     if(!s)return;
     s.stop().then(function(){s.clear()}).catch(function(){try{s.clear()}catch(e){}});
   }
+
+  /* ===== Étiquettes : EAN-13 (clé valide) ou Code 128 (autres codes), dessinés par l'application ===== */
+  var C128=['11011001100','11001101100','11001100110','10010011000','10010001100','10001001100','10011001000','10011000100','10001100100','11001001000','11001000100','11000100100','10110011100','10011011100','10011001110','10111001100','10011101100','10011100110','11001110010','11001011100','11001001110','11011100100','11001110100','11101101110','11101001100','11100101100','11100100110','11101100100','11100110100','11100110010','11011011000','11011000110','11000110110','10100011000','10001011000','10001000110','10110001000','10001101000','10001100010','11010001000','11000101000','11000100010','10110111000','10110001110','10001101110','10111011000','10111000110','10001110110','11101110110','11010001110','11000101110','11011101000','11011100010','11011101110','11101011000','11101000110','11100010110','11101101000','11101100010','11100011010','11101111010','11001000010','11110001010','10100110000','10100001100','10010110000','10010000110','10000101100','10000100110','10110010000','10110000100','10011010000','10011000010','10000110100','10000110010','11000010010','11001010000','11110111010','11000010100','10001111010','10100111100','10010111100','10010011110','10111100100','10011110100','10011110010','11110100100','11110010100','11110010010','11011011110','11011110110','11110110110','10101111000','10100011110','10001011110','10111101000','10111100010','11110101000','11110100010','10111011110','10111101110','11101011110','11110101110','11010000100','11010010000','11010011100','1100011101011'];
+  var EAN_L=['0001101','0011001','0010011','0111101','0100011','0110001','0101111','0111011','0110111','0001011'];
+  var EAN_G=['0100111','0110011','0011011','0100001','0011101','0111001','0000101','0010001','0001001','0010111'];
+  var EAN_R=['1110010','1100110','1101100','1000010','1011100','1001110','1010000','1000100','1001000','1110100'];
+  var EAN_P=['LLLLLL','LLGLGG','LLGGLG','LLGGGL','LGLLGG','LGGLLG','LGGGLL','LGLGLG','LGLGGL','LGGLGL'];
+  function bcEan13(code){
+    var par=EAN_P[Number(code.charAt(0))],b='101',i;
+    for(i=1;i<=6;i++)b+=(par.charAt(i-1)==='L'?EAN_L:EAN_G)[Number(code.charAt(i))];
+    b+='01010';
+    for(i=7;i<=12;i++)b+=EAN_R[Number(code.charAt(i))];
+    return b+'101';
+  }
+  function bcC128(text){
+    var v=[104],s=104,i,c;
+    for(i=0;i<text.length;i++){c=text.charCodeAt(i);if(c<32||c>126)return null;v.push(c-32);s+=(c-32)*(i+1)}
+    v.push(s%103);v.push(106);
+    return v.map(function(x){return C128[x]}).join('');
+  }
+  function bcOf(code){
+    code=String(code);
+    if(code.length===13&&/^[0-9]+$/.test(code)&&eanOk(code))return{bits:bcEan13(code),quiet:9,txt:code.charAt(0)+' '+code.slice(1,7)+' '+code.slice(7)};
+    var b=bcC128(code);return b?{bits:b,quiet:10,txt:code}:null;
+  }
+  function bcSvg(o){
+    var q=o.quiet,n=o.bits.length,W=n+2*q,p='',i=0,j;
+    while(i<n){if(o.bits.charAt(i)==='1'){j=i;while(j<n&&o.bits.charAt(j)==='1')j++;p+='M'+(q+i)+' 0h'+(j-i)+'v1h-'+(j-i)+'z';i=j}else i++}
+    return '<svg viewBox="0 0 '+W+' 1" preserveAspectRatio="none" style="width:100%;height:100%;display:block" shape-rendering="crispEdges"><path d="'+p+'" fill="#000"/></svg>';
+  }
+  function labHtml(it,cfg){
+    var b=bcOf(curOf(it)),h='<div class="lab" style="width:'+cfg.w+'mm;height:'+cfg.h+'mm">',s=[];
+    if(cfg.nom)h+='<div class="lt">'+esc(it.name)+'</div>';
+    if(cfg.ref&&it.ref)s.push('réf. '+esc(it.ref));
+    if(cfg.emp&&it.loc)s.push(esc(it.loc));
+    if(s.length)h+='<div class="ls">'+s.join(' · ')+'</div>';
+    h+=b?'<div class="lb">'+bcSvg(b)+'</div><div class="ld">'+esc(b.txt)+'</div>':'<div class="ld">'+esc(curOf(it))+' (code non imprimable)</div>';
+    return h+'</div>';
+  }
+  var KLAB='inventaire_lab_v1',labSel={},labN={};
+  function labCfg(){
+    var num=function(id,d,lo,hi){var v=parseInt($(id).value,10);if(!isFinite(v))v=d;return Math.max(lo,Math.min(hi,v))};
+    return{nom:$('labnom').checked,ref:$('labref').checked,emp:$('labemp').checked,w:num('labw',60,20,200),h:num('labh',30,10,150),cols:num('labcol',3,1,8),n:num('labn',1,1,99)};
+  }
+  function labList(){
+    var q=fold($('labs').value.trim());
+    return live().filter(function(i){return !q||fold([i.code,i.cur||'',i.ref||'',i.name].join(' ')).indexOf(q)>-1})
+      .sort(function(a,b){return String(a.name).localeCompare(String(b.name),'fr')});
+  }
+  function labDraw(){
+    $('labl').innerHTML=labList().map(function(i){
+      return '<label class="snap" style="gap:8px;align-items:center;font-weight:400;padding:6px 8px"><input type="checkbox" data-c="'+esc(i.code)+'"'+(labSel[i.code]?' checked':'')+' style="width:auto;min-height:0;margin:0"><span style="flex:1;min-width:0"><b>'+esc(i.name)+'</b><small>'+esc(curOf(i))+(i.ref?' · '+esc(i.ref):'')+'</small></span><input data-n="'+esc(i.code)+'" inputmode="numeric" placeholder="'+esc(String(labCfg().n))+'" value="'+(labN[i.code]||'')+'" style="width:54px;text-align:center;margin:0"></label>';
+    }).join('')||'<p class="hint" style="padding:8px">Aucune pièce.</p>';
+    labUpdate();
+  }
+  function labCopies(code){var v=parseInt(labN[code],10);return isFinite(v)&&v>0?Math.min(v,99):labCfg().n}
+  function labUpdate(){
+    var cfg=labCfg(),codes=Object.keys(labSel).filter(function(c){return labSel[c]&&find(c)}),tot=0;
+    codes.forEach(function(c){tot+=labCopies(c)});
+    $('labc').textContent=codes.length+' pièce(s) cochée(s) · '+tot+' étiquette(s)';
+    $('labp').disabled=!tot;
+    sv(KLAB,{nom:cfg.nom,ref:cfg.ref,emp:cfg.emp,w:cfg.w,h:cfg.h,cols:cfg.cols,n:cfg.n});
+    var first=codes.length?find(codes[0]):(live()[0]||null);
+    $('labv').innerHTML=first?labHtml(first,cfg):'';
+  }
+  function labMode(m){
+    var q=fold($('search').value.trim()),all=live();
+    if(m==='man')return;
+    labSel={};
+    all.forEach(function(i){
+      var ok=m==='all'||(m==='flt'&&(!q||fold([i.code,i.cur||'',(i.alts||[]).join(' '),i.ref||'',i.name,i.loc,i.note,lgTxt(i)].join(' ')).indexOf(q)>-1))||(m==='made'&&/^2[012]0[0-9]{10}$/.test(curOf(i)));
+      if(ok)labSel[i.code]=true;
+    });
+    labDraw();
+  }
+  $('labBtn').onclick=function(){
+    var c=ld(KLAB,{});
+    $('labnom').checked=c.nom!==false;$('labref').checked=c.ref!==false;$('labemp').checked=!!c.emp;
+    $('labw').value=c.w||60;$('labh').value=c.h||30;$('labcol').value=c.cols||3;$('labn').value=c.n||1;
+    labSel={};labN={};$('labs').value='';
+    var rd=document.querySelectorAll('#labm input');for(var i=0;i<rd.length;i++)rd[i].checked=rd[i].value==='man';
+    labDraw();$('ladlg').showModal();
+  };
+  $('labm').onchange=function(e){if(e.target.name==='labm')labMode(e.target.value)};
+  $('labs').oninput=labDraw;
+  $('labl').onchange=function(e){
+    var t=e.target;
+    if(t.hasAttribute('data-c')){if(t.checked)labSel[t.getAttribute('data-c')]=true;else delete labSel[t.getAttribute('data-c')]}
+    else if(t.hasAttribute('data-n')){labN[t.getAttribute('data-n')]=t.value.trim()}
+    labUpdate();
+  };
+  ['labn','labw','labh','labcol'].forEach(function(id){$(id).oninput=labUpdate});
+  ['labnom','labref','labemp'].forEach(function(id){$(id).onchange=labUpdate});
+  $('labx').onclick=function(){$('ladlg').close()};
+  $('labp').onclick=function(){
+    var cfg=labCfg();
+    if(cfg.cols*cfg.w>194){toast('Trop large pour une page A4 : réduis la largeur ou le nombre de colonnes');return}
+    var html='';
+    live().slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name),'fr')}).forEach(function(i){
+      if(!labSel[i.code])return;
+      var k=labCopies(i.code),lab=labHtml(i,cfg);
+      for(var n=0;n<k;n++)html+=lab;
+    });
+    if(!html){toast('Aucune étiquette à imprimer');return}
+    $('labprint').innerHTML=html;$('labprint').style.setProperty('--cols',String(cfg.cols));
+    document.body.classList.add('labprint');$('ladlg').close();
+    var back=function(){window.removeEventListener('afterprint',back);document.body.classList.remove('labprint');$('labprint').innerHTML='';if(!$('ladlg').open)$('ladlg').showModal()};
+    window.addEventListener('afterprint',back);
+    setTimeout(function(){window.print()},150);
+  };
 
   function csvQuote(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'}
   function exportCSV(){

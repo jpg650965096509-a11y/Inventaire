@@ -194,6 +194,14 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       </div>
     </label>
     <label>Emplacement<input id="fl" autocomplete="off"></label>
+    <div id="fln">
+      <label>Magasin<select id="fmg"></select></label>
+      <details id="fplus" style="margin:4px 0 8px"><summary style="cursor:pointer;color:var(--mute)">Conditionnement, unité, péremption, lot</summary>
+        <div class="row" style="flex-wrap:nowrap;margin-top:0"><label>Conditionnement<input id="fcd" autocomplete="off"></label><label>Unité<input id="fun" autocomplete="off"></label></div>
+        <div class="row" style="flex-wrap:nowrap;margin-top:0"><label>Péremption (AAAA-MM-JJ)<input id="fpe" autocomplete="off"></label><label>N° de lot<input id="flt" autocomplete="off"></label></div>
+      </details>
+    </div>
+    <p class="hint" id="flnm" style="display:none">Cette pièce a plusieurs lignes de stock : magasin, conditionnement, unité, péremption et lot se règlent ligne par ligne avec « Lignes de stock » dans le détail.</p>
     <label>Seuil de commande (vide = aucun)<input id="fmn" inputmode="decimal" autocomplete="off"></label>
     <label>Note<input id="fo" autocomplete="off"></label>
     <div class="row" style="margin:-4px 0 8px"><button type="button" class="btn" id="fscC">Scanner le code actuel</button><button type="button" class="btn" id="fscA">Scanner un autre code</button></div>
@@ -294,6 +302,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <button type="button" class="btn big" id="admUsers">Utilisateurs et rôles</button>
   <button type="button" class="btn big" id="admJournal" style="margin-top:8px">Journal des mouvements</button>
   <button type="button" class="btn big" id="admMag" style="margin-top:8px">Magasins</button>
+  <button type="button" class="btn big" id="admMails" style="margin-top:8px">E-mails (règles et journal)</button>
   <h2 style="margin-top:18px;font-size:20px">Envoi d'e-mail (test)</h2>
   <label>URL du service e-mail<input id="mailUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></label>
   <button type="button" class="btn big" id="admMail">Envoyer un e-mail de test</button>
@@ -401,6 +410,39 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <div class="row"><label class="btn" style="margin:0">Restaurer un JSON<input id="bi" type="file" accept=".json,application/json" style="display:none"></label><button class="btn cancel" id="bx" type="button">Fermer</button></div>
 </dialog>
 
+<dialog id="mldlg">
+  <h2>E-mails</h2>
+  <p class="hint" style="margin:0 0 8px">Quand un événement arrive dans l'application, un e-mail part aux personnes choisies. Coche les événements à signaler, puis « Modifier » pour choisir qui reçoit.</p>
+  <div id="mll"></div>
+  <button type="button" class="btn" id="mlrec" style="margin:8px 0;width:100%">Appliquer les réglages conseillés</button>
+  <label>Garder le journal des e-mails pendant<select id="mlk"><option value="30">1 mois</option><option value="90">3 mois</option><option value="180">6 mois</option><option value="365">12 mois</option><option value="0">Toujours</option></select></label>
+  <div class="row"><button type="button" class="btn" id="mljb">Journal des e-mails</button><button type="button" class="btn" id="mlt">Envoyer un test</button></div>
+  <p class="hint" id="mls" style="margin:6px 0 0"></p>
+  <div class="row"><button type="button" class="btn cancel" id="mlx">Fermer</button></div>
+</dialog>
+
+<dialog id="mrdlg">
+  <h2 id="mrt">Règle</h2>
+  <p class="hint" id="mrh" style="margin:0 0 6px"></p>
+  <label id="mrqw" style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="mrq" style="width:auto;min-height:0;margin:0"> Le demandeur</label>
+  <p class="hint" style="margin:8px 0 2px">Toutes les personnes ayant le rôle</p>
+  <div id="mrr" style="display:flex;gap:12px;flex-wrap:wrap"></div>
+  <p class="hint" style="margin:8px 0 2px">Des personnes précises</p>
+  <div id="mrp" style="max-height:26vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 8px"></div>
+  <div class="row"><button type="button" class="btn cancel" id="mrx">Annuler</button><button type="button" class="btn pri" id="mrs">Enregistrer</button></div>
+</dialog>
+
+<dialog id="mjdlg">
+  <h2>Journal des e-mails</h2>
+  <input id="mjs" type="search" placeholder="Filtrer (personne, objet, événement…)" aria-label="Filtrer" style="margin-bottom:6px">
+  <p class="hint" id="mjc" style="margin:0 0 4px"></p>
+  <div id="mjl" style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:10px"></div>
+  <div class="row"><button type="button" class="btn" id="mje">Export CSV</button></div>
+  <label>Nettoyer : supprimer ce qui date de plus de<select id="mjk"><option value="30">1 mois</option><option value="90">3 mois</option><option value="180">6 mois</option><option value="365">12 mois</option><option value="0">tout (même récent)</option></select></label>
+  <div class="row"><button type="button" class="btn danger" id="mjn">Nettoyer le journal</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="mjx">Fermer</button></div>
+</dialog>
+
 <dialog id="vdlg" style="text-align:center">
   <h2>En veille</h2>
   <p class="hint">La caméra et la synchronisation automatique sont arrêtées pour économiser la batterie.</p>
@@ -492,7 +534,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.5.2';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.7.0';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -554,7 +596,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     return -1;
   }
   function curOf(it){return it?(it.cur||it.code):''}
-  /* ===== Lignes de stock (modèle GSE) : une pièce a une ou plusieurs lignes (magasin, emplacement, conditionnement, unité, péremption, lot) ;
+  /* ===== Lignes de stock : une pièce a une ou plusieurs lignes (magasin, emplacement, conditionnement, unité, péremption, lot) ;
      stock d'une ligne = son stock de départ (q) + les mouvements qui la visent (champ lg) ; sans lg, le mouvement vise la première ligne.
      Les lignes sont rangées dans la fiche de la pièce (champ lg) ; qty = somme des stocks de départ des lignes, donc le stock total ne change pas de calcul. ===== */
   var DEFMAG='Principal',LG0='a',LG_F=['mg','em','cd','un','pe','lt'];
@@ -996,7 +1038,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       else if(m==='400')toast('Règles Firebase à mettre à jour (index sur s)');
       else if(m==='401'||m==='403')toast('Accès refusé : compte non autorisé');
       else if(m==='noauth')failed=false;
-    }).then(function(){syncing=false;status();if($('jdlg').hasAttribute('open'))jLoad();return !failed});
+    }).then(function(){syncing=false;status();if($('jdlg').hasAttribute('open'))jLoad();mailFlush(true);return !failed});
     return syncP;
   }
   function later(){clearTimeout(st);st=setTimeout(sync,1200)}
@@ -1083,6 +1125,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('fc').readOnly=false;$('fa').value=it&&it.alts?it.alts.join(', '):'';$('fr').value=it&&it.ref?it.ref:'';
     $('fmn').value=it&&it.mn!==undefined&&it.mn!==null?String(it.mn).replace('.',','):'';
     $('fl').value=it&&it.loc?it.loc:'';$('fo').value=it&&it.note?it.note:'';
+    var multiP=!!(it&&find(it.code)&&lgMulti(it)),l1=(it&&lgArr(it).length===1)?linesOf(it)[0]:{mg:DEFMAG,cd:'',un:'',pe:'',lt:''};
+    $('fln').style.display=multiP?'none':'';$('flnm').style.display=multiP?'':'none';
+    var mgs=magList();if(l1.mg&&mgs.indexOf(l1.mg)<0)mgs=mgs.concat([l1.mg]);
+    $('fmg').innerHTML=mgs.map(function(n){return '<option'+(n===(l1.mg||DEFMAG)?' selected':'')+'>'+esc(n)+'</option>'}).join('');
+    $('fcd').value=l1.cd||'';$('fun').value=l1.un||'';$('fpe').value=l1.pe||'';$('flt').value=l1.lt||'';
+    $('fplus').open=!!(l1.cd||l1.un||l1.pe||l1.lt);
     $('fd').style.display=editing?'':'none';
     var mlt=!!(editing&&lgMulti(it));$('fq').readOnly=mlt;$('fqm').disabled=mlt;$('fqp').disabled=mlt;$('fq').title=mlt?'Total des lignes : le stock se modifie ligne par ligne depuis le détail de la pièce':'';
     if(editing){
@@ -1977,6 +2025,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var note=('Motif : '+m+(pre?' — '+pre:'')).slice(0,480);
     addMv(P.code,P.d,{saisie:P.shown,lg:P.lg,note:note}).then(function(){
       fillStocks();toast((P.d>0?'Entrée ':'Sortie ')+fmt(Math.abs(P.d))+' · stock : '+fmt(P.shown));
+      if(P.d<0){var pit=find(P.code);stockOf(P.code).then(function(t){if(pit&&lowQ(pit,t)&&!lowQ(pit,r3(t-P.d)))mailQueue('seuil','',{code:P.code,stock:t})})}
       if(P.multi){var u=find(P.code);if(u&&$('kdlg').open)showStock(u)}
     });
     if(!P.multi)$('kdlg').close();
@@ -2026,12 +2075,19 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       if(o&&o.code!==ident){toast('Le code-barres '+all[q]+' est déjà utilisé par « '+o.name+' »');return}
     }
     var ref=$('fr').value.trim(),newQty=num($('fq').value),delta=r3(newQty-fqBase);
+    var pev=$('fpe').value.trim();
+    if(pev&&!/^\d{4}-\d{2}-\d{2}$/.test(pev)&&$('fln').style.display!=='none'){toast('La péremption s\'écrit AAAA-MM-JJ');$('fplus').open=true;return}
     var mnTxt=$('fmn').value.trim(),mnv;
     if(mnTxt!==''){mnv=Number(mnTxt.replace(/\s/g,'').replace(',','.'));if(!isFinite(mnv)||mnv<0){toast('Seuil de commande : nombre positif ou vide');return}}
     var save=function(){
       /* stock de départ inchangé : toute variation de quantité passe par un mouvement */
       var rec=({code:ident,cur:cur!==ident?cur:undefined,alts:alts.length?alts:undefined,ref:ref||undefined,desc:(prev&&prev.desc)||undefined,mn:mnv,name:name,qty:prev?prev.qty:0,loc:$('fl').value.trim(),note:$('fo').value.trim()});
-      if(prev&&prev.lg){var la=lgArr(prev).map(function(l){var o={};for(var f in l)o[f]=l[f];return o});la[0].em=rec.loc;rec.lg=la}
+      if(prev&&lgMulti(prev)){var la=lgArr(prev).map(function(l){var o={};for(var f in l)o[f]=l[f];return o});la[0].em=rec.loc;rec.lg=la}
+      else{
+        var L0=prev?linesOf(prev)[0]:{id:LG0,q:0};
+        var nl={id:L0.id,mg:$('fmg').value||DEFMAG,em:rec.loc,cd:$('fcd').value.trim(),un:$('fun').value.trim(),pe:$('fpe').value.trim(),lt:$('flt').value.trim(),q:L0.q};
+        if(!lgPlain(nl)){rec.lg=[nl];rec.qty=L0.q}
+      }
       put(rec);
       commit();$('dlg').close();toast('Enregistré');
       if(delta)addMv(ident,delta,{saisie:newQty}).then(function(){fillStocks()});
@@ -2485,6 +2541,43 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('admData').addEventListener('click',function(e){if(e.target.closest('button'))$('admdlg').close()});
   $('imp').addEventListener('change',function(){$('admdlg').close()});
 
+  /* ===== E-mails : l'application signale l'événement au script Google, qui relit la base, lit les règles, envoie et tient le journal ===== */
+  var KMQ='inventaire_mailq_v1'+SFX,mailBusy=false;
+  var MAILEV=[['demande','Nouvelle demande de pièces'],['decision','Demande approuvée ou refusée'],['reception','Réception enregistrée'],['cloture','Demande clôturée'],['seuil','Pièce sous son seuil de commande']];
+  function mailUrl(){var u=String(ld('inventaire_mailurl_v1','')||'https://script.google.com/macros/s/AKfycbz9WXY1xkHPzxtnbBrAUccvcsCbutPH6PuXLlGMXhUXOxpKMe2IwWzsqP49uC0nNUbZ/exec').trim();return /^https:\/\/script\.google\.com\/macros\/s\/[^\s]+\/exec$/.test(u)?u:''}
+  function mailCall(body){
+    var u=mailUrl();if(!u)return Promise.reject(new Error('url'));
+    return token().then(function(tok){
+      body.idToken=tok;
+      return fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
+    }).then(function(r){return r.text().then(function(t){var j=null;try{j=JSON.parse(t)}catch(e){}return j||{ok:false,error:'réponse illisible (HTTP '+r.status+')'}})});
+  }
+  /* l'événement est mis en file, puis envoyé quand il est sur le serveur (le script le relit dans la base) */
+  function mailQueue(ev,id,extra){
+    var q=ld(KMQ,[]),k=ev+'|'+id+'|'+((extra&&extra.code)||'');
+    if(!q.some(function(x){return x.k===k}))q.push({k:k,ev:ev,id:id,x:extra||{},n:0,t:Date.now()});
+    sv(KMQ,q);mailFlush();
+  }
+  function mailFlush(fromSync){
+    if(mailBusy||!auth||!navigator.onLine||!mailUrl()||!ld(KMQ,[]).length)return;
+    mailBusy=true;
+    (fromSync?Promise.resolve():sync().catch(function(){})).then(function(){
+      var step=function(){
+        var q=ld(KMQ,[]);if(!q.length)return;
+        var it=q[0];
+        return mailCall({action:'notify',room:cfg.room,event:it.ev,id:it.id,extra:it.x}).then(function(j){
+          var q2=ld(KMQ,[]).filter(function(x){return x.k!==it.k});
+          /* « introuvable » = l'événement n'est pas encore arrivé sur le serveur : on réessaie plus tard (12 fois au plus) */
+          if(!j.ok&&/introuvable/.test(j.error||'')&&it.n<11){var again=ld(KMQ,[]).map(function(x){if(x.k===it.k)x.n++;return x});sv(KMQ,again);return}
+          sv(KMQ,q2);
+          if(!j.ok&&$('mldlg').open)$('mls').textContent='⚠ Un e-mail n\'est pas parti : '+(j.error||'erreur');
+          return step();
+        });
+      };
+      return step();
+    }).catch(function(){}).then(function(){mailBusy=false});
+  }
+
   /* Envoi d'e-mail (test) via un service Google Apps Script : le script vérifie le jeton Firebase et le rôle admin */
   var KM='inventaire_mailurl_v1',MAIL_TO='jean-pierre.gagliano@outlook.com';
   var MAIL_URL='https://script.google.com/macros/s/AKfycbz9WXY1xkHPzxtnbBrAUccvcsCbutPH6PuXLlGMXhUXOxpKMe2IwWzsqP49uC0nNUbZ/exec';
@@ -2496,17 +2589,124 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     sv(KM,u);st.textContent='Envoi en cours…';$('admMail').disabled=true;
     token().then(function(tok){
       return fetch(u,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({
-        idToken:tok,to:MAIL_TO,subject:'Test e-mail - Inventaire pieces',
-        body:"Ceci est un e-mail de test envoyé depuis le Centre d'administration de l'application Inventaire (v"+VERSION+') le '+new Date().toLocaleString('fr-BE')+'.'
+        idToken:tok,action:'test',room:cfg.room
       })});
     }).then(function(r){return r.text().then(function(t){return{s:r.status,t:t}})}).then(function(x){
       var j=null;try{j=JSON.parse(x.t)}catch(e){}
-      if(j&&j.ok)st.textContent='✓ E-mail envoyé à '+MAIL_TO+' ('+hh()+')';
+      if(j&&j.ok)st.textContent='✓ E-mail de test envoyé à ton adresse de connexion ('+hh()+')';
       else if(j)st.textContent='✗ Refusé : '+(j.error||'réponse inattendue');
       else st.textContent='⚠ Réponse illisible du service (HTTP '+x.s+') : « '+x.t.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,160)+' » — vérifie ta boîte mail : la demande est peut-être partie.';
     }).catch(function(e){
       st.textContent='✗ Service non joignable ou refusé par le navigateur ('+((e&&e.message)||e)+')';
     }).then(function(){$('admMail').disabled=false});
+  };
+
+  /* ----- écran E-mails : règles par événement ----- */
+  var mRules={},mUsers={},mEdit='',RLB=[['admin','Admin'],['superuser','SuperUser'],['operateur','Opérateur'],['lecteur','Lecteur'],['securityofficer','SecurityOfficer']];
+  var MREC={demande:{on:true,roles:['admin','superuser']},decision:{on:true,req:true},reception:{on:true,req:true},cloture:{on:false},seuil:{on:true,roles:['superuser']}};
+  function mPath(p){return '/inventaires/'+encodeURIComponent(cfg.room)+'/'+p}
+  function mDescr(r){
+    if(!r)return 'personne';
+    var p=[];if(r.req)p.push('le demandeur');
+    (r.roles||[]).forEach(function(x){var l=RLB.filter(function(y){return y[0]===x})[0];p.push('rôle '+(l?l[1]:x))});
+    (r.people||[]).forEach(function(e){var u=mUsers[ukey(e)];p.push((u&&uInfo(u).name)||e)});
+    return p.length?p.join(' · '):'personne';
+  }
+  function mDraw(){
+    $('mll').innerHTML=MAILEV.map(function(e){
+      var r=mRules[e[0]];
+      return '<div class="snap" data-ev="'+e[0]+'" style="flex-wrap:wrap;gap:6px"><label style="display:flex;gap:8px;align-items:center;font-weight:700;flex:1 1 100%"><input type="checkbox" data-on style="width:auto;min-height:0;margin:0"'+(r&&r.on?' checked':'')+'> '+esc(e[1])+'</label><small style="flex:1">→ '+esc(mDescr(r))+'</small><button type="button" class="btn" data-ed style="min-height:36px;padding:4px 10px">Modifier</button></div>';
+    }).join('');
+    var k=(mRules.cfg&&mRules.cfg.days!==undefined)?String(mRules.cfg.days):'365';
+    $('mlk').value=['30','90','180','365','0'].indexOf(k)>-1?k:'365';
+  }
+  function mLoad(){
+    $('mls').textContent='Chargement…';
+    return Promise.all([fb('GET',mPath('mailrules')).catch(function(){return {}}),fb('GET','/allowed').catch(function(){return {}})]).then(function(a){
+      mRules=a[0]||{};mUsers=a[1]||{};
+      MAILEV.forEach(function(e){var r=mRules[e[0]];if(r){r.roles=r.roles?Object.keys(r.roles).map(function(k){return r.roles[k]}):[];r.people=r.people?Object.keys(r.people).map(function(k){return r.people[k]}):[]}});
+      $('mls').textContent=mailUrl()?'':'⚠ Aucune URL de service e-mail : renseigne-la dans le Centre d\'administration.';
+      mDraw();
+    });
+  }
+  function mPut(ev,rule){return fb('PUT',mPath('mailrules/'+ev),rule)}
+  $('admMails').onclick=function(){$('admdlg').close();$('mll').innerHTML='';$('mldlg').showModal();mLoad()};
+  $('mlx').onclick=function(){$('mldlg').close()};
+  $('mll').onclick=function(e){
+    var row=e.target.closest('[data-ev]');if(!row)return;
+    var ev=row.getAttribute('data-ev');
+    if(e.target.closest('[data-ed]'))mOpenEd(ev);
+  };
+  $('mll').onchange=function(e){
+    var row=e.target.closest('[data-ev]');if(!row||!e.target.hasAttribute('data-on'))return;
+    var ev=row.getAttribute('data-ev'),r=mRules[ev]||{roles:[],people:[]};
+    r.on=e.target.checked;mRules[ev]=r;
+    var o={on:r.on,req:!!r.req};if((r.roles||[]).length)o.roles=r.roles;if((r.people||[]).length)o.people=r.people;
+    mPut(ev,o).then(function(){$('mls').textContent='Enregistré.';mDraw()}).catch(function(){$('mls').textContent='⚠ Enregistrement impossible (droits Admin et règles v254 requis).'});
+  };
+  $('mlrec').onclick=function(){
+    var ps=MAILEV.map(function(e){var c=MREC[e[0]],o={on:!!c.on,req:!!c.req};if(c.roles)o.roles=c.roles;return mPut(e[0],o).then(function(){mRules[e[0]]={on:o.on,req:o.req,roles:o.roles||[],people:[]}})});
+    Promise.all(ps).then(function(){$('mls').textContent='Réglages conseillés appliqués.';mDraw()}).catch(function(){$('mls').textContent='⚠ Enregistrement impossible (droits Admin et règles v254 requis).'});
+  };
+  $('mlk').onchange=function(){fb('PUT',mPath('mailrules/cfg'),{days:Number($('mlk').value)}).then(function(){$('mls').textContent='Durée de conservation enregistrée.'}).catch(function(){$('mls').textContent='⚠ Enregistrement impossible.'})};
+  $('mlt').onclick=function(){
+    $('mls').textContent='Envoi du test…';
+    mailCall({action:'test',room:cfg.room}).then(function(j){$('mls').textContent=j.ok?'✓ E-mail de test envoyé à ton adresse de connexion.':'✗ '+(j.error||'refusé')}).catch(function(){$('mls').textContent='✗ Service non joignable ou URL absente.'});
+  };
+  /* éditeur d'une règle */
+  function mOpenEd(ev){
+    mEdit=ev;var r=mRules[ev]||{},lab=MAILEV.filter(function(e){return e[0]===ev})[0][1];
+    $('mrt').textContent=lab;
+    $('mrh').textContent=ev==='seuil'?'Il n\'y a pas de demandeur pour cet événement.':'';
+    $('mrqw').style.display=ev==='seuil'?'none':'';
+    $('mrq').checked=!!r.req;
+    $('mrr').innerHTML=RLB.map(function(x){return '<label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" data-r="'+x[0]+'"'+((r.roles||[]).indexOf(x[0])>-1?' checked':'')+' style="width:auto;min-height:0;margin:0"> '+x[1]+'</label>'}).join('');
+    var ks=Object.keys(mUsers).sort();
+    $('mrp').innerHTML=ks.length?ks.map(function(k){var i=uInfo(mUsers[k]),em=k.replace(/,/g,'.');
+      return '<label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" data-p="'+esc(em)+'"'+((r.people||[]).indexOf(em)>-1?' checked':'')+' style="width:auto;min-height:0;margin:0"> '+esc(i.name||em)+' <small>'+esc(em)+'</small></label>'}).join(''):'<p class="hint">Liste des utilisateurs indisponible.</p>';
+    $('mrdlg').showModal();
+  }
+  $('mrx').onclick=function(){$('mrdlg').close()};
+  $('mrs').onclick=function(){
+    var roles=[].map.call(document.querySelectorAll('#mrr input:checked'),function(e){return e.getAttribute('data-r')});
+    var people=[].map.call(document.querySelectorAll('#mrp input:checked'),function(e){return e.getAttribute('data-p')});
+    var o={on:!!(mRules[mEdit]&&mRules[mEdit].on)||roles.length>0||people.length>0||$('mrq').checked,req:$('mrq').checked&&mEdit!=='seuil'};
+    if(roles.length)o.roles=roles;if(people.length)o.people=people;
+    mPut(mEdit,o).then(function(){
+      mRules[mEdit]={on:o.on,req:o.req,roles:roles,people:people};
+      $('mrdlg').close();mDraw();$('mls').textContent='Règle enregistrée.';
+    }).catch(function(){toast('Enregistrement impossible (droits Admin et règles v254 requis)')});
+  };
+  /* journal des e-mails */
+  var mJ=[];
+  function mJDraw(){
+    var q=fold($('mjs').value.trim()),l=mJ.filter(function(x){return !q||fold([x.ev,x.to,x.name,x.subject,x.by,x.err||''].join(' ')).indexOf(q)>-1});
+    $('mjc').textContent=l.length+' ligne(s)'+(mJ.length>=200?' (les 200 plus récentes)':'');
+    $('mjl').innerHTML=l.length?l.map(function(x){
+      return '<div class="snap" style="display:block"><b>'+esc(x.subject||x.ev)+'</b><small>'+esc(x.at||'')+' · '+esc(x.ev||'')+(x.to?' → '+esc(x.name||x.to)+' ('+esc(x.to)+')':'')+'</small><small style="'+(x.ok===false?'color:var(--bad);font-weight:700':'')+'">'+(x.ok===false?'✗ Échec : '+esc(x.err||''):'✓ Envoyé')+(x.by?' · déclenché par '+esc(x.by):'')+'</small></div>';
+    }).join(''):'<p class="hint" style="padding:8px">Aucun e-mail.</p>';
+  }
+  function mJLoad(){
+    $('mjl').innerHTML='<p class="hint" style="padding:8px">Chargement…</p>';
+    return req('GET',null,'?orderBy=%22t%22&limitToLast=200','emails').then(function(o){
+      mJ=Object.keys(o||{}).map(function(k){return o[k]}).sort(function(a,b){return b.t-a.t});mJDraw();
+    }).catch(function(){$('mjl').innerHTML='<p class="hint" style="padding:8px">Chargement impossible (droits Admin et règles v254 requis).</p>'});
+  }
+  $('mljb').onclick=function(){$('mjs').value='';$('mjdlg').showModal();mJLoad()};
+  $('mjx').onclick=function(){$('mjdlg').close()};
+  $('mjs').oninput=mJDraw;
+  $('mje').onclick=function(){
+    if(!mJ.length){toast('Rien à exporter');return}
+    var rows=[['Date','Événement','Destinataire','Nom','Objet','Résultat','Erreur','Déclenché par']].concat(mJ.map(function(x){return [x.at,x.ev,x.to,x.name,x.subject,x.ok===false?'échec':'envoyé',x.err||'',x.by]}));
+    download('﻿'+rows.map(function(r){return r.map(csvQuote).join(';')}).join('\r\n'),'text/csv','journal-emails-'+day()+'.csv');
+  };
+  $('mjn').onclick=function(){
+    var d=Number($('mjk').value);
+    ask(d?'Supprimer du journal des e-mails tout ce qui date de plus de '+$('mjk').options[$('mjk').selectedIndex].textContent+' ? Pense à exporter le journal avant : c\'est irréversible.':'Supprimer TOUT le journal des e-mails ? Pense à l\'exporter avant : c\'est irréversible.','Nettoyer',function(){
+      mailCall({action:'clean',room:cfg.room,days:d}).then(function(j){
+        toast(j.ok?j.removed+' ligne(s) supprimée(s)':'Refusé : '+(j.error||'erreur'));mJLoad();
+      }).catch(function(){toast('Service e-mail non joignable')});
+    });
   };
 
   /* Historique d'une pièce : stock de départ puis chaque ligne du journal ; le stock après chaque mouvement */
@@ -2778,7 +2978,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   /* approbation / refus / clôture : une ligne du journal à identifiant fixe (id~d, id~c) = une seule décision possible */
   function decide(x,type,motif){
     var sfx=type==='cloture'?'~c':'~d';
-    return addMv(x.r.code,0,{type:type,id:x.r.id+sfx,demande:x.r.id,saisie:x.r.qty,note:motif}).then(function(ok){rqRefresh();return ok});
+    return addMv(x.r.code,0,{type:type,id:x.r.id+sfx,demande:x.r.id,saisie:x.r.qty,note:motif}).then(function(ok){rqRefresh();if(ok)mailQueue(type==='cloture'?'cloture':'decision',x.r.id+sfx);return ok});
   }
   $('rdb').onclick=function(e){
     var ap=e.target.closest('button[data-ap]'),rf=e.target.closest('button[data-rf]'),rc=e.target.closest('button[data-rc]'),cl=e.target.closest('button[data-cl]'),ch=e.target.closest('button[data-ch]');
@@ -2794,7 +2994,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       if(needAuth('receive'))return;
       var q=num((card.querySelector('.rrec')||{}).value);
       if(!(q>0)){toast('Indique la quantité reçue');return}
-      addMv(x.r.code,q,{type:'reception',saisie:q,demande:x.r.id,lg:x.r.lg,note:((card.querySelector('.rcom')||{}).value||'').trim()}).then(function(){fillStocks();rqRefresh();toast('Réception enregistrée : +'+fmt(q))});
+      var rid=newId();
+      addMv(x.r.code,q,{type:'reception',id:rid,saisie:q,demande:x.r.id,lg:x.r.lg,note:((card.querySelector('.rcom')||{}).value||'').trim()}).then(function(ok){fillStocks();rqRefresh();toast('Réception enregistrée : +'+fmt(q));if(ok)mailQueue('reception',rid)});
     }else if(cl){
       if(needAuth('decide'))return;
       ask('Clôturer cette demande ? Le reste éventuel ne sera plus attendu.','Clôturer',function(){decide(x,'cloture','').then(function(){toast('Demande clôturée')})});
@@ -2853,7 +3054,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         return addMv(x.r.code,0,{type:'modification',demande:x.r.id,saisie:q,note:note}).then(function(ok){if(ok){rqRefresh();toast('Demande modifiée : '+fmt(x.r.qty)+' → '+fmt(q))}});
       }
       if(L.some(function(y){return y.r.code===code&&OPEN[y.st]})){toast('Une demande est déjà en cours pour cette pièce');rqRefresh();return}
-      return addMv(code,0,{type:'demande',saisie:q,note:note,lg:dest}).then(function(ok){if(ok){rqRefresh();toast('Demande envoyée')}});
+      var did=newId();return addMv(code,0,{type:'demande',id:did,saisie:q,note:note,lg:dest}).then(function(ok){if(ok){rqRefresh();toast('Demande envoyée');mailQueue('demande',did)}});
     });
   };
   $('admUsers').onclick=function(){$('us').value='';$('ul').innerHTML='<li class="empty">Chargement…</li>';usersList();$('udlg').showModal()};

@@ -167,6 +167,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <button type="button" class="kb" id="kh" title="Historique de la pièce"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg><span>Historique</span></button>
     <button type="button" class="kb" id="ki" title="Faire un inventaire"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M9 14l2 2 4-4"/></svg><span>Inventaire</span></button>
     <button type="button" class="kb" id="kr" title="Demander des pièces"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M3 8v8l9 4 9-4V8"/><path d="M12 12v8"/></svg><span id="krt">Demander</span></button>
+    <button type="button" class="kb" id="ktr" title="Transférer du stock d'une ligne à une autre" style="display:none"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h14M14 4l4 4-4 4"/><path d="M20 16H6M10 12l-4 4 4 4"/></svg><span>Transférer</span></button>
     <button type="button" class="kb" id="kg" title="Lignes de stock (magasin, emplacement, conditionnement…)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Lignes de stock</span></button>
   </div>
 </dialog>
@@ -385,6 +386,22 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <div class="row"><label class="btn" style="margin:0">Restaurer un JSON<input id="bi" type="file" accept=".json,application/json" style="display:none"></label><button class="btn cancel" id="bx" type="button">Fermer</button></div>
 </dialog>
 
+<dialog id="trdlg">
+  <h2>Transférer du stock</h2>
+  <p class="hint" id="trn" style="margin:0 0 8px"></p>
+  <label>De<select id="trf"></select></label>
+  <label>Vers<select id="trt"></select></label>
+  <label>Quantité
+    <div class="row" style="margin-top:4px;flex-wrap:nowrap">
+      <button type="button" class="btn" id="trm" aria-label="Retirer" style="flex:0 0 56px;font-size:22px">−</button>
+      <input id="trq" inputmode="decimal" autocomplete="off" style="margin-top:0;text-align:center;font-weight:600">
+      <button type="button" class="btn" id="trp" aria-label="Ajouter" style="flex:0 0 56px;font-size:22px">+</button>
+    </div>
+  </label>
+  <label>Commentaire (facultatif)<input id="trc" autocomplete="off"></label>
+  <div class="row"><button type="button" class="btn cancel" id="trx">Annuler</button><button type="button" class="btn pri" id="trv">Transférer</button></div>
+</dialog>
+
 <dialog id="lgdlg">
   <h2>Lignes de stock</h2>
   <p class="hint" id="lgn" style="margin:0 0 8px"></p>
@@ -413,7 +430,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.1.3';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.2.0';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1035,6 +1052,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     else{$('kdlg').insertBefore($('klg'),$('km'));$('kdlg').insertBefore($('kact'),$('kdd'))}
     kzero=false;
     $('kg').style.display=can('fiche')?'':'none';
+    $('ktr').style.display=(can('stock')&&kmulti)?'':'none';
     $('ke').style.display=can('fiche')?'':'none';$('kx').textContent=s?'Annuler':'Fermer';
     $('kh').style.display=(auth&&can('hist'))?'':'none';
     $('ki').style.display=s?'':'none';$('kr').style.display=s?'':'none';$('krs').textContent='';$('krt').textContent='Demander';$('kr').dataset.open='';$('kr').dataset.edit='';
@@ -1101,7 +1119,10 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function kdraw(){
     if(document.activeElement!==$('kq'))$('kq').textContent=fmt(kqty);
     var kl_=kmulti&&ksel?linesOf(find($('ke').dataset.c)||{}).filter(function(l){return l.id===ksel})[0]:null;
-    $('kpl').innerHTML=kl_?'<span class="lgb on" style="display:inline-flex;width:auto;padding:3px 12px;margin:0">'+esc(lgLabel(kl_))+'</span>':'';
+    $('kpl').innerHTML='';
+    var chg=kqty!==kbase;
+    if(can('stock')&&(!kmulti||ksel))$('kv').style.display=chg?'':'none';
+    $('kx').textContent=can('stock')&&chg?'Annuler':'Fermer';
     $('kst').textContent=(kmulti&&!ksel)?'total des lignes : choisis une ligne pour modifier son stock':(kqty!==kbase?'à valider (enregistré : '+fmt(kbase)+')':(kmulti?'stock de la ligne':'en stock'));
   }
   /* Rôles (cumulables) lus dans /allowed/<email> ; admin peut tout. stock = ajuster, fiche = créer/modifier/supprimer, danger = vider/restaurer */
@@ -1810,6 +1831,51 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     var id=b.getAttribute('data-l'),it=find($('ke').dataset.c);
     if(!it||kls[id]===undefined)return;
     ksel=id;kbase=kqty=kls[id];kready=true;kCtl();klgDraw(it);kdraw();
+  };
+
+  /* ===== Transfert : une sortie sur la ligne de départ et une entrée sur la ligne d'arrivée, enregistrées ensemble ===== */
+  var trCtx=null;
+  function trOpts(sel,skip){
+    return trCtx.L.filter(function(l){return l.id!==skip}).map(function(l){return '<option value="'+esc(l.id)+'"'+(l.id===sel?' selected':'')+'>'+esc(lgLabel(lgFull(l)))+' — stock '+fmt(trCtx.ls[l.id]||0)+'</option>'}).join('');
+  }
+  function trFill(){
+    var f=$('trf').value;
+    var cur=$('trt').value,others=trCtx.L.filter(function(l){return l.id!==f});
+    $('trt').innerHTML=trOpts(others.some(function(l){return l.id===cur})?cur:(others[0]&&others[0].id),f);
+  }
+  function trOpen(code){
+    var it=find(code);if(!it||!lgMulti(it))return;
+    if(needAuth('stock'))return;
+    lineStocks(code).then(function(ls){
+      var L=linesOf(it);trCtx={code:code,L:L,ls:ls};
+      var from=(ksel&&L.some(function(l){return l.id===ksel}))?ksel:(L.filter(function(l){return (ls[l.id]||0)>0})[0]||L[0]).id;
+      $('trn').textContent=it.name+' · '+curOf(it);
+      $('trf').innerHTML=trOpts(from,null);
+      trFill();
+      $('trq').value='';$('trc').value='';
+      keep=true;$('kdlg').close();$('trdlg').showModal();
+    });
+  }
+  $('ktr').onclick=function(){trOpen($('ke').dataset.c)};
+  $('trf').onchange=trFill;
+  function trBump(d){var v=Math.max(0,r3(num($('trq').value)+d));$('trq').value=v?String(v).replace('.',','):''}
+  $('trm').onclick=function(){trBump(-1)};
+  $('trp').onclick=function(){trBump(1)};
+  $('trx').onclick=function(){$('trdlg').close()};
+  $('trdlg').addEventListener('close',function(){var c=trCtx&&trCtx.code,it=c&&find(c);if(it)showStock(it);else resumeScan()});
+  $('trv').onclick=function(){
+    if(!trCtx||needAuth('stock'))return;
+    var code=trCtx.code,f=$('trf').value,t=$('trt').value,q=num($('trq').value),c=$('trc').value.trim();
+    if(!f||!t||f===t){toast('Choisis deux lignes différentes');return}
+    if(!(q>0)){toast('Indique la quantité à transférer');return}
+    var sf=trCtx.ls[f]||0;
+    if(q>sf){toast('Stock insuffisant sur la ligne de départ ('+fmt(sf)+')');return}
+    var lf=trCtx.L.filter(function(l){return l.id===f})[0],lt=trCtx.L.filter(function(l){return l.id===t})[0];
+    var nf='Transfert vers '+lgLabel(lgFull(lt))+(c?' — '+c:''),nt='Transfert depuis '+lgLabel(lgFull(lf))+(c?' — '+c:'');
+    addMvMany([[code,-q,{lg:f,note:nf.slice(0,480)}],[code,q,{lg:t,note:nt.slice(0,480)}]]).then(function(n){
+      if(n){fillStocks();toast('Transfert de '+fmt(q)+' effectué')}
+      $('trdlg').close();
+    });
   };
 
   /* ===== Éditeur des lignes de stock d'une pièce (Admin / SuperUser) ===== */

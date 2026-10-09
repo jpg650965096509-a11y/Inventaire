@@ -418,6 +418,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <label>Hauteur (mm)<input id="labh" inputmode="numeric" value="30"></label>
     <label>Colonnes<input id="labcol" inputmode="numeric" value="3"></label>
   </div>
+  <p class="hint" id="labt" style="margin:4px 0;color:var(--bad);font-weight:600"></p>
+  <button type="button" class="btn" id="labfix" style="display:none;margin-bottom:6px">Ajuster la largeur</button>
   <p class="hint" style="margin:8px 0 2px">Aperçu</p>
   <div id="labv" style="overflow:auto;padding:4px 0"></div>
   <div class="row"><button type="button" class="btn cancel" id="labx">Fermer</button><button type="button" class="btn pri" id="labp">Imprimer</button></div>
@@ -476,7 +478,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.4.1';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.4.3';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1300,7 +1302,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function bcOf(code){
     code=String(code);
     if(code.length===13&&/^[0-9]+$/.test(code)&&eanOk(code))return{bits:bcEan13(code),quiet:9,txt:code.charAt(0)+' '+code.slice(1,7)+' '+code.slice(7)};
-    var b=bcC128(code);return b?{bits:b,quiet:10,txt:code}:null;
+    var b=bcC128(code);return b?{bits:b,quiet:6,txt:code}:null;
   }
   function bcSvg(o){
     var q=o.quiet,n=o.bits.length,W=n+2*q,p='',i=0,j;
@@ -1338,6 +1340,10 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     codes.forEach(function(c){tot+=labCopies(c)});
     $('labc').textContent=codes.length+' pièce(s) cochée(s) · '+tot+' étiquette(s)';
     $('labp').disabled=!tot;
+    var mod=0;codes.forEach(function(c){var b=bcOf(curOf(find(c)));if(b){var m=b.bits.length+2*b.quiet;if(m>mod)mod=m}});
+    var need=Math.ceil(mod*0.45+3);
+    $('labt').textContent=(mod&&cfg.w<need)?'⚠ Code long ('+mod+' modules) : pour un scan fiable, largeur conseillée ≥ '+need+' mm (colonnes : '+Math.max(1,Math.floor(194/need))+' au plus)':'';
+    $('labfix').style.display=(mod&&cfg.w<need)?'':'none';$('labfix').dataset.w=String(need);
     sv(KLAB,{nom:cfg.nom,ref:cfg.ref,emp:cfg.emp,w:cfg.w,h:cfg.h,cols:cfg.cols,n:cfg.n});
     var first=codes.length?find(codes[0]):(live()[0]||null);
     $('labv').innerHTML=first?labHtml(first,cfg):'';
@@ -1370,6 +1376,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   };
   ['labn','labw','labh','labcol'].forEach(function(id){$(id).oninput=labUpdate});
   ['labnom','labref','labemp'].forEach(function(id){$(id).onchange=labUpdate});
+  $('labfix').onclick=function(){var w=parseInt($('labfix').dataset.w,10)||60;$('labw').value=w;$('labcol').value=Math.max(1,Math.floor(194/w));labUpdate()};
   $('labx').onclick=function(){$('ladlg').close()};
   $('labp').onclick=function(){
     var cfg=labCfg();

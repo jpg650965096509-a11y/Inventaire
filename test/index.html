@@ -71,7 +71,9 @@ select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10p
 .opts label{margin:0}
 #list,#rl,#ul,#uksl{list-style:none;margin:0;padding:0}
 .chip{display:inline-block;padding:4px 10px;border-radius:999px;font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap;background:#E7EAF1;color:#14213D}
-#labprint{display:none}
+#labprint{display:none}#rpprint{display:none}
+.rpt{border-collapse:collapse;width:100%;font-size:12px}.rpt th,.rpt td{border:1px solid var(--line);padding:3px 5px;text-align:left;vertical-align:top}.rpt th{background:#eef1f6}
+@media print{body.rpprint>*:not(#rpprint){display:none!important}body.rpprint #rpprint{display:block;color:#000;background:#fff}body.rpprint .rpt{font-size:10px}}
 .lab .lcm{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
 .lab{position:relative;box-sizing:border-box;border:.2mm dashed #888;padding:1.5mm;display:flex;flex-direction:column;overflow:hidden;background:#fff;color:#000;break-inside:avoid;page-break-inside:avoid}
 .lab .lt{font:700 3.2mm/1.15 Arial,sans-serif;max-height:7.4mm;overflow:hidden}
@@ -147,6 +149,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
   <section class="panel tools" aria-label="Données">
     <button class="btn" id="rqBtn" type="button">Demandes</button>
+    <button class="btn" id="rpBtn" type="button" style="display:none">Rapports</button>
     <button class="btn" id="admBtn" type="button">Administration</button>
   </section>
   <p class="hint" id="ver" style="text-align:center"></p>
@@ -246,6 +249,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p class="hint" id="pvi" style="margin:0 0 8px;white-space:pre-line"></p>
   <p id="pvw" style="margin:0 0 8px;color:var(--bad);font-weight:600;white-space:pre-line"></p>
   <label style="display:flex;align-items:center;gap:8px;font-weight:400"><input type="checkbox" id="pvq" style="width:auto;min-height:0;margin:0"> Ne pas modifier le stock des pièces déjà présentes</label>
+  <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:6px"><input type="checkbox" id="pvx" style="width:auto;min-height:0;margin:0"> Ce fichier vient du système externe (enregistrer le repère)</label>
   <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:6px"><input type="checkbox" id="pvc" checked style="width:auto;min-height:0;margin:0"> Appliquer les changements de code-barres</label>
   <p class="hint" id="pvs" style="margin:8px 0 12px"></p>
   <div class="row"><button type="button" class="btn cancel" id="pvn">Annuler</button><button type="button" class="btn pri" id="pvo">Importer</button></div>
@@ -473,6 +477,23 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p><b>Touche l'écran pour reprendre.</b></p>
 </dialog>
 
+<dialog id="rpdlg">
+  <h2>Rapports</h2>
+  <div id="rpi" style="font-size:13px;margin-bottom:6px"></div>
+  <div class="row"><button type="button" class="btn" id="rpmaj">Marquer le système externe à jour</button><button type="button" class="btn" id="rphist">Historique des repères</button></div>
+  <h3 style="margin:14px 0 4px;font-size:16px">Écarts depuis un repère du système externe</h3>
+  <label>Repère de départ<select id="rpsel"></select></label>
+  <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="rpall" style="width:auto;min-height:0;margin:0"> Afficher aussi les lignes sans écart</label>
+  <button type="button" class="btn pri" id="rp1" style="margin-top:6px;width:100%">Afficher les écarts</button>
+  <h3 style="margin:14px 0 4px;font-size:16px">Mouvements par motif (pertes, casse…)</h3>
+  <div class="row" style="flex-wrap:nowrap"><label>Du<input type="date" id="rpd1"></label><label>Au<input type="date" id="rpd2"></label></div>
+  <label>Motif<select id="rpmo"></select></label>
+  <button type="button" class="btn pri" id="rp2" style="margin-top:6px;width:100%">Afficher les mouvements</button>
+  <div id="rpo" style="margin-top:10px;max-height:40vh;overflow:auto"></div>
+  <div class="row" id="rpb" style="display:none"><button type="button" class="btn" id="rpe">Export CSV</button><button type="button" class="btn" id="rpp">Imprimer / PDF</button></div>
+  <div class="row"><button type="button" class="btn cancel" id="rpx">Fermer</button></div>
+</dialog>
+
 <dialog id="ladlg">
   <h2>Étiquettes</h2>
   <p class="hint" style="margin:0 0 4px">Quelles pièces imprimer ?</p>
@@ -549,6 +570,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <div id="toast" popover="manual" role="status" aria-live="polite"></div>
 
 <div id="labprint"></div>
+<div id="rpprint"></div>
 <script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
@@ -558,7 +580,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.8.0';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.9.0';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1287,6 +1309,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('admDanger').style.display=(auth&&can('purge'))?'':'none';
     $('admh').textContent=can('admin')?'Réservé aux administrateurs et aux responsables de la sécurité pour la gestion ; les outils sur les pièces dépendent de ton rôle.':'Outils sur les pièces et les données, selon ton rôle.';
     $('rqBtn').style.display=(auth&&can('stock'))?'':'none';
+    $('rpBtn').style.display=(auth&&can('hist'))?'':'none';
     $('hv').textContent='v'+VERSION+(ISTEST?' · '+ENVN:'')+(auth&&myRoles&&myRoles.length?' · '+myRoles.map(rl).join('+'):'');
     render();
   }
@@ -1519,6 +1542,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   }
   /* ===== Import d'un fichier (Excel .xlsx ou CSV) : colonnes reconnues par leur NOM, lignes regroupées par référence, aperçu avant d'importer ===== */
   var impPlan=null;
+  function looksExt(tb){var h=((tb&&tb.head)||[]).map(function(x){return impNorm(x)}),keys=['statutqualite','numerolotinterne','projet','fournisseurpardefaut','limitedecommande','souscategorie'];return keys.filter(function(k){return h.indexOf(k)>-1}).length>=2}
   function impNorm(h){return String(h==null?'':h).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'')}
   /* noms de colonnes reconnus (sans tenir compte des accents, majuscules, espaces, tirets) ; le premier de la liste a la priorité */
   var IMP_SYN={
@@ -1818,6 +1842,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     $('pvdlg').showModal();
     impRead(file).then(function(rows){
       var tb=impTable(rows);
+      $('pvx').checked=looksExt(tb);
       $('pvm').textContent='Synchronisation avant l\'analyse…';
       return Promise.race([sync().catch(function(){return false}),new Promise(function(ok){setTimeout(function(){ok(false)},10000)})]).then(function(ok){
       impPlan={tb:tb,synced:!!ok,pl:null,fname:(file&&file.name)||'',src:/\.xlsx$/i.test((file&&file.name)||'')?'Import Excel':'Import CSV'};
@@ -1832,7 +1857,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('pvn').onclick=function(){impPlan=null;$('pvdlg').close()};
   $('pvo').onclick=function(){
     if(!impPlan||!impPlan.pl)return;
-    var pl=impPlan.pl,src=impPlan.src,fname=impPlan.fname||'';impPlan=null;$('pvdlg').close();
+    var pl=impPlan.pl,src=impPlan.src,fname=impPlan.fname||'',asExt=$('pvx').checked;impPlan=null;$('pvdlg').close();
     snap('avant import',function(){
       var mvs=[];
       if(pl.newMags.length&&iAmAdmin())pl.newMags.forEach(function(n){magAdd(n)});
@@ -1875,7 +1900,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
         });
       });
       commit();
-      addMvMany(mvs).then(function(){fillStocks();toast('Import : '+pl.nNew+' ajoutée(s), '+pl.nUpd+' mise(s) à jour, '+pl.nSame+' inchangée(s)'+(pl.nConf?', '+pl.nConf+' conflit(s) non importé(s)':''));mailResume('l\'import'+(fname?' « '+fname+' »':''))});
+      addMvMany(mvs).then(function(){fillStocks();toast('Import : '+pl.nNew+' ajoutée(s), '+pl.nUpd+' mise(s) à jour, '+pl.nSame+' inchangée(s)'+(pl.nConf?', '+pl.nConf+' conflit(s) non importé(s)':''));mailResume('l\'import'+(fname?' « '+fname+' »':''));if(asExt)extAdd('import','',fname,pl.plan.length).catch(function(){toast('Repère du système externe non enregistré')})});
     });
   };
   /* ===== Code scanné inconnu : créer une pièce, ou le rattacher à une pièce existante (sans rien retaper) ===== */
@@ -2601,6 +2626,130 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       return step();
     }).catch(function(){}).then(function(){mailBusy=false});
   }
+
+  /* ===== Rapports ===== */
+  var rpRef=[],rpOut=null;
+  var EXTK={import:'Import du système externe',maj:'Système externe mis à jour'};
+  var RPMO=['Consommé / utilisé','Perdu / cassé','Transféré','Autre','Retrouvé','Retour','Réception hors demande','Réception','Inventaire','Import','Entrée','Sortie','Transfert'];
+  function extPath(p){return '/inventaires/'+encodeURIComponent(cfg.room)+'/ext'+(p?'/'+p:'')}
+  function extLoad(){return fb('GET',extPath()).then(function(o){rpRef=Object.keys(o||{}).map(function(k){var x=o[k];x.id=k;return x}).sort(function(a,b){return b.t-a.t});return rpRef}).catch(function(){rpRef=[];return rpRef})}
+  function extAdd(kind,note,file,n){
+    var id=Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),o={t:Date.now(),by:String(op||'').toLowerCase(),kind:kind};
+    if(note)o.note=note;if(file)o.file=file;if(n!==undefined)o.n=n;
+    return fb('PUT',extPath(id),o).then(function(){var x={id:id};for(var k in o)x[k]=o[k];rpRef.unshift(x);return o});
+  }
+  function rpLine(x,lab){return x?lab+' : <b>'+esc(dstr(x.t))+'</b>'+(x.file?' ('+esc(x.file)+(x.n?', '+x.n+' pièces':'')+')':'')+' · '+esc(nm(x.by))+(x.note?' · « '+esc(x.note)+' »':''):lab+' : <b>aucun</b>'}
+  function rpDrawRef(){
+    var imp=rpRef.filter(function(x){return x.kind==='import'})[0],maj=rpRef.filter(function(x){return x.kind==='maj'})[0];
+    $('rpi').innerHTML=rpLine(imp,'Dernier import du système externe')+'<br>'+rpLine(maj,'Dernière mise à jour du système externe');
+    $('rpsel').innerHTML=rpRef.length?rpRef.map(function(x,i){return '<option value="'+esc(x.id)+'"'+(i===0?' selected':'')+'>'+esc(dstr(x.t))+' — '+esc(EXTK[x.kind]||x.kind)+(x.file?' ('+esc(x.file)+')':'')+'</option>'}).join(''):'<option value="">(aucun repère : marque d\'abord le système externe)</option>';
+  }
+  function mvMotif(m){
+    var n=String(m.note||'');
+    if(n.indexOf('Motif : ')===0)return n.slice(8).split(' — ')[0];
+    if(n.indexOf('Transfert')===0)return 'Transfert';
+    var T={reception:'Réception',inventaire:'Inventaire',import:'Import',entree:'Entrée',sortie:'Sortie'};
+    return T[m.type]||m.type;
+  }
+  function sgn(x){return (x>0?'+':'')+fmt(x)}
+  function motifTxt(mo){return Object.keys(mo).filter(function(k){return mo[k]}).map(function(k){return k+' '+sgn(mo[k])}).join(' · ')}
+  /* écarts : stock de chaque ligne au repère, mouvements depuis, stock actuel */
+  function rpEcarts(T0,all){
+    return mall().then(function(A){
+      var idx={};
+      live().forEach(function(it){
+        var L=linesOf(it),e={it:it,d0:L[0].id,lines:{}};idx[it.code]=e;
+        L.forEach(function(l){e.lines[l.id]={l:l,at:l.q,now:l.q,ent:0,sor:0,aut:0,mo:{}}});
+      });
+      A.forEach(function(m){
+        var e=idx[m.code];if(!e)return;
+        var d=Number(m.delta)||0;if(!d)return;
+        var r=e.lines[(m.lg&&e.lines[m.lg])?m.lg:e.d0];
+        r.now=r3(r.now+d);
+        if(m.t<=T0){r.at=r3(r.at+d);return}
+        if(m.type==='inventaire'||m.type==='import')r.aut=r3(r.aut+d);else if(d>0)r.ent=r3(r.ent+d);else r.sor=r3(r.sor+d);
+        var mo=mvMotif(m);r.mo[mo]=r3((r.mo[mo]||0)+d);
+      });
+      var rows=[];
+      Object.keys(idx).forEach(function(c){var e=idx[c];Object.keys(e.lines).forEach(function(id){
+        var r=e.lines[id];if(!all&&r.now===r.at)return;
+        rows.push({it:e.it,l:r.l,multi:lgMulti(e.it),at:r.at,ent:r.ent,sor:r.sor,aut:r.aut,now:r.now,ecart:r3(r.now-r.at),mo:r.mo});
+      })});
+      rows.sort(function(a,b){return String(a.it.name).localeCompare(String(b.it.name),'fr')});
+      return rows;
+    });
+  }
+  function rpShow(o){
+    rpOut=o;$('rpo').innerHTML='<p style="margin:0 0 4px"><b>'+esc(o.title)+'</b></p>'+o.html;$('rpb').style.display='';
+  }
+  function rpEcartsShow(){
+    var ref=rpRef.filter(function(x){return x.id===$('rpsel').value})[0];
+    if(!ref){toast('Aucun repère : marque d\'abord le système externe (à jour ou après un import)');return}
+    rpEcarts(ref.t,$('rpall').checked).then(function(rows){
+      var T={at:0,ent:0,sor:0,aut:0,now:0,ecart:0};
+      var tr=rows.map(function(r){
+        T.at+=r.at;T.ent+=r.ent;T.sor+=r.sor;T.aut+=r.aut;T.now+=r.now;T.ecart+=r.ecart;
+        return '<tr><td><b>'+esc(r.it.name)+'</b><br><small>'+esc(curOf(r.it))+(r.multi?' · '+esc(lgLabel(r.l)):'')+'</small></td><td>'+fmt(r.at)+'</td><td>'+(r.ent?sgn(r.ent):'')+'</td><td>'+(r.sor?fmt(r.sor):'')+'</td><td>'+(r.aut?sgn(r.aut):'')+'</td><td>'+fmt(r.now)+'</td><td><b>'+(r.ecart?sgn(r.ecart):'0')+'</b></td><td><small>'+esc(motifTxt(r.mo))+'</small></td></tr>';
+      }).join('');
+      var html='<p class="hint" style="margin:0 0 6px">Depuis le repère du <b>'+esc(dstr(ref.t))+'</b> ('+esc(EXTK[ref.kind]||ref.kind)+') · '+rows.length+' ligne(s)'+($('rpall').checked?'':' avec écart')+'</p>'+
+        (rows.length?'<table class="rpt"><tr><th>Pièce / ligne</th><th>Au repère</th><th>Entrées</th><th>Sorties</th><th>Autres</th><th>Actuel</th><th>Écart</th><th>Motifs</th></tr>'+tr+'<tr><th>Total</th><th>'+fmt(T.at)+'</th><th>'+sgn(r3(T.ent))+'</th><th>'+fmt(r3(T.sor))+'</th><th>'+sgn(r3(T.aut))+'</th><th>'+fmt(r3(T.now))+'</th><th>'+sgn(r3(T.ecart))+'</th><th></th></tr></table>':'<p>Aucun écart depuis ce repère.</p>');
+      var head=['Référence','Code-barres','Nom','Magasin','Emplacement','Conditionnement','Unité','Péremption','Lot','Quantité','Stock au repère','Entrées','Sorties','Autres','Écart','Motifs'];
+      var f=function(x){return String(x).replace('.',',')};
+      var csv=rows.map(function(r){return [r.it.ref||'',curOf(r.it),r.it.name,r.l.mg,r.l.em,r.l.cd,r.l.un,r.l.pe,r.l.lt,f(r.now),f(r.at),f(r.ent),f(r.sor),f(r.aut),f(r.ecart),motifTxt(r.mo)]});
+      rpShow({title:'Écarts depuis le repère du '+dstr(ref.t),html:html,head:head,rows:csv,file:'rapport-ecarts-'+day()+'.csv'});
+    });
+  }
+  function rpMotifsShow(){
+    var d1=$('rpd1').value,d2=$('rpd2').value,mo=$('rpmo').value;
+    var t1=d1?new Date(d1+'T00:00:00').getTime():0,t2=d2?new Date(d2+'T23:59:59').getTime():Infinity;
+    mall().then(function(A){
+      var by={};live().forEach(function(it){by[it.code]=it});
+      var L=A.filter(function(m){var d=Number(m.delta)||0;return d&&m.t>=t1&&m.t<=t2&&by[m.code]&&(!mo||mvMotif(m)===mo)}).sort(function(a,b){return b.t-a.t}).map(function(m){
+        var it=by[m.code],ls=linesOf(it),ln=ls.filter(function(l){return l.id===m.lg})[0]||ls[0];
+        return{m:m,it:it,l:ln,multi:lgMulti(it),mo:mvMotif(m),d:Number(m.delta)};
+      });
+      var S={};L.forEach(function(x){var s=S[x.mo]=S[x.mo]||{n:0,p:0,q:0};s.n++;if(x.d>0)s.p=r3(s.p+x.d);else s.q=r3(s.q+x.d)});
+      var sum=Object.keys(S).sort().map(function(k){return '<tr><td>'+esc(k)+'</td><td>'+S[k].n+'</td><td>'+(S[k].p?sgn(S[k].p):'')+'</td><td>'+(S[k].q?fmt(S[k].q):'')+'</td></tr>'}).join('');
+      var det=L.slice(0,300).map(function(x){return '<tr><td>'+esc(dstr(x.m.t))+'</td><td><b>'+esc(x.it.name)+'</b><br><small>'+esc(curOf(x.it))+(x.multi?' · '+esc(lgLabel(x.l)):'')+'</small></td><td><b>'+sgn(x.d)+'</b></td><td>'+esc(x.mo)+(String(x.m.note||'').indexOf(' — ')>-1?'<br><small>'+esc(String(x.m.note).split(' — ').slice(1).join(' — '))+'</small>':'')+'</td><td>'+esc(nm(x.m.by||''))+'</td></tr>'}).join('');
+      var html='<p class="hint" style="margin:0 0 6px">'+L.length+' mouvement(s)'+(d1||d2?' du '+(d1||'…')+' au '+(d2||'…'):'')+(mo?' · motif « '+esc(mo)+' »':'')+'</p>'+
+        (L.length?'<table class="rpt"><tr><th>Motif</th><th>Mouvements</th><th>Entrées</th><th>Sorties</th></tr>'+sum+'</table><p></p><table class="rpt"><tr><th>Date</th><th>Pièce / ligne</th><th>Variation</th><th>Motif</th><th>Par</th></tr>'+det+'</table>'+(L.length>300?'<p class="hint">Les 300 plus récents sont affichés ; l\'export contient tout.</p>':''):'<p>Aucun mouvement.</p>');
+      var head=['Date','Pièce','Code','Ligne','Mouvement','Variation','Motif','Précision','Par'];
+      var csv=L.map(function(x){var n=String(x.m.note||'');return [dstr(x.m.t),x.it.name,curOf(x.it),x.multi?lgLabel(x.l):'',x.m.type,String(x.d).replace('.',','),x.mo,n.indexOf(' — ')>-1?n.split(' — ').slice(1).join(' — '):'',nm(x.m.by||'')]});
+      rpShow({title:'Mouvements par motif',html:html,head:head,rows:csv,file:'rapport-motifs-'+day()+'.csv'});
+    });
+  }
+  $('rpBtn').onclick=function(){
+    rpOut=null;$('rpo').innerHTML='';$('rpb').style.display='none';
+    $('rpmaj').style.display=can('fiche')?'':'none';
+    $('rpmo').innerHTML='<option value="">Tous les motifs</option>'+RPMO.map(function(m){return '<option>'+esc(m)+'</option>'}).join('');
+    var t=new Date(),f=function(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)};
+    $('rpd2').value=f(t);t.setDate(t.getDate()-30);$('rpd1').value=f(t);
+    $('rpdlg').showModal();extLoad().then(rpDrawRef);
+  };
+  $('rpx').onclick=function(){$('rpdlg').close()};
+  $('rp1').onclick=rpEcartsShow;
+  $('rp2').onclick=rpMotifsShow;
+  $('rpmaj').onclick=function(){
+    ask('Marquer le système externe comme à jour maintenant ? Les prochains rapports d\'écarts partiront de cet instant.','Marquer',function(){
+      extAdd('maj','').then(function(){rpDrawRef();toast('Repère enregistré')}).catch(function(){toast('Enregistrement impossible (SuperUser ou Admin, règles v254)')});
+    });
+  };
+  $('rphist').onclick=function(){
+    rpOut=null;$('rpb').style.display='none';
+    $('rpo').innerHTML=rpRef.length?'<table class="rpt"><tr><th>Date</th><th>Type</th><th>Fichier</th><th>Par</th><th>Note</th></tr>'+rpRef.map(function(x){return '<tr><td>'+esc(dstr(x.t))+'</td><td>'+esc(EXTK[x.kind]||x.kind)+'</td><td>'+esc(x.file||'')+(x.n?' ('+x.n+')':'')+'</td><td>'+esc(nm(x.by))+'</td><td>'+esc(x.note||'')+'</td></tr>'}).join('')+'</table>':'<p>Aucun repère enregistré.</p>';
+  };
+  $('rpe').onclick=function(){
+    if(!rpOut)return;
+    download('\ufeff'+[rpOut.head].concat(rpOut.rows).map(function(r){return r.map(csvQuote).join(';')}).join('\r\n'),'text/csv',rpOut.file);
+  };
+  $('rpp').onclick=function(){
+    if(!rpOut)return;
+    $('rpprint').innerHTML='<h2 style="margin:0 0 4px">'+esc(rpOut.title)+'</h2><p style="margin:0 0 8px;font-size:12px">Édité le '+esc(dstr(Date.now()))+' par '+esc(nm(op||''))+(ISTEST?' · TEST':'')+'</p>'+rpOut.html;
+    document.body.classList.add('rpprint');$('rpdlg').close();
+    var back=function(){window.removeEventListener('afterprint',back);document.body.classList.remove('rpprint');$('rpprint').innerHTML='';if(!$('rpdlg').open)$('rpdlg').showModal()};
+    window.addEventListener('afterprint',back);
+    setTimeout(function(){window.print()},150);
+  };
 
   /* récapitulatif : toutes les pièces actuellement sous leur seuil, en un seul e-mail (les plus manquantes d'abord) */
   function mailResume(label){

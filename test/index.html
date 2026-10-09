@@ -72,7 +72,8 @@ select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10p
 #list,#rl,#ul,#uksl{list-style:none;margin:0;padding:0}
 .chip{display:inline-block;padding:4px 10px;border-radius:999px;font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap;background:#E7EAF1;color:#14213D}
 #labprint{display:none}
-.lab{box-sizing:border-box;border:.2mm dashed #888;padding:1.5mm;display:flex;flex-direction:column;overflow:hidden;background:#fff;color:#000;break-inside:avoid;page-break-inside:avoid}
+.lab .lcm{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+.lab{position:relative;box-sizing:border-box;border:.2mm dashed #888;padding:1.5mm;display:flex;flex-direction:column;overflow:hidden;background:#fff;color:#000;break-inside:avoid;page-break-inside:avoid}
 .lab .lt{font:700 3.2mm/1.15 Arial,sans-serif;max-height:7.4mm;overflow:hidden}
 .lab .ls{font:2.6mm/1.2 Arial,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lab .lb{flex:1;min-height:6mm;margin:1mm 0 .5mm}
@@ -418,7 +419,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     <label>Hauteur (mm)<input id="labh" inputmode="numeric" value="30"></label>
     <label>Colonnes<input id="labcol" inputmode="numeric" value="3"></label>
   </div>
-  <label>Trait autour de l'étiquette<select id="labbd"><option value="dash">Pointillé</option><option value="gray">Gris clair</option><option value="none">Aucun</option></select></label>
+  <label>Trait autour de l'étiquette<select id="labbd"><option value="none">Aucun (recommandé)</option><option value="crop">Repères de coupe aux coins</option><option value="dash">Pointillé (gêne le scan)</option><option value="gray">Gris clair (gêne le scan)</option></select></label>
   <p class="hint" id="labt" style="margin:4px 0;color:var(--bad);font-weight:600"></p>
   <button type="button" class="btn" id="labfix" style="display:none;margin-bottom:6px">Ajuster la largeur</button>
   <p class="hint" style="margin:8px 0 2px">Aperçu</p>
@@ -479,7 +480,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.4.5';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.4.6';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1311,7 +1312,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     return '<svg viewBox="0 0 '+W+' 1" preserveAspectRatio="none" style="width:100%;height:100%;display:block" shape-rendering="geometricPrecision"><path d="'+p+'" fill="#000"/></svg>';
   }
   function labHtml(it,cfg){
-    var b=bcOf(curOf(it)),bd=cfg.bd==='none'?'border:.2mm solid transparent;':(cfg.bd==='gray'?'border:.2mm solid #ddd;':''),h='<div class="lab" style="'+bd+'width:'+cfg.w+'mm;height:'+cfg.h+'mm">',s=[];
+    var b=bcOf(curOf(it)),bd=(cfg.bd==='none'||cfg.bd==='crop')?'border:.2mm solid transparent;':(cfg.bd==='gray'?'border:.2mm solid #ddd;':''),h='<div class="lab" style="'+bd+'width:'+cfg.w+'mm;height:'+cfg.h+'mm">',s=[];
+    if(cfg.bd==='crop')h+='<svg class="lcm" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0 0h4M0 0v10M100 0h-4M100 0v10M0 100h4M0 100v-10M100 100h-4M100 100v-10" stroke="#000" stroke-width="0.8" vector-effect="non-scaling-stroke" fill="none"/></svg>';
     if(cfg.nom)h+='<div class="lt">'+esc(it.name)+'</div>';
     if(cfg.ref&&it.ref)s.push('réf. '+esc(it.ref));
     if(cfg.emp&&it.loc)s.push(esc(it.loc));
@@ -1322,7 +1324,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   var KLAB='inventaire_lab_v1',labSel={},labN={};
   function labCfg(){
     var num=function(id,d,lo,hi){var v=parseInt($(id).value,10);if(!isFinite(v))v=d;return Math.max(lo,Math.min(hi,v))};
-    return{nom:$('labnom').checked,ref:$('labref').checked,emp:$('labemp').checked,w:num('labw',60,20,200),h:num('labh',30,10,150),cols:num('labcol',3,1,8),n:num('labn',1,1,99),bd:$('labbd').value||'dash'};
+    return{nom:$('labnom').checked,ref:$('labref').checked,emp:$('labemp').checked,w:num('labw',60,20,200),h:num('labh',30,10,150),cols:num('labcol',3,1,8),n:num('labn',1,1,99),bd:$('labbd').value||'none'};
   }
   function labList(){
     var q=fold($('labs').value.trim());
@@ -1362,7 +1364,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('labBtn').onclick=function(){
     var c=ld(KLAB,{});
     $('labnom').checked=c.nom!==false;$('labref').checked=c.ref!==false;$('labemp').checked=!!c.emp;
-    $('labw').value=c.w||60;$('labh').value=c.h||30;$('labcol').value=c.cols||3;$('labn').value=c.n||1;$('labbd').value=c.bd||'dash';
+    $('labw').value=c.w||60;$('labh').value=c.h||30;$('labcol').value=c.cols||3;$('labn').value=c.n||1;$('labbd').value=c.bd||'none';
     labSel={};labN={};$('labs').value='';
     var rd=document.querySelectorAll('#labm input');for(var i=0;i<rd.length;i++)rd[i].checked=rd[i].value==='man';
     labDraw();$('ladlg').showModal();

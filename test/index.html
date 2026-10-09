@@ -418,6 +418,12 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <h2>E-mails</h2>
   <p class="hint" style="margin:0 0 8px">Quand un événement arrive dans l'application, un e-mail part aux personnes choisies. Coche les événements à signaler, puis « Modifier » pour choisir qui reçoit.</p>
   <div id="mll"></div>
+  <h3 style="margin:14px 0 4px;font-size:16px">Envois planifiés</h3>
+  <div id="msl"></div>
+  <button type="button" class="btn" id="msadd" style="width:100%;margin:6px 0">Ajouter un envoi planifié</button>
+  <p class="hint" id="mtst" style="margin:6px 0 4px">Déclencheur : …</p>
+  <div class="row" style="flex-wrap:nowrap"><label>Vérification<select id="mtfq"><option value="60">toutes les heures (conseillé)</option><option value="30">toutes les 30 minutes</option></select></label></div>
+  <div class="row"><button type="button" class="btn" id="mtin">Activer le déclencheur</button><button type="button" class="btn" id="mtof">Désactiver</button></div>
   <button type="button" class="btn" id="mlrec" style="margin:8px 0;width:100%">Appliquer les réglages conseillés</button>
   <label>Garder le journal des e-mails pendant<select id="mlk"><option value="30">1 mois</option><option value="90">3 mois</option><option value="180">6 mois</option><option value="365">12 mois</option><option value="0">Toujours</option></select></label>
   <div class="row"><button type="button" class="btn" id="mljb">Journal des e-mails</button><button type="button" class="btn" id="mlt">Envoyer un test</button></div>
@@ -428,6 +434,16 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 <dialog id="mrdlg">
   <h2 id="mrt">Règle</h2>
   <p class="hint" id="mrh" style="margin:0 0 6px"></p>
+  <div id="mrsch" style="display:none">
+    <label>Rapport envoyé<select id="mrrp"><option value="acommander">Pièces à commander</option><option value="demandes">Demandes en cours</option></select></label>
+    <label>Fréquence<select id="mrfq"><option value="day">Chaque jour</option><option value="week">Chaque semaine</option><option value="month">Chaque mois</option></select></label>
+    <div class="row" style="flex-wrap:nowrap">
+      <label id="mrdww">Jour<select id="mrdw"><option value="1">Lundi</option><option value="2">Mardi</option><option value="3">Mercredi</option><option value="4">Jeudi</option><option value="5">Vendredi</option><option value="6">Samedi</option><option value="7">Dimanche</option></select></label>
+      <label id="mrdmw" style="display:none">Jour du mois<select id="mrdm"></select></label>
+      <label>Heure<select id="mrhr"></select></label>
+    </div>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="mroi" style="width:auto;min-height:0;margin:0"> N'envoyer que s'il y a quelque chose à signaler</label>
+  </div>
   <label id="mrqw" style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="mrq" style="width:auto;min-height:0;margin:0"> Le demandeur</label>
   <p class="hint" style="margin:8px 0 2px">Toutes les personnes ayant le rôle</p>
   <div id="mrr" style="display:flex;gap:12px;flex-wrap:wrap"></div>
@@ -457,7 +473,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   <p class="hint" style="margin:0 0 6px">Mise en forme : <b>**gras**</b> · *italique* · [texte](https://…) · « - » en début de ligne = puce · ligne vide = nouveau paragraphe. Une ligne dont une valeur est vide disparaît. Un bouton « Ouvrir … » est ajouté en bas, sauf si tu places toi-même <b>{lien}</b> dans le message, par exemple [Ouvrir la demande]({lien}).</p>
   <div class="row"><button type="button" class="btn" id="mrpv">Aperçu</button><button type="button" class="btn" id="mrrs">Texte d'origine</button></div>
   <div id="mrpvb" style="display:none;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:6px 0;background:#fff;color:#14213d"></div>
-  <div class="row"><button type="button" class="btn cancel" id="mrx">Annuler</button><button type="button" class="btn pri" id="mrs">Enregistrer</button></div>
+  <div class="row"><button type="button" class="btn danger" id="mrdel" style="display:none">Supprimer</button><button type="button" class="btn cancel" id="mrx">Annuler</button><button type="button" class="btn pri" id="mrs">Enregistrer</button></div>
 </dialog>
 
 <dialog id="mjdlg">
@@ -583,7 +599,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='4.9.2';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='5.0.0';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -2873,7 +2889,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   };
 
   /* ----- écran E-mails : règles par événement ----- */
-  var mRules={},mUsers={},mEdit='',RLB=[['admin','Admin'],['superuser','SuperUser'],['operateur','Opérateur'],['lecteur','Lecteur'],['securityofficer','SecurityOfficer']];
+  var mSched={},mTk='',mRules={},mUsers={},mEdit='',RLB=[['admin','Admin'],['superuser','SuperUser'],['operateur','Opérateur'],['lecteur','Lecteur'],['securityofficer','SecurityOfficer']];
   var MREC={demande:{on:true,roles:['admin','superuser']},decision:{on:true,req:true},reception:{on:true,req:true},cloture:{on:false},seuil:{on:true,roles:['superuser']},resume:{on:true,roles:['superuser']}};
   function mPath(p){return '/inventaires/'+encodeURIComponent(cfg.room)+'/'+p}
   function mDescr(r){
@@ -2897,7 +2913,9 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
       mRules=a[0]||{};mUsers=a[1]||{};
       MAILEV.forEach(function(e){var r=mRules[e[0]];if(r){r.roles=r.roles?Object.keys(r.roles).map(function(k){return r.roles[k]}):[];r.people=r.people?Object.keys(r.people).map(function(k){return r.people[k]}):[]}});
       $('mls').textContent=mailUrl()?'':'⚠ Aucune URL de service e-mail : renseigne-la dans le Centre d\'administration.';
-      mDraw();
+      mSched={};var sc=mRules.schedules||{};Object.keys(sc).forEach(function(k){var s=sc[k];if(!s)return;s.roles=s.roles?Object.keys(s.roles).map(function(i){return s.roles[i]}):[];s.people=s.people?Object.keys(s.people).map(function(i){return s.people[i]}):[];mSched[k]=s});
+      mDraw();mSchedDraw();
+      if(mailUrl())mTrigCall('trigger_status');else $('mtst').textContent='Déclencheur : service e-mail non configuré.';
     });
   }
   function mPut(ev,rule){return fb('PUT',mPath('mailrules/'+ev),rule)}
@@ -2930,6 +2948,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     decision:{s:'[Inventaire{env}] Demande {decision} : {piece}',m:'Bonjour {nom},\n\nTa demande a été **{decision}** par {decideur} :\n\n- **{piece}** ({code})\n- Quantité : {quantite}\n- Destination : {destination}\n- Motif : {motif}'},
     reception:{s:'[Inventaire{env}] Réception enregistrée : {piece} ({recu})',m:'Bonjour {nom},\n\nUne réception a été enregistrée par {decideur} :\n\n- **{piece}** ({code})\n- Reçu : **{recu}** sur {quantite} demandées\n- Destination : {destination}\n- Commentaire : {commentaire}'},
     cloture:{s:'[Inventaire{env}] Demande clôturée : {piece}',m:'Bonjour {nom},\n\nLa demande suivante a été clôturée par {decideur} :\n\n- **{piece}** ({code})\n- Quantité : {quantite}\n- Destination : {destination}'},
+    sched_acommander:{s:'[Inventaire{env}] {nb} pièce(s) à commander',m:'Bonjour {nom},\n\nÉtat du {date} : **{nb}** pièce(s) sont sous leur seuil de commande.\n\n{liste}'},
+    sched_demandes:{s:'[Inventaire{env}] {nb} demande(s) en cours',m:'Bonjour {nom},\n\nÉtat du {date} : **{nb}** demande(s) de pièces en cours.\n\n{liste}'},
     resume:{s:'[Inventaire{env}] {nb} pièce(s) à commander après {source}',m:'Bonjour {nom},\n\nAprès {source}, **{nb}** pièce(s) sont sous leur seuil de commande :\n\n{liste}'},
     seuil:{s:'[Inventaire{env}] À commander : {piece}',m:'Bonjour {nom},\n\n**{piece}** ({code}) est passée sous son seuil de commande.\n\n- Stock : **{stock}**\n- Seuil : {seuil}'}
   };
@@ -2939,9 +2959,11 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     reception:['nom','piece','code','quantite','recu','demandeur','decideur','destination','commentaire','env','lien'],
     cloture:['nom','piece','code','quantite','demandeur','decideur','destination','env','lien'],
     resume:['nom','source','nb','liste','env','lien'],
+    sched_acommander:['nom','nb','liste','date','env','lien'],
+    sched_demandes:['nom','nb','liste','date','env','lien'],
     seuil:['nom','piece','code','stock','seuil','env','lien']
   };
-  var TPL_EX={nom:'Marie',piece:'Biseptine',code:'3181224191257371953',quantite:'6',recu:'4',demandeur:'Paul',decideur:'Jean-Pierre',decision:'approuvée',destination:'Pharmacie · Armoire',motif:'OK pour la commande',commentaire:'urgent',stock:'4',seuil:'10',source:"l'import « stock.csv »",nb:'2',liste:'- **Biseptine** : 4 (seuil 10), manque 6\n- **Colludol** : 0 (seuil 10), manque 10',env:ISTEST?' TEST':'',lien:'https://jpg650965096509-a11y.github.io/Inventaire/…'};
+  var TPL_EX={nom:'Marie',piece:'Biseptine',code:'3181224191257371953',quantite:'6',recu:'4',demandeur:'Paul',decideur:'Jean-Pierre',decision:'approuvée',destination:'Pharmacie · Armoire',motif:'OK pour la commande',commentaire:'urgent',stock:'4',seuil:'10',source:"l'import « stock.csv »",nb:'2',liste:'- **Biseptine** : 4 (seuil 10), manque 6\n- **Colludol** : 0 (seuil 10), manque 10',date:'09/10/2026 08:00',env:ISTEST?' TEST':'',lien:'https://jpg650965096509-a11y.github.io/Inventaire/…'};
   function tplFill(t,v,drop){
     return String(t).replace(/\r/g,'').split('\n').map(function(line){
       var d=false,l=line.replace(/\{([a-z_]+)\}/g,function(all,k){if(!v.hasOwnProperty(k))return all;if(String(v[k]).trim()===''){d=true;return ''}return String(v[k])});
@@ -2967,20 +2989,21 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function mPreview(){
     var ev=mEdit,v=TPL_EX;
     $('mrpvb').style.display='';
-    $('mrpvb').innerHTML='<p style="margin:0 0 6px;color:#555"><b>Objet :</b> '+esc(tplFill($('mrsj').value,v,false))+'</p>'+mdHtml(tplFill($('mrmsg').value,v,true))+(/\{lien\}/.test($('mrmsg').value)?'':'<p><span style="background:#ffc300;color:#14213d;font-weight:700;padding:8px 14px;border-radius:8px;display:inline-block">'+(ev==='seuil'?'Ouvrir la pièce':(ev==='resume'?'Voir les pièces à commander':'Ouvrir la demande'))+'</span></p>');
+    $('mrpvb').innerHTML='<p style="margin:0 0 6px;color:#555"><b>Objet :</b> '+esc(tplFill($('mrsj').value,v,false))+'</p>'+mdHtml(tplFill($('mrmsg').value,v,true))+(/\{lien\}/.test($('mrmsg').value)?'':'<p><span style="background:#ffc300;color:#14213d;font-weight:700;padding:8px 14px;border-radius:8px;display:inline-block">'+(mTk==='seuil'?'Ouvrir la pièce':(mTk==='resume'||mTk==='sched_acommander'?'Voir les pièces à commander':(mTk==='sched_demandes'?'Ouvrir l\'application':'Ouvrir la demande')))+'</span></p>');
   }
   $('mrpv').onclick=mPreview;
-  $('mrrs').onclick=function(){var d=DEF_TPL[mEdit];if(!d)return;$('mrsj').value=d.s;$('mrmsg').value=d.m;$('mrpvb').style.display='none'};
+  $('mrrs').onclick=function(){var d=DEF_TPL[mTk];if(!d)return;$('mrsj').value=d.s;$('mrmsg').value=d.m;$('mrpvb').style.display='none'};
 
   /* éditeur d'une règle */
   function mOpenEd(ev){
-    mEdit=ev;var r=mRules[ev]||{},lab=MAILEV.filter(function(e){return e[0]===ev})[0][1];
+    mEdit=ev;var isS=ev.indexOf('sched:')===0,tk=isS?'sched_'+((mSched[ev.slice(6)]||{}).report||'acommander'):ev,r=isS?(mSched[ev.slice(6)]||{}):(mRules[ev]||{}),lab=isS?'Envoi planifié':MAILEV.filter(function(e){return e[0]===ev})[0][1];mTk=tk;
     $('mrt').textContent=lab;
     $('mrh').textContent=(ev==='seuil'||ev==='resume')?'Il n\'y a pas de demandeur pour cet événement.':'';
-    $('mrqw').style.display=(ev==='seuil'||ev==='resume')?'none':'';
+    $('mrqw').style.display=(ev==='seuil'||ev==='resume'||isS)?'none':'';
+    $('mrsch').style.display=isS?'':'none';$('mrdel').style.display=(isS&&mSched[ev.slice(6)])?'':'none';if(isS)mSchFill(r);
     $('mrq').checked=!!r.req;
-    var dt=DEF_TPL[ev]||{s:'',m:''};$('mrsj').value=r.subject||dt.s;$('mrmsg').value=r.msg||dt.m;$('mrpvb').style.display='none';
-    $('mrtags').textContent='Mots disponibles : '+(TPL_TAGS[ev]||[]).map(function(k){return '{'+k+'}'}).join(' ');
+    var dt=DEF_TPL[tk]||{s:'',m:''};$('mrsj').value=r.subject||dt.s;$('mrmsg').value=r.msg||dt.m;$('mrpvb').style.display='none';
+    $('mrtags').textContent='Mots disponibles : '+(TPL_TAGS[tk]||[]).map(function(k){return '{'+k+'}'}).join(' ');
     $('mrr').innerHTML=RLB.map(function(x){return '<label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" data-r="'+x[0]+'"'+((r.roles||[]).indexOf(x[0])>-1?' checked':'')+' style="width:auto;min-height:0;margin:0"> '+x[1]+'</label>'}).join('');
     var ks=Object.keys(mUsers).sort();
     $('mrp').innerHTML=ks.length?ks.map(function(k){var i=uInfo(mUsers[k]),em=k.replace(/,/g,'.');
@@ -2991,16 +3014,100 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   $('mrs').onclick=function(){
     var roles=[].map.call(document.querySelectorAll('#mrr input:checked'),function(e){return e.getAttribute('data-r')});
     var people=[].map.call(document.querySelectorAll('#mrp input:checked'),function(e){return e.getAttribute('data-p')});
+    var isS=mEdit.indexOf('sched:')===0;
+    var dt=DEF_TPL[mTk]||{s:'',m:''},sj=$('mrsj').value.trim(),mg=$('mrmsg').value.replace(/\s+$/,'');
+    if(sj.length>200||mg.length>3000){toast('Texte trop long (objet 200 caractères, message 3000)');return}
+    if(isS){
+      if(!roles.length&&!people.length){toast('Choisis au moins un destinataire');return}
+      var sid=mEdit.slice(6),prev=mSched[sid]||{};
+      var o={on:prev.on===undefined?true:!!prev.on,report:$('mrrp').value,freq:$('mrfq').value,hour:Number($('mrhr').value),dow:Number($('mrdw').value),dom:Number($('mrdm').value),onlyIfAny:$('mroi').checked};
+      if(roles.length)o.roles=roles;if(people.length)o.people=people;
+      if(sj&&sj!==dt.s)o.subject=sj;if(mg&&mg!==dt.m)o.msg=mg;
+      fb('PUT',mPath('mailrules/schedules/'+sid),o).then(function(){
+        o.roles=roles;o.people=people;mSched[sid]=o;$('mrdlg').close();mSchedDraw();$('mls').textContent='Envoi planifié enregistré.';
+      }).catch(function(){toast('Enregistrement impossible (droits Admin et règles v254 requis)')});
+      return;
+    }
     var o={on:!!(mRules[mEdit]&&mRules[mEdit].on)||roles.length>0||people.length>0||$('mrq').checked,req:$('mrq').checked&&mEdit!=='seuil'&&mEdit!=='resume'};
     if(roles.length)o.roles=roles;if(people.length)o.people=people;
-    var dt=DEF_TPL[mEdit]||{s:'',m:''},sj=$('mrsj').value.trim(),mg=$('mrmsg').value.replace(/\s+$/,'');
-    if(sj.length>200||mg.length>3000){toast('Texte trop long (objet 200 caractères, message 3000)');return}
     if(sj&&sj!==dt.s)o.subject=sj;if(mg&&mg!==dt.m)o.msg=mg;
     mPut(mEdit,o).then(function(){
       mRules[mEdit]={on:o.on,req:o.req,roles:roles,people:people,subject:o.subject,msg:o.msg};
       $('mrdlg').close();mDraw();$('mls').textContent='Règle enregistrée.';
     }).catch(function(){toast('Enregistrement impossible (droits Admin et règles v254 requis)')});
   };
+
+  /* ----- envois planifiés ----- */
+  var DOWL=['','lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'],RPL={acommander:'Pièces à commander',demandes:'Demandes en cours'};
+  (function(){var h='',d='';for(var i=0;i<24;i++)h+='<option value="'+i+'">'+i+' h</option>';for(var j=1;j<=28;j++)d+='<option value="'+j+'">'+j+'</option>';$('mrhr').innerHTML=h;$('mrdm').innerHTML=d})();
+  function mSchFill(s){
+    $('mrrp').value=s.report||'acommander';$('mrfq').value=s.freq||'week';$('mrhr').value=String(s.hour===undefined?8:s.hour);$('mrdw').value=String(s.dow||1);$('mrdm').value=String(s.dom||1);$('mroi').checked=s.onlyIfAny!==false;
+    mSchFreq();
+  }
+  function mSchFreq(){var f=$('mrfq').value;$('mrdww').style.display=f==='week'?'':'none';$('mrdmw').style.display=f==='month'?'':'none'}
+  $('mrfq').onchange=mSchFreq;
+  $('mrrp').onchange=function(){
+    var old=DEF_TPL[mTk]||{s:'',m:''},nk='sched_'+$('mrrp').value,nw=DEF_TPL[nk];
+    if(nw&&$('mrsj').value===old.s&&$('mrmsg').value===old.m){$('mrsj').value=nw.s;$('mrmsg').value=nw.m}
+    mTk=nk;$('mrtags').textContent='Mots disponibles : '+(TPL_TAGS[nk]||[]).map(function(k){return '{'+k+'}'}).join(' ');
+  };
+  function mSchDescr(s){
+    var h=(s.hour===undefined?8:s.hour)+' h';
+    var q=s.freq==='day'?'chaque jour à '+h:(s.freq==='month'?'le '+(s.dom||1)+' de chaque mois à '+h:'chaque '+(DOWL[s.dow||1])+' à '+h);
+    return (RPL[s.report]||RPL.acommander)+' · '+q;
+  }
+  function mSchedDraw(){
+    var ks=Object.keys(mSched).sort(function(a,b){return String(mSched[a].report).localeCompare(String(mSched[b].report))||a.localeCompare(b)});
+    $('msl').innerHTML=ks.length?ks.map(function(k){
+      var s=mSched[k];
+      return '<div class="snap" data-sid="'+esc(k)+'" style="flex-wrap:wrap;gap:6px"><label style="display:flex;gap:8px;align-items:center;font-weight:700;flex:1 1 100%"><input type="checkbox" data-son style="width:auto;min-height:0;margin:0"'+(s.on?' checked':'')+'> '+esc(mSchDescr(s))+'</label><small style="flex:1">→ '+esc(mDescr(s))+'</small><button type="button" class="btn" data-sed style="min-height:36px;padding:4px 10px">Modifier</button><button type="button" class="btn" data-snow style="min-height:36px;padding:4px 10px">Envoyer maintenant</button></div>';
+    }).join(''):'<p class="hint" style="margin:0">Aucun envoi planifié.</p>';
+  }
+  function mSchedPut(id){
+    var s=mSched[id],o={on:!!s.on,report:s.report,freq:s.freq,hour:s.hour,dow:s.dow,dom:s.dom,onlyIfAny:!!s.onlyIfAny};
+    if((s.roles||[]).length)o.roles=s.roles;if((s.people||[]).length)o.people=s.people;if(s.subject)o.subject=s.subject;if(s.msg)o.msg=s.msg;
+    return fb('PUT',mPath('mailrules/schedules/'+id),o);
+  }
+  $('msadd').onclick=function(){
+    var id=Date.now().toString(36)+Math.random().toString(36).slice(2,4);
+    mEdit='sched:'+id;
+    mSched[id]={report:'acommander',freq:'week',hour:8,dow:1,dom:1,onlyIfAny:true,roles:['superuser'],people:[]};
+    mOpenEd('sched:'+id);delete mSched[id];$('mrdel').style.display='none';
+  };
+  $('msl').onclick=function(e){
+    var row=e.target.closest('[data-sid]');if(!row)return;
+    var id=row.getAttribute('data-sid');
+    if(e.target.closest('[data-sed]'))mOpenEd('sched:'+id);
+    else if(e.target.closest('[data-snow]')){
+      $('mls').textContent='Envoi en cours…';
+      mailCall({action:'sched_now',room:cfg.room,id:id}).then(function(j){
+        $('mls').textContent=j.ok?(j.sent?'✓ '+j.sent+' e-mail(s) envoyé(s).':'Rien à envoyer'+(j.note?' ('+j.note+')':'')+'.'):'✗ '+(j.error||'refusé');
+      }).catch(function(){$('mls').textContent='✗ Service non joignable ou URL absente.'});
+    }
+  };
+  $('msl').onchange=function(e){
+    var row=e.target.closest('[data-sid]');if(!row||!e.target.hasAttribute('data-son'))return;
+    var id=row.getAttribute('data-sid');mSched[id].on=e.target.checked;
+    mSchedPut(id).then(function(){$('mls').textContent='Enregistré.'}).catch(function(){$('mls').textContent='⚠ Enregistrement impossible.'});
+  };
+  $('mrdel').onclick=function(){
+    var id=mEdit.slice(6);
+    ask('Supprimer cet envoi planifié ?','Supprimer',function(){
+      fb('DELETE',mPath('mailrules/schedules/'+id)).then(function(){delete mSched[id];$('mrdlg').close();mSchedDraw();$('mls').textContent='Envoi supprimé.'}).catch(function(){toast('Suppression impossible')});
+    });
+  };
+  /* ----- déclencheur ----- */
+  function mTrigShow(j){
+    if(!j||!j.ok){$('mtst').textContent='Déclencheur : indisponible'+(j&&j.error?' ('+j.error+')':'')+'.';return}
+    $('mtst').textContent=j.active?'Déclencheur : ✓ actif, vérifie '+(j.minutes===30?'toutes les 30 minutes':'toutes les heures')+'.':'Déclencheur : ✗ inactif — les envois planifiés ne partent pas. Clique sur « Activer ».';
+    if(j.minutes)$('mtfq').value=String(j.minutes);
+  }
+  function mTrigCall(act){
+    $('mtst').textContent='Déclencheur : …';
+    mailCall({action:act,room:cfg.room,minutes:Number($('mtfq').value)}).then(mTrigShow).catch(function(){$('mtst').textContent='Déclencheur : service non joignable ou URL absente.'});
+  }
+  $('mtin').onclick=function(){mTrigCall('trigger_install')};
+  $('mtof').onclick=function(){mTrigCall('trigger_remove')};
   /* journal des e-mails */
   var mJ=[];
   function mJDraw(){

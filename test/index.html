@@ -9,8 +9,8 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="apple-mobile-web-app-title" content="Inventaire">
-<title>Inventaire pièces</title>
+<meta name="apple-mobile-web-app-title" content="Scanpocket">
+<title>Scanpocket</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -122,7 +122,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 </head>
 <body>
 <header>
-  <div><h1>Inventaire pièces <small id="hv"></small></h1><p id="count">0 référence</p></div>
+  <div><h1>Scanpocket <small id="hv"></small></h1><p id="count">0 référence</p></div>
   <button id="sync" type="button">Synchro : non</button>
 </header>
 
@@ -229,6 +229,8 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
 <dialog id="ldlg">
   <form id="lf">
+    <div style="font:700 34px/1 'Barlow Condensed',Barlow,system-ui,sans-serif;color:var(--navy,#14213d)">Scanpocket</div>
+    <p class="hint" style="margin:2px 0 14px"><i>Your Inventory. In Your Pocket.</i></p>
     <h2>Connexion</h2>
     <p class="hint"><b>Déjà un compte ?</b> Saisis ton e-mail et ton mot de passe, puis appuie sur <i>Se connecter</i>.<br><b>Première fois ?</b> Saisis l'e-mail que l'administrateur a ajouté, choisis un mot de passe (6 caractères minimum), puis appuie sur <i>Première fois : créer mon compte</i>.</p>
     <label>E-mail<input id="le" type="email" autocomplete="username" required></label>
@@ -599,7 +601,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   if(!ENV||!ENV.url||!ENV.room||!ENV.apiKey){document.body.innerHTML='<p style="padding:24px;font:16px system-ui,sans-serif">Configuration manquante (config.js) : l\'application ne peut pas démarrer.</p>';return}
   /* le stockage du navigateur est partagé par tout le site : tout ce qui dépend des données est suffixé par l'espace */
   var SFX='_'+ENV.room;
-  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='5.0.1';
+  var KEY='inventaire_pieces_v1'+SFX,KS='inventaire_snaps_v1'+SFX,KC='inventaire_sync_v1'+SFX,KD='inventaire_dirty_v1'+SFX,KA='inventaire_auth_v1',VERSION='5.1.1';
   var ENVN=String(ENV.name||'PROD').toUpperCase(),ISTEST=ENVN!=='PROD';
   var API_KEY=ENV.apiKey;
   if(ENV.title){
@@ -1031,7 +1033,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   }
 
   /* Synchronisation (Firebase Realtime Database, API REST, la modification la plus récente gagne par pièce) */
-  function base(q,tok,p){var u=cfg.url.replace(/\/+$/,'')+'/inventaires/'+encodeURIComponent(cfg.room)+'/'+(p||'items')+'.json'+(q||'');return u+(q?'&':'?')+'auth='+encodeURIComponent(tok)}
+  function base(q,tok,p){var u=cfg.url.replace(/\/+$/,'')+'/scanpocket/'+encodeURIComponent(cfg.room)+'/'+(p||'items')+'.json'+(q||'');return u+(q?'&':'?')+'auth='+encodeURIComponent(tok)}
   function key(c){return encodeURIComponent(c).replace(/\./g,'%2E')}
 
   /* Connexion e-mail + mot de passe (API REST Firebase Authentication, sans SDK) */
@@ -2568,7 +2570,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   }
   function admInfo(){
     var l=live(),b=dbUrl().replace('https://','').split('.')[0];
-    $('sysinfo').textContent='Version : '+VERSION+'\nEnvironnement : '+ENVN+'\nBase : '+(b||'—')+'\nInventaire : '+((HARD?CONFIG.room:(cfg&&cfg.room))||'—')+
+    $('sysinfo').textContent='Scanpocket · Your Inventory. In Your Pocket.\nVersion : '+VERSION+'\nEnvironnement : '+ENVN+'\nBase : '+(b||'—')+'\nInventaire : '+((HARD?CONFIG.room:(cfg&&cfg.room))||'—')+
       '\nCompte : '+(auth?auth.email:'—')+'\nRôles : '+((myRoles&&myRoles.length)?myRoles.map(function(r){return RLAB[r]||r}).join(', '):'—')+
       '\nPièces : '+l.length+'\nDernière synchro : '+(lastOk?dstr(lastOk):'—');
   }
@@ -2618,7 +2620,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   /* ===== E-mails : l'application signale l'événement au script Google, qui relit la base, lit les règles, envoie et tient le journal ===== */
   var KMQ='inventaire_mailq_v1'+SFX,mailBusy=false;
   var MAILEV=[['demande','Nouvelle demande de pièces'],['decision','Demande approuvée ou refusée'],['reception','Réception enregistrée'],['cloture','Demande clôturée'],['seuil','Pièce sous son seuil de commande'],['resume','Pièces à commander après un import (récapitulatif)']];
-  function mailUrl(){var u=String(ld('inventaire_mailurl_v1','')||'https://script.google.com/macros/s/AKfycbz9WXY1xkHPzxtnbBrAUccvcsCbutPH6PuXLlGMXhUXOxpKMe2IwWzsqP49uC0nNUbZ/exec').trim();return /^https:\/\/script\.google\.com\/macros\/s\/[^\s]+\/exec$/.test(u)?u:''}
+  function mailUrl(){var u=String(ld('inventaire_mailurl_v1','')||'https://script.google.com/macros/s/AKfycbyfPAxUjCD_mYbvU59VEiB_w4_WKxtvJqex7XBmDL0HKcLv-qENTK3j3ZXdb1crulsR/exec').trim();return /^https:\/\/script\.google\.com\/macros\/s\/[^\s]+\/exec$/.test(u)?u:''}
   function mailCall(body){
     var u=mailUrl();if(!u)return Promise.reject(new Error('url'));
     return token().then(function(tok){
@@ -2659,7 +2661,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   function dfi(s){return s?s.split('-').reverse().join('/'):''}
   var EXTK={import:'Import du système externe',maj:'Système externe mis à jour'};
   var RPMO=['Consommé / utilisé','Perdu / cassé','Transféré','Autre','Retrouvé','Retour','Réception hors demande','Réception','Inventaire','Import','Entrée','Sortie','Transfert'];
-  function extPath(p){return '/inventaires/'+encodeURIComponent(cfg.room)+'/ext'+(p?'/'+p:'')}
+  function extPath(p){return '/scanpocket/'+encodeURIComponent(cfg.room)+'/ext'+(p?'/'+p:'')}
   function extLoad(){return fb('GET',extPath()).then(function(o){rpRef=Object.keys(o||{}).map(function(k){var x=o[k];x.id=k;return x}).sort(function(a,b){return b.t-a.t});return rpRef}).catch(function(){rpRef=[];return rpRef})}
   function extAdd(kind,note,file,n){
     var id=Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6),o={t:Date.now(),by:String(op||'').toLowerCase(),kind:kind};
@@ -2867,14 +2869,14 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
 
   /* Envoi d'e-mail (test) via un service Google Apps Script : le script vérifie le jeton Firebase et le rôle admin */
   var KM='inventaire_mailurl_v1',MAIL_TO='jean-pierre.gagliano@outlook.com';
-  var MAIL_URL='https://script.google.com/macros/s/AKfycbz9WXY1xkHPzxtnbBrAUccvcsCbutPH6PuXLlGMXhUXOxpKMe2IwWzsqP49uC0nNUbZ/exec';
+  var MAIL_URL='https://script.google.com/macros/s/AKfycbyfPAxUjCD_mYbvU59VEiB_w4_WKxtvJqex7XBmDL0HKcLv-qENTK3j3ZXdb1crulsR/exec';
   $('mailUrl').value=ld(KM,'')||MAIL_URL;
   $('mailUrl').onchange=function(){sv(KM,$('mailUrl').value.trim());if(!$('mailUrl').value.trim())$('mailUrl').value=MAIL_URL};
 
   /* ----- écran E-mails : règles par événement ----- */
   var mSched={},mTk='',mRules={},mUsers={},mEdit='',RLB=[['admin','Admin'],['superuser','SuperUser'],['operateur','Opérateur'],['lecteur','Lecteur'],['securityofficer','SecurityOfficer']];
   var MREC={demande:{on:true,roles:['admin','superuser']},decision:{on:true,req:true},reception:{on:true,req:true},cloture:{on:false},seuil:{on:true,roles:['superuser']},resume:{on:true,roles:['superuser']}};
-  function mPath(p){return '/inventaires/'+encodeURIComponent(cfg.room)+'/'+p}
+  function mPath(p){return '/scanpocket/'+encodeURIComponent(cfg.room)+'/'+p}
   function mDescr(r){
     if(!r)return 'personne';
     var p=[];if(r.req)p.push('le demandeur');
@@ -2927,14 +2929,14 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
   };
   /* modèles de messages : mêmes textes d'origine que dans le script d'envoi */
   var DEF_TPL={
-    demande:{s:'[Inventaire{env}] Nouvelle demande : {piece} ({quantite})',m:'Bonjour {nom},\n\nNouvelle demande de pièces de **{demandeur}** :\n\n- **{piece}** ({code})\n- Quantité : **{quantite}**\n- Destination : {destination}\n- Commentaire : {commentaire}'},
-    decision:{s:'[Inventaire{env}] Demande {decision} : {piece}',m:'Bonjour {nom},\n\nTa demande a été **{decision}** par {decideur} :\n\n- **{piece}** ({code})\n- Quantité : {quantite}\n- Destination : {destination}\n- Motif : {motif}'},
-    reception:{s:'[Inventaire{env}] Réception enregistrée : {piece} ({recu})',m:'Bonjour {nom},\n\nUne réception a été enregistrée par {decideur} :\n\n- **{piece}** ({code})\n- Reçu : **{recu}** sur {quantite} demandées\n- Destination : {destination}\n- Commentaire : {commentaire}'},
-    cloture:{s:'[Inventaire{env}] Demande clôturée : {piece}',m:'Bonjour {nom},\n\nLa demande suivante a été clôturée par {decideur} :\n\n- **{piece}** ({code})\n- Quantité : {quantite}\n- Destination : {destination}'},
-    sched_acommander:{s:'[Inventaire{env}] {nb} pièce(s) à commander',m:'Bonjour {nom},\n\nÉtat du {date} : **{nb}** pièce(s) sont sous leur seuil de commande.\n\n{liste}'},
-    sched_demandes:{s:'[Inventaire{env}] {nb} demande(s) en cours',m:'Bonjour {nom},\n\nÉtat du {date} : **{nb}** demande(s) de pièces en cours.\n\n{liste}'},
-    resume:{s:'[Inventaire{env}] {nb} pièce(s) à commander après {source}',m:'Bonjour {nom},\n\nAprès {source}, **{nb}** pièce(s) sont sous leur seuil de commande :\n\n{liste}'},
-    seuil:{s:'[Inventaire{env}] À commander : {piece}',m:'Bonjour {nom},\n\n**{piece}** ({code}) est passée sous son seuil de commande.\n\n- Stock : **{stock}**\n- Seuil : {seuil}'}
+    demande:{s:'[Scanpocket{env}] Nouvelle demande : {piece} ({quantite})',m:'Bonjour {nom},\n\nNouvelle demande de pièces de **{demandeur}** :\n\n- **{piece}** ({code})\n- Quantité : **{quantite}**\n- Destination : {destination}\n- Commentaire : {commentaire}'},
+    decision:{s:'[Scanpocket{env}] Demande {decision} : {piece}',m:'Bonjour {nom},\n\nTa demande a été **{decision}** par {decideur} :\n\n- **{piece}** ({code})\n- Quantité : {quantite}\n- Destination : {destination}\n- Motif : {motif}'},
+    reception:{s:'[Scanpocket{env}] Réception enregistrée : {piece} ({recu})',m:'Bonjour {nom},\n\nUne réception a été enregistrée par {decideur} :\n\n- **{piece}** ({code})\n- Reçu : **{recu}** sur {quantite} demandées\n- Destination : {destination}\n- Commentaire : {commentaire}'},
+    cloture:{s:'[Scanpocket{env}] Demande clôturée : {piece}',m:'Bonjour {nom},\n\nLa demande suivante a été clôturée par {decideur} :\n\n- **{piece}** ({code})\n- Quantité : {quantite}\n- Destination : {destination}'},
+    sched_acommander:{s:'[Scanpocket{env}] {nb} pièce(s) à commander',m:'Bonjour {nom},\n\nÉtat du {date} : **{nb}** pièce(s) sont sous leur seuil de commande.\n\n{liste}'},
+    sched_demandes:{s:'[Scanpocket{env}] {nb} demande(s) en cours',m:'Bonjour {nom},\n\nÉtat du {date} : **{nb}** demande(s) de pièces en cours.\n\n{liste}'},
+    resume:{s:'[Scanpocket{env}] {nb} pièce(s) à commander après {source}',m:'Bonjour {nom},\n\nAprès {source}, **{nb}** pièce(s) sont sous leur seuil de commande :\n\n{liste}'},
+    seuil:{s:'[Scanpocket{env}] À commander : {piece}',m:'Bonjour {nom},\n\n**{piece}** ({code}) est passée sous son seuil de commande.\n\n- Stock : **{stock}**\n- Seuil : {seuil}'}
   };
   var TPL_TAGS={
     demande:['nom','piece','code','quantite','demandeur','destination','commentaire','env','lien'],
@@ -2946,7 +2948,7 @@ dialog .row{margin-top:8px;flex-wrap:wrap}
     sched_demandes:['nom','nb','liste','date','env','lien'],
     seuil:['nom','piece','code','stock','seuil','env','lien']
   };
-  var TPL_EX={nom:'Marie',piece:'Biseptine',code:'3181224191257371953',quantite:'6',recu:'4',demandeur:'Paul',decideur:'Jean-Pierre',decision:'approuvée',destination:'Pharmacie · Armoire',motif:'OK pour la commande',commentaire:'urgent',stock:'4',seuil:'10',source:"l'import « stock.csv »",nb:'2',liste:'- **Biseptine** : 4 (seuil 10), manque 6\n- **Colludol** : 0 (seuil 10), manque 10',date:'09/10/2026 08:00',env:ISTEST?' TEST':'',lien:'https://jpg650965096509-a11y.github.io/Inventaire/…'};
+  var TPL_EX={nom:'Marie',piece:'Biseptine',code:'3181224191257371953',quantite:'6',recu:'4',demandeur:'Paul',decideur:'Jean-Pierre',decision:'approuvée',destination:'Pharmacie · Armoire',motif:'OK pour la commande',commentaire:'urgent',stock:'4',seuil:'10',source:"l'import « stock.csv »",nb:'2',liste:'- **Biseptine** : 4 (seuil 10), manque 6\n- **Colludol** : 0 (seuil 10), manque 10',date:'09/10/2026 08:00',env:ISTEST?' TEST':'',lien:'https://appscanpocket.github.io/Scanpocket/…'};
   function tplFill(t,v,drop){
     return String(t).replace(/\r/g,'').split('\n').map(function(line){
       var d=false,l=line.replace(/\{([a-z_]+)\}/g,function(all,k){if(!v.hasOwnProperty(k))return all;if(String(v[k]).trim()===''){d=true;return ''}return String(v[k])});
